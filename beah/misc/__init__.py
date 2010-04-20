@@ -215,6 +215,9 @@ def str2log_level(s, default=logging.WARNING):
 def pre_open(name):
     if not os.path.isfile(name):
         path = os.path.dirname(name)
+        if not path:
+            # path component empty - using working directory.
+            return
         if not os.path.isdir(path):
             os.makedirs(path)
 
