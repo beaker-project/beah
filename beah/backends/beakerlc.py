@@ -473,7 +473,7 @@ class BeakerLCBackend(SerializingBackend):
 
         task_id = self.task_data['task_env']['TASKID']
         self.task_data['task_env']['LAB_CONTROLLER'] = config.get_conf('beah-backend').get('DEFAULT', 'COBBLER_SERVER')
-        run_cmd, _ = self.__tasks_by_id.get(id, (None, None))
+        run_cmd, _ = self.__tasks_by_id.get(task_id, (None, None))
         new_cmd = not run_cmd
         if new_cmd:
             task_name = self.task_data['task_env']['TASKNAME'] or None
