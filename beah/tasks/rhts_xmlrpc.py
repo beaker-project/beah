@@ -504,9 +504,10 @@ class RHTSMain(object):
                     var[3] = cmd_value
                     log.debug("variable match: %r", var)
                 if answ is not None:
-                    if cmd_value in states:
-                        log.debug("value match: %r", cmd_value)
-                        answ.append(cmd_value)
+                    value = var[3]
+                    if value in states:
+                        log.debug("value match: %r", value)
+                        answ.append(value)
                     else:
                         answ = None
             if answ is not None:
