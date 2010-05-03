@@ -49,7 +49,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/init.d/%{name}*
 %attr(0755, root, root)%{_bindir}/%{name}*
 %attr(0755, root, root)%{_bindir}/beat_tap_filter
-%{python_sitelib}/%{name}-%{version}-*
+%{python_sitelib}/%{name}-*
 %{python_sitelib}/%{name}/
 %{python_sitelib}/beahlib.py*
 %{_datadir}/%{name}
