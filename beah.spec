@@ -32,7 +32,7 @@ Powered by Twisted.
 
 
 %prep
-%setup -n %{name}-%{unmangled_version} -n %{name}-%{unmangled_version}
+%setup -n %{name}-%{version} -n %{name}-%{version}
 
 %build
 %{__python} setup.py build
