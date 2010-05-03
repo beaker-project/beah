@@ -473,7 +473,7 @@ class BeakerLCBackend(SerializingBackend):
 
         task_id = self.task_data['task_env']['TASKID']
         self.task_data['task_env']['LAB_CONTROLLER'] = config.get_conf('beah-backend').get('DEFAULT', 'COBBLER_SERVER')
-        run_cmd, _ = self.__tasks_by_id.get(id, (None, None))
+        run_cmd, _ = self.__tasks_by_id.get(task_id, (None, None))
         new_cmd = not run_cmd
         if new_cmd:
             task_name = self.task_data['task_env']['TASKNAME'] or None
@@ -571,7 +571,9 @@ class BeakerLCBackend(SerializingBackend):
             wrargs[name] = (args, kwargs)
             jname = self.conf.get('DEFAULT', 'VAR_ROOT') + "/journals/%s/%s" % (id, name)
             journal = open_(jname, "ab+")
-            writer = BeakerWriter(journal, offs, filename=name, id=id,
+            writer = BeakerWriter(journal, offs, id=id,
+                    filename=os.path.basename(name),
+                    path=os.path.dirname(name),
                     proxy=self.proxy, *args, **kwargs)
             writer_set_offset = writer.set_offset
             def wroff(offs):
@@ -615,15 +617,15 @@ class BeakerLCBackend(SerializingBackend):
         if evt.event() == 'file_write':
             evt = event.Event(evt)
             evt.args()['data'] = '...hidden...'
-        self.get_writer(id, '.task_beah_raw').write(jsonln(evt))
+        self.get_writer(id, 'debug/.task_beah_raw').write(jsonln(evt))
         return False
 
     def proc_evt_output(self, evt):
-        self.get_writer(evt.task_id, 'task_output_%s' % evt.arg('out_handle')) \
+        self.get_writer(evt.task_id, 'debug/task_output_%s' % evt.arg('out_handle')) \
                         .write(str(evt.arg('data')))
 
     def proc_evt_lose_item(self, evt):
-        f = self.get_writer(evt.task_id, 'task_beah_unexpected')
+        f = self.get_writer(evt.task_id, 'debug/task_beah_unexpected')
         f.write(str(evt.arg('data')) + "\n")
 
     def proc_evt_log(self, evt):
@@ -638,7 +640,7 @@ class BeakerLCBackend(SerializingBackend):
                 message = reason
         message = "LOG:%s(%s): %s\n" % (evt.arg('log_handle', ''),
                 self.log_type(evt.arg('log_level')), message)
-        self.get_writer(evt.task_id, 'task_log').write(message)
+        self.get_writer(evt.task_id, 'debug/task_log').write(message)
 
     def proc_evt_echo(self, evt):
         cmd = self.get_command(evt.arg('cmd_id'))
@@ -703,7 +705,7 @@ class BeakerLCBackend(SerializingBackend):
             score = evt.arg("statistics", {}).get("score", 0)
             message = evt.arg('message', '') or self.mk_msg(event=evt)
             log_msg = "%s:%s: %s score=%s\n" % (type[1], handle, message, score)
-            self.get_writer(evt.task_id, 'task_log').write(log_msg)
+            self.get_writer(evt.task_id, 'debug/task_log').write(log_msg)
             self.proxy.callRemote(self.TASK_RESULT, evt.task_id,
                     type[0], handle, score, message) \
                             .addCallback(self.handle_Result, event_id=evt.id())

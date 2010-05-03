@@ -1,0 +1,6 @@
+*.py[co]
+*.rpm
+.*.sw[po]
+/build
+/dist
+/beah.egg-info
