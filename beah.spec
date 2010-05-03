@@ -1,5 +1,9 @@
-%{!?dist: %global __python python2.6}
-%{!?dist: %global rhel3 26}
+# The following allows us to build properly on rhel3
+%if "0%{?dist}" == "0"
+%global __python python2.6
+%global _rhel3 26
+%endif
+
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
