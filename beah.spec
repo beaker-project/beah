@@ -19,10 +19,11 @@ Prefix: %{_prefix}
 BuildArch: noarch
 Vendor: Marian Csontos <mcsontos@redhat.com>
 Packager: Marian Csontos <mcsontos@redhat.com>
-Requires: python%{?rhel3} python%{?rhel3}-hashlib python%{?rhel3}-setuptools python%{?rhel3}-simplejson 
-Requires: python%{?rhel3}-twisted-core python%{?rhel3}-twisted-web python%{?rhel3}-uuid 
-Requires: python%{?rhel3}-zope-interface
-BuildRequires: python%{?rhel3}-devel python%{?rhel3}-setuptools
+Requires: python%{?_rhel3} python%{?_rhel3}-hashlib python%{?_rhel3}-setuptools
+Requires: python%{?_rhel3}-simplejson 
+Requires: python%{?_rhel3}-twisted-core python%{?_rhel3}-twisted-web python%{?_rhel3}-uuid 
+Requires: python%{?_rhel3}-zope-interface
+BuildRequires: python%{?_rhel3}-devel python%{?_rhel3}-setuptools
 
 %description
 Beah - Beaker Test Harness.
