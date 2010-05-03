@@ -3,7 +3,7 @@
 
 Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
 Name: beah
-Version: 0.6
+Version: 0.2
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -32,20 +32,20 @@ Powered by Twisted.
 
 
 %prep
-%setup -n %{name}-%{version} -n %{name}-%{version}
+%setup -q
 
 %build
 %{__python} setup.py build
 
 %install
-%{__python} setup.py install --single-version-externally-managed -O1 --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
+%{__python} setup.py install --optimize=1 --root=$RPM_BUILD_ROOT $PREFIX
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%files -f INSTALLED_FILES
+%files
 %defattr(-,root,root)
 
 %changelog
-* Mon May 03 2010 Bill Peck <bpeck@redhat.com> 0.6-1
+* Mon May 03 2010 Bill Peck <bpeck@redhat.com> 0.2-1
  - Initial spec file and use of tito for tagging and building.
