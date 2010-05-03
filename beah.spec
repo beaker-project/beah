@@ -6,8 +6,9 @@ Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahoste
 Name: beah
 Version: 0.2.a1
 Release: 0%{?dist}
-Source0: %{name}-%{unmangled_version}.tar.gz
-License: GPL
+URL: http://fedorahosted.org/beah
+Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
+License: GPLv2+
 Group: Development/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Prefix: %{_prefix}
