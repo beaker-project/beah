@@ -1,6 +1,7 @@
+%{!?dist: %global __python python2.6}
+%{!?dist: %global rhel3 26}
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
-
 Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
 Name: beah
 Version: 0.3
@@ -14,9 +15,10 @@ Prefix: %{_prefix}
 BuildArch: noarch
 Vendor: Marian Csontos <mcsontos@redhat.com>
 Packager: Marian Csontos <mcsontos@redhat.com>
-Requires: python python-hashlib python-setuptools python-simplejson 
-Requires: python-twisted-core python-twisted-web python-uuid python-zope-interface
-BuildRequires: python-devel python-setuptools
+Requires: python%{?rhel3} python%{?rhel3}-hashlib python%{?rhel3}-setuptools python%{?rhel3}-simplejson 
+Requires: python%{?rhel3}-twisted-core python%{?rhel3}-twisted-web python%{?rhel3}-uuid 
+Requires: python%{?rhel3}-zope-interface
+BuildRequires: python%{?rhel3}-devel python%{?rhel3}-setuptools
 
 %description
 Beah - Beaker Test Harness.
