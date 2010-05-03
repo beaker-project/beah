@@ -3,7 +3,7 @@
 
 Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
 Name: beah
-Version: 0.2
+Version: 0.3
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -55,5 +55,5 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/%{name}
 
 %changelog
-* Mon May 03 2010 Bill Peck <bpeck@redhat.com> 0.2-1
+* Mon May 03 2010 Bill Peck <bpeck@redhat.com> 0.3-1
  - Initial spec file and use of tito for tagging and building.
