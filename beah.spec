@@ -19,10 +19,17 @@ Prefix: %{_prefix}
 BuildArch: noarch
 Vendor: Marian Csontos <mcsontos@redhat.com>
 Packager: Marian Csontos <mcsontos@redhat.com>
-Requires: python%{?_rhel3} python-hashlib python%{?_rhel3}-setuptools
+Requires: python%{?_rhel3}
+Requires: python%{?_rhel3}-setuptools
 Requires: python%{?_rhel3}-simplejson 
-Requires: python%{?_rhel3}-twisted-core python%{?_rhel3}-twisted-web python-uuid 
+Requires: python%{?_rhel3}-twisted-core
+Requires: python%{?_rhel3}-twisted-web
 Requires: python%{?_rhel3}-zope-interface
+# RHEL3 python26 includes these, but since its a versioned package doesn't provide them.
+%if "0%{?dist}" != "0"
+Requires: python-hashlib
+Requires: python-uuid
+%endif
 BuildRequires: python%{?_rhel3}-devel python%{?_rhel3}-setuptools
 
 %description
