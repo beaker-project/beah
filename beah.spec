@@ -1,11 +1,10 @@
-%{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_pytho
-n_lib; print get_python_lib()")}
+%{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 
 Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
 Name: beah
-Version: 0.3
-Release: 0%{?dist}
+Version: 0.4
+Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -18,7 +17,6 @@ Packager: Marian Csontos <mcsontos@redhat.com>
 Requires: python python-hashlib python-setuptools python-simplejson 
 Requires: python-twisted-core python-twisted-web python-uuid python-zope-interface
 BuildRequires: python-devel python-setuptools
-Url: http://fedorahosted.org/beaker/wiki
 
 %description
 Beah - Beaker Test Harness.
