@@ -19,9 +19,9 @@ Prefix: %{_prefix}
 BuildArch: noarch
 Vendor: Marian Csontos <mcsontos@redhat.com>
 Packager: Marian Csontos <mcsontos@redhat.com>
-Requires: python%{?_rhel3} python%{?_rhel3}-hashlib python%{?_rhel3}-setuptools
+Requires: python%{?_rhel3} python-hashlib python%{?_rhel3}-setuptools
 Requires: python%{?_rhel3}-simplejson 
-Requires: python%{?_rhel3}-twisted-core python%{?_rhel3}-twisted-web python%{?_rhel3}-uuid 
+Requires: python%{?_rhel3}-twisted-core python%{?_rhel3}-twisted-web python-uuid 
 Requires: python%{?_rhel3}-zope-interface
 BuildRequires: python%{?_rhel3}-devel python%{?_rhel3}-setuptools
 
