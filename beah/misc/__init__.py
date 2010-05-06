@@ -105,31 +105,6 @@ def make_log_handler(log, log_path, log_file_name=None, syslog=None,
     else:
         fmt = ' %(funcName)s: %(levelname)s %(message)s'
 
-    if log_file_name:
-        if log_file_name[0] == '/':
-            sep_ix = log_file_name.rfind('/')
-            (log_path, log_file_name) = (log_file_name[:sep_ix], log_file_name[sep_ix+1:])
-
-        # Create a directory for logging and check permissions
-        if not os.access(log_path, os.F_OK):
-            try:
-                os.makedirs(log_path, mode=0755)
-            except:
-                print >> sys.stderr, "ERROR: Could not create %s." % log_path
-                # FIXME: should attempt to create a temp file
-                raise
-        elif not os.access(log_path, os.X_OK | os.W_OK):
-            msg = "ERROR: Wrong access rights to %s." % log_path
-            print >> sys.stderr, msg
-            # FIXME: should attempt to create a temp file
-            raise exceptions.RuntimeError(msg)
-
-        #lhandler = logging.handlers.RotatingFileHandler(log_path + "/" + log_file_name,
-        #        maxBytes=1000000, backupCount=5)
-        lhandler = logging.FileHandler(log_path + "/" + log_file_name)
-        lhandler.setFormatter(logging.Formatter('%(asctime)s'+fmt))
-        log.addHandler(lhandler)
-
     if syslog:
         lhandler = logging.handlers.SysLogHandler()
         lhandler.setFormatter(logging.Formatter('%(asctime)s %(name)s'+fmt))
@@ -139,6 +114,15 @@ def make_log_handler(log, log_path, log_file_name=None, syslog=None,
     if console:
         lhandler = logging.StreamHandler()
         lhandler.setFormatter(logging.Formatter('%(asctime)s %(name)s'+fmt))
+        log.addHandler(lhandler)
+
+    if log_file_name:
+        if not os.path.isabs(log_file_name):
+            log_file_name = os.path.join(log_path, log_file_name)
+        # FIXME: should attempt to create a temp file if the following fails:
+        pre_open(log_file_name)
+        lhandler = logging.FileHandler(log_file_name)
+        lhandler.setFormatter(logging.Formatter('%(asctime)s'+fmt))
         log.addHandler(lhandler)
 
 def is_class_verbose(cls):
@@ -214,10 +198,20 @@ def str2log_level(s, default=logging.WARNING):
 
 def pre_open(name):
     if not os.path.isfile(name):
-        path = os.path.dirname(name)
-        if not path:
-            # path component empty - using working directory.
-            return
-        if not os.path.isdir(path):
+        ensuredir(os.path.dirname(name))
+
+def ensuredir(path):
+    if not path:
+        # path component empty - using working directory.
+        return
+    if not os.path.isdir(path):
+        try:
             os.makedirs(path)
+        except exceptions.OSError:
+            # the directory was created in the meantime.
+            if not os.path.isdir(path):
+                raise
+    # check permissions
+    if not os.access(path, os.X_OK | os.W_OK):
+        raise exceptions.OSError("Directory '%s' not writable." % path)
 

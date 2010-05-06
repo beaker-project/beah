@@ -19,7 +19,7 @@
 from beah.wires.internals.twadaptors import BackendAdaptor_JSON, TaskAdaptor_JSON
 from beah.wires.internals.twtask import Spawn
 from beah.core.controller import Controller
-from beah.misc import runtimes, make_log_handler, make_class_verbose, str2log_level
+from beah.misc import runtimes, make_log_handler, make_class_verbose, str2log_level, ensuredir
 from beah.misc.log_this import log_this
 from beah import config
 from twisted.internet import protocol
@@ -74,18 +74,8 @@ def start_server(conf=None, backend_host=None, backend_port=None,
     log.setLevel(str2log_level(conf.get('CONTROLLER', 'LOG')))
 
     # Create a directory for runtime
-    vp = conf.get('CONTROLLER', 'VAR_ROOT')
-    if not os.access(vp, os.F_OK):
-        try:
-            os.makedirs(vp, mode=0755)
-        except:
-            print >> sys.stderr, "ERROR: Could not create %s." % vp
-            # FIXME: should create a temp file
-            raise
-    elif not os.access(vp, os.X_OK | os.W_OK):
-        print >> sys.stderr, "ERROR: Wrong access rights to %s." % ep
-        # FIXME: should create a temp file
-        raise
+    # FIXME: should try to create a temp path if following fails:
+    ensuredir(conf.get('CONTROLLER', 'VAR_ROOT'))
 
     # Create a directory for logging and check permissions
     lp = conf.get('CONTROLLER', 'LOG_PATH')
