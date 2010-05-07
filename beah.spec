@@ -8,8 +8,8 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
 Name: beah
-Version: 0.6.1
-Release: 2%{?dist}
+Version: 0.6.2
+Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -69,6 +69,12 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/%{name}
 
 %changelog
+* Fri May 07 2010 Marian Csontos <mcsontos@redhat.com> 0.6.2-1
+- Fix: Sync version in setup.py with tito (mcsontos@redhat.com)
+- Added: tito metadata (bpeck@redhat.com)
+- Added: proper spec file (bpeck@redhat.com)
+- Fix: makedirs in race causing crash (mcsontos@redhat.com)
+
 * Tue May 04 2010 Marian Csontos <mcsontos@redhat.com> 0.6.1-2
 - Use ReleaseTagger as default on the branch. (mcsontos@redhat.com)
 
