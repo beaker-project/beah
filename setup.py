@@ -107,7 +107,8 @@ requirements = []
 setup(
 
     name="beah",
-    version="0.1.a1%s" % os.environ.get('BEAH_DEV', strftime(".dev%Y%m%d%H%M")),
+    #version="0.1.a1%s" % os.environ.get('BEAH_DEV', strftime(".dev%Y%m%d%H%M")),
+    version="0.6.2",
 
     install_requires=requirements,
     # NOTE: these can be downloaded from pypi:
