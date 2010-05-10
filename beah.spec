@@ -18,7 +18,6 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Prefix: %{_prefix}
 BuildArch: noarch
 Vendor: Marian Csontos <mcsontos@redhat.com>
-Packager: Marian Csontos <mcsontos@redhat.com>
 Requires: python%{?_rhel3}
 Requires: python%{?_rhel3}-setuptools
 Requires: python%{?_rhel3}-simplejson 
@@ -52,6 +51,7 @@ Powered by Twisted.
 %{__python} setup.py build
 
 %install
+rm -rf $RPM_BUILD_ROOT
 %{__python} setup.py install --optimize=1 --root=$RPM_BUILD_ROOT $PREFIX
 
 %clean
