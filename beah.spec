@@ -9,7 +9,7 @@
 Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
 Name: beah
 Version: 0.6.2
-Release: 1%{?dist}
+Release: 2%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -69,6 +69,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/%{name}
 
 %changelog
+* Mon May 10 2010 Marian Csontos <mcsontos@redhat.com> 0.6.2-2
+- Sorted out rpmlint warnings. (mcsontos@redhat.com)
+
 * Fri May 07 2010 Marian Csontos <mcsontos@redhat.com> 0.6.2-1
 - Fix: Sync version in setup.py with tito (mcsontos@redhat.com)
 - Added: tito metadata (bpeck@redhat.com)
