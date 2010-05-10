@@ -36,7 +36,7 @@ def glob_(prefix, *patterns):
 def rdglob(prefix, dirs, din=("*"), dex=()):
     """
     Glob directories recursively.
-    
+
     prefix - root directory
     dirs - directory names relative to root to process
     din - include directories matching any of these patterns
@@ -102,13 +102,16 @@ else:
             'zope.interface >= 0',
             'simplejson >= 0']
 
-requirements = [] 
+requirements = []
+
+version = "0.6.5"
+
+long_version = os.environ.get('BEAH_VER', version) + os.environ.get('BEAH_DEV', strftime(".dev%Y%m%d%H%M"))
 
 setup(
 
     name="beah",
-    #version="0.1.a1%s" % os.environ.get('BEAH_DEV', strftime(".dev%Y%m%d%H%M")),
-    version="0.6.5",
+    version=long_version,
 
     install_requires=requirements,
     # NOTE: these can be downloaded from pypi:

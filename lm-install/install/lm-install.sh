@@ -132,11 +132,11 @@ function lm_unpack()
   lm_pushd || return 1
     export BEAH_DEV
 
-    BEAH_SRC_DIR="$PWD/beah-0.1.a1${BEAH_DEV}"
+    BEAH_SRC_DIR="$PWD/beah-${BEAH_VER}${BEAH_DEV}"
     if [[ -d "$BEAH_SRC_DIR" ]]; then
-      echo "Directory \"beah-0.1.a1${BEAH_DEV}\" exists."
+      echo "Directory \"beah-${BEAH_VER}${BEAH_DEV}\" exists."
     else
-      tar xvzf ${LM_INSTALL_ROOT}/install/beah-0.1.a1${BEAH_DEV}.tar.gz
+      tar xvzf ${LM_INSTALL_ROOT}/install/beah-${BEAH_VER}${BEAH_DEV}.tar.gz
     fi
   popd
   [[ -d "$BEAH_SRC_DIR" ]]
@@ -149,7 +149,7 @@ function lm_build_rpm()
   local BEAH_SRC_DIR=
   lm_unpack || return 1;
   pushd $BEAH_SRC_DIR || return 1;
-    BEAH_RPM="${PWD}/dist/beah-0.1.a1${BEAH_DEV}-1.noarch.rpm"
+    BEAH_RPM="${PWD}/dist/beah-${BEAH_VER}${BEAH_DEV}-1.noarch.rpm"
     if [[ -e "$BEAH_RPM" ]]; then
       echo "Nothing to do: RPM file \"$BEAH_RPM\" already exists."
     else
@@ -173,7 +173,7 @@ function lm_build_egg()
   lm_unpack || return 1
   pushd $BEAH_SRC_DIR || return 1;
     local egg_ver="$(python -V 2>&1 | cut -d " " -f 2 -s)"
-    BEAH_EGG="${PWD}/dist/beah-0.1.a1${BEAH_DEV}-py$egg_ver.egg"
+    BEAH_EGG="${PWD}/dist/beah-${BEAH_VER}${BEAH_DEV}-py$egg_ver.egg"
     if [[ -e "$BEAH_EGG" ]]; then
       echo "Nothing to do: Egg file \"$BEAH_EGG\" already exists."
     else

@@ -36,6 +36,7 @@ fi
 ################################################################################
 # SET-UP:
 ################################################################################
+export BEAH_VER="${BEAH_VER:-"0.6.5"}"
 export BEAH_DEV=".dev$(date "+%Y%m%d%H%M")"
 
 if [[ -f "$LM_INSTALL_ENV" ]]; then
@@ -63,7 +64,7 @@ mkdir -p $DISTRO_ROOT/install
 # BUILD SDIST:
 ################################################################################
 python setup.py sdist
-cp dist/beah-0.1.a1${BEAH_DEV}.tar.gz $DISTRO_ROOT/install/
+cp dist/beah-${BEAH_VER}${BEAH_DEV}.tar.gz $DISTRO_ROOT/install/
 
 ################################################################################
 # WRITE FILES:
@@ -89,6 +90,7 @@ LM_FAKELC="${LM_FAKELC}"
 FAKELC_SERVICE="${FAKELC_SERVICE}"
 export BEAH_NODEP="${BEAH_NODEP}"
 
+BEAH_VER="${BEAH_VER}"
 BEAH_DEV="${BEAH_DEV}"
 END
 
