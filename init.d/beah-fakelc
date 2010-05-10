@@ -2,7 +2,7 @@
 #
 # beah-fakelc:	Start the Beaker Harness server
 #
-# chkconfig:	345 99 99
+# chkconfig:	- 99 99
 # description:	The Beaker Harness server. Backend is required too...
 
 # Source function library.

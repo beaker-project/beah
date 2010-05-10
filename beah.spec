@@ -2,11 +2,14 @@
 %if "0%{?dist}" == "0"
 %global __python python2.6
 %global _rhel3 26
+%global _py_dev 26
+%else
+%global _py_dev 2
 %endif
 
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
-Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
+Summary: Test Harness. Offspring of Beaker project: http://fedorahosted.org/beaker
 Name: beah
 Version: 0.6.2
 Release: 2%{?dist}
@@ -18,6 +21,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Prefix: %{_prefix}
 BuildArch: noarch
 Vendor: Marian Csontos <mcsontos@redhat.com>
+Requires: python(abi) >= 2.3
 Requires: python%{?_rhel3}
 Requires: python%{?_rhel3}-setuptools
 Requires: python%{?_rhel3}-simplejson 
@@ -29,7 +33,8 @@ Requires: python%{?_rhel3}-zope-interface
 Requires: python-hashlib
 Requires: python-uuid
 %endif
-BuildRequires: python%{?_rhel3}-devel python%{?_rhel3}-setuptools
+BuildRequires: python%{?_py_dev}-devel
+BuildRequires: python%{?_rhel3}-setuptools
 
 %description
 Beah - Beaker Test Harness.
@@ -59,7 +64,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root)
-%{_sysconfdir}/%{name}*
+%config(noreplace) %{_sysconfdir}/%{name}*
 %{_sysconfdir}/init.d/%{name}*
 %attr(0755, root, root)%{_bindir}/%{name}*
 %attr(0755, root, root)%{_bindir}/beat_tap_filter
@@ -67,6 +72,20 @@ rm -rf $RPM_BUILD_ROOT
 %{python_sitelib}/%{name}/
 %{python_sitelib}/beahlib.py*
 %{_datadir}/%{name}
+%doc %{_datadir}/%{name}/README
+%doc %{_datadir}/%{name}/COPYING
+
+%post
+chkconfig --add beah-fakelc
+chkconfig --add beah-srv
+chkconfig --add beah-beaker-backend
+chkconfig --add beah-fwd-backend
+
+%preun
+chkconfig --del beah-fakelc
+chkconfig --del beah-srv
+chkconfig --del beah-beaker-backend
+chkconfig --del beah-fwd-backend
 
 %changelog
 * Mon May 10 2010 Marian Csontos <mcsontos@redhat.com> 0.6.2-2

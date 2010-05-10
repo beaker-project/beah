@@ -87,7 +87,6 @@ more_data_files = glob_to(prefix, 'share/beah', rdglob(prefix, [
     'recipesets',
     'examples/tasks',
     'examples/tests',
-    'beah-tests',
     'tests', # FIXME: add some tests here!
     'doc',
     ], dex=('*.tmp', '*.wip')))
@@ -134,6 +133,7 @@ setup(
     data_files=[
         ('/etc', ['beah.conf', 'beah_beaker.conf']),
         ('/etc/init.d', ['init.d/beah-srv', 'init.d/beah-fakelc', 'init.d/beah-beaker-backend', 'init.d/beah-fwd-backend']),
+        ('share/beah', ['README', 'COPYING']),
         ] + more_data_files,
     #package_data={
     #    '': ['beah.conf', 'beah_beaker.conf'],
@@ -157,26 +157,28 @@ setup(
         ),
     },
 
-    license="GPL",
+    license="GPLv2+",
     keywords="test testing harness beaker twisted qa",
     url="http://fedorahosted.org/beaker/wiki",
     author="Marian Csontos",
     author_email="mcsontos@redhat.com",
-    description="Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.",
+    description="Test Harness. Offspring of Beaker project.",
     long_description="""\
-Beah - Beaker Test Harness.
+Beah - Test Harness.
 
-Ultimate Test Harness, with goal to serve any tests and any test scheduler
-tools. Harness consist of a server and two kinds of clients - backends and
-tasks.
+Test Harness with goal to serve any tests and any test schedulers.
+Harness consist of a server and two kinds of clients - backends and tasks.
 
-Backends issue commands to Server and process events from tasks.
-Tasks are mostly events producers.
+Backends issue commands to Server and process events from tasks. Backends
+usually communicate with a Scheduler or interact with an User.
+
+Tasks are events producers. Tasks are wrappers for Tests to produce stream of
+events.
 
 Powered by Twisted.
 """,
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 3 - Beta',
         'Environment :: Console',
         'Environment :: No Input/Output (Daemon)',
         'Framework :: Twisted',
