@@ -74,9 +74,6 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755, root, root)%{_bindir}/*
 %{python_sitelib}/*
 %{_datadir}/%{name}/
-%exclude %{_datadir}/%{name}/README
-%exclude %{_datadir}/%{name}/COPYING
-%exclude %{_datadir}/%{name}/LICENSE
 %doc %{_datadir}/%{name}/README
 %doc %{_datadir}/%{name}/COPYING
 %doc %{_datadir}/%{name}/LICENSE
@@ -87,7 +84,7 @@ for service in %{_services}; do
 done
 
 %preun
-if [ $1 = 0 ] ; then
+if [ $1 = 0 ]; then
     for service in %{_services}; do
         /sbin/service $service stop >/dev/null 2>&1
         /sbin/chkconfig --del $service
@@ -95,9 +92,9 @@ if [ $1 = 0 ] ; then
 fi
 
 %postun
-if [ "$1" -ge "1" ] ; then
+if [ "$1" -ge "1" ]; then
     for service in %{_services}; do
-        /sbin/service $service condrestart >/dev/null 2>&1 || :
+        /sbin/service $service condrestart >/dev/null 2>&1 || :
     done
 fi
 

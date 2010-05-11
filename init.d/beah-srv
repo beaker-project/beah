@@ -16,7 +16,7 @@
 #
 # In order to have multiple daemons of same type running at the same time it
 # is necessary/recomended to create a wrapper with different name.
-prog="beah-srv"
+prog=beah-srv
 # FIXME: path should use the prefix used during installation, not the const
 # /usr
 BEAH_INSTALL_ROOT=/usr
