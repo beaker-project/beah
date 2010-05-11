@@ -12,7 +12,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project: http://fedorahosted.org/beaker
 Name: beah
-Version: 0.6.rpmlint.3
+Version: 0.6.rpmlint.4
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -99,7 +99,7 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
-* Tue May 11 2010 Marian Csontos <mcsontos@redhat.com> 0.6.rpmlint.3-1
+* Tue May 11 2010 Marian Csontos <mcsontos@redhat.com> 0.6.rpmlint.4-1
 - Spec file changed to be more template-alike. (mcsontos@redhat.com)
 - Commented configuration files. (mcsontos@redhat.com)
 - Cleaned up more rpmlint errors and warnings. (mcsontos@redhat.com)
