@@ -11,8 +11,8 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project: http://fedorahosted.org/beaker
 Name: beah
-Version: 0.6.rpmlint.0
-Release: 0%{?dist}
+Version: 0.6.rpmlint.1
+Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -87,6 +87,11 @@ chkconfig --del beah-beaker-backend
 chkconfig --del beah-fwd-backend
 
 %changelog
+* Tue May 11 2010 Marian Csontos <mcsontos@redhat.com> 0.6.rpmlint.1-1
+- Spec file changed to be more template-alike. (mcsontos@redhat.com)
+- Commented configuration files. (mcsontos@redhat.com)
+- Cleaned up more rpmlint errors and warnings. (mcsontos@redhat.com)
+
 * Mon May 10 2010 Marian Csontos <mcsontos@redhat.com> 0.6.2-2
 - Sorted out rpmlint warnings. (mcsontos@redhat.com)
 
