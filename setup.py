@@ -133,7 +133,7 @@ setup(
     data_files=[
         ('/etc', ['beah.conf', 'beah_beaker.conf']),
         ('/etc/init.d', ['init.d/beah-srv', 'init.d/beah-fakelc', 'init.d/beah-beaker-backend', 'init.d/beah-fwd-backend']),
-        ('share/beah', ['README', 'COPYING']),
+        ('share/beah', ['README', 'COPYING', 'LICENSE']),
         ] + more_data_files,
     #package_data={
     #    '': ['beah.conf', 'beah_beaker.conf'],

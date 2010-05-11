@@ -71,8 +71,10 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/%{name}/
 %exclude %{_datadir}/%{name}/README
 %exclude %{_datadir}/%{name}/COPYING
+%exclude %{_datadir}/%{name}/LICENSE
 %doc %{_datadir}/%{name}/README
 %doc %{_datadir}/%{name}/COPYING
+%doc %{_datadir}/%{name}/LICENSE
 
 %post
 chkconfig --add beah-fakelc
