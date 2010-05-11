@@ -30,11 +30,11 @@ fi
 # DO NOT CHANGE THESE VARIABLES WITHOUT GOOD REASON:
 
 path="$BEAH_INSTALL_ROOT/bin/$prog"
-[ -f $path ] || exit 0
 PIDFILE=/var/run/${prog}.pid
 LOCKFILE=/var/lock/subsys/$prog
 
 start() {
+    [ -f $path ] || exit 5
     echo "Waiting for network..."
     if [[ -x "/usr/bin/nm-online" ]]; then
       /usr/bin/nm-online
@@ -42,9 +42,8 @@ start() {
     echo -n $"Starting $prog: "
     daemon --user $RUN_AS $path "$OPTIONS >> /tmp/$prog.out 2>&1 &" 'echo $!' ">$PIDFILE"
     RETVAL=$?
-    #echo "\$!=$!"
-    echo "$prog running as process `cat $PIDFILE`"
     echo
+    echo "$prog running as process `cat $PIDFILE`"
     if test $RETVAL = 0; then
         touch $LOCKFILE
     fi
@@ -89,13 +88,16 @@ case "$1" in
     restart)
 	restart
 	;;
-    condrestart)
+    condrestart|try-restart)
 	condrestart
 	;;
     reload)
         ;;
-    *)
-	echo $"Usage: $0 {start|stop|status|restart|condrestart|reload}"
+    force-reload)
+        restart
+        ;;
+    usage|*)
+	echo "Usage: $0 {start|stop|status|restart|condrestart|reload|force-reload|usage}"
 	;;
 esac
 exit $RETVAL

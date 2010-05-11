@@ -6,6 +6,7 @@
 %else
 %global _py_dev 2
 %endif
+%global _services "beah-fakelc beah-srv beah-beaker-backend beah-fwd-backend"
 
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
@@ -20,7 +21,6 @@ Group: Development/Tools
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 Prefix: %{_prefix}
 BuildArch: noarch
-Vendor: Marian Csontos <mcsontos@redhat.com>
 Requires: python(abi) >= 2.3
 Requires: python%{?_rhel3}
 Requires: python%{?_rhel3}-setuptools
@@ -33,6 +33,11 @@ Requires: python%{?_rhel3}-zope-interface
 Requires: python-hashlib
 Requires: python-uuid
 %endif
+Requires(post): chkconfig
+Requires(preun): chkconfig
+# This is for /sbin/service
+Requires(preun): initscripts
+Requires(postun): initscripts
 BuildRequires: python%{?_py_dev}-devel
 BuildRequires: python%{?_rhel3}-setuptools
 
@@ -77,16 +82,24 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_datadir}/%{name}/LICENSE
 
 %post
-chkconfig --add beah-fakelc
-chkconfig --add beah-srv
-chkconfig --add beah-beaker-backend
-chkconfig --add beah-fwd-backend
+for service in %{_services}; do
+    /sbin/chkconfig --add $service
+done
 
 %preun
-chkconfig --del beah-fakelc
-chkconfig --del beah-srv
-chkconfig --del beah-beaker-backend
-chkconfig --del beah-fwd-backend
+if [ $1 = 0 ] ; then
+    for service in %{_services}; do
+        /sbin/service $service stop >/dev/null 2>&1
+        /sbin/chkconfig --del $service
+    done
+fi
+
+%postun
+if [ "$1" -ge "1" ] ; then
+    for service in %{_services}; do
+        /sbin/service $service condrestart >/dev/null 2>&1 || :
+    done
+fi
 
 %changelog
 * Tue May 11 2010 Marian Csontos <mcsontos@redhat.com> 0.6.rpmlint.1-1
