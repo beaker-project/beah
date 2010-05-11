@@ -11,13 +11,13 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project: http://fedorahosted.org/beaker
 Name: beah
-Version: 0.6.2
-Release: 2%{?dist}
+Version: 0.6.rpmlint.0
+Release: 0%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
-Group: Development/Libraries
-BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
+Group: Development/Tools
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 Prefix: %{_prefix}
 BuildArch: noarch
 Vendor: Marian Csontos <mcsontos@redhat.com>
@@ -57,21 +57,20 @@ Powered by Twisted.
 
 %install
 rm -rf $RPM_BUILD_ROOT
-%{__python} setup.py install --optimize=1 --root=$RPM_BUILD_ROOT $PREFIX
+%{__python} setup.py install --optimize=1 --skip-build --root $RPM_BUILD_ROOT
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root)
-%config(noreplace) %{_sysconfdir}/%{name}*
-%{_sysconfdir}/init.d/%{name}*
-%attr(0755, root, root)%{_bindir}/%{name}*
-%attr(0755, root, root)%{_bindir}/beat_tap_filter
-%{python_sitelib}/%{name}-*
-%{python_sitelib}/%{name}/
-%{python_sitelib}/beahlib.py*
-%{_datadir}/%{name}
+%config(noreplace) %{_sysconfdir}/*.conf
+%{_sysconfdir}/init.d/*
+%attr(0755, root, root)%{_bindir}/*
+%{python_sitelib}/*
+%{_datadir}/%{name}/
+%exclude %{_datadir}/%{name}/README
+%exclude %{_datadir}/%{name}/COPYING
 %doc %{_datadir}/%{name}/README
 %doc %{_datadir}/%{name}/COPYING
 
@@ -101,4 +100,4 @@ chkconfig --del beah-fwd-backend
 - Use ReleaseTagger as default on the branch. (mcsontos@redhat.com)
 
 * Mon May 03 2010 Bill Peck <bpeck@redhat.com> 0.6-1
- - Initial spec file and use of tito for tagging and building.
+- Initial spec file and use of tito for tagging and building.
