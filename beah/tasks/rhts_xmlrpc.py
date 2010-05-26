@@ -32,7 +32,7 @@ import uuid
 import logging
 import random
 from beah.core import event, command
-from beah.misc import format_exc, runtimes, make_log_handler, str2log_level
+from beah.misc import format_exc, runtimes, make_log_handler, str2log_level, digests
 from beah.wires.internals.twmisc import serveAnyChild, serveAnyRequest, JSONProtocol
 from beah.core.constants import RC
 
@@ -58,6 +58,7 @@ __RESULT_RHTS_TO_BEAH = {
 def result_rhts_to_beah(result):
     """Translate result codes from RHTS to beah."""
     return __RESULT_RHTS_TO_BEAH.get(result.lower()[:4], RC.WARNING)
+
 
 ################################################################################
 # CONTROLLER LINK:
@@ -135,7 +136,7 @@ class RHTSResults(xmlrpc.XMLRPC):
             file_id = self.main.set_file(pretty_name)
             if file_id is None:
                 return None
-            evt = event.file_meta(file_id, size=size, digest=("md5", digest),
+            evt = event.file_meta(file_id, size=size, digest=digest,
                     codec="base64")
             self.main.send_evt(evt)
         return file_id
@@ -144,19 +145,25 @@ class RHTSResults(xmlrpc.XMLRPC):
             data):
         log.debug("XMLRPC: results.uploadFile(%r, %r, %r, %r, %r, %r)",
                 recipe_test_id, name, size, digest, offset, data)
-        file_id = self.get_file(name, size=size, digest=digest)
+        file_id = self.get_file(name, size=size,
+                digest=(digests.which_digest(digest), None))
         if file_id is None:
             msg = "%s:xmlrpc_uploadFile: " % self.__class__.__name__ + \
                     "Can not create file '%s'." % name
             self.main.error(msg)
             return msg
         if offset < 0:
+            if digest:
+                digest = digests.mk_digest(digest)
+                if digest:
+                    evt = event.file_meta(file_id, digest=digest)
+                    self.main.send_evt(evt)
             evt = event.file_close(file_id)
             self.main.send_evt(evt)
             return 0
         if data:
             # FIXME: is chunk's digest necessary?
-            evt = event.file_write(file_id, data, offset=offset)
+            evt = event.file_write(file_id, data, offset=offset, digest=digest)
             self.main.send_evt(evt)
         return 0 # or "Failure reason"
     xmlrpc_uploadFile.signature = [
@@ -399,6 +406,7 @@ class RHTSMain(object):
 
         # RESULT_SERVER - host:port[/prefixpath]
         self.env['RESULT_SERVER'] = "%s:%s%s" % ("localhost", port, "")
+        self.env.setdefault('DIGEST_METHOD', 'no_digest') # use no digests by default... Seems waste of time on localhost.
         self.env.setdefault('TESTORDER', '123') # FIXME: More sensible default
 
         # FIXME: should any checks go here?

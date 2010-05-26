@@ -799,11 +799,13 @@ class BeakerLCBackend(SerializingBackend):
             return
         size = len(cdata)
         self.set_file_info(fid, offset=offset+size)
-        digest = evt.arg('digest', None)
-        if digest is None or digest[0] != 'md5':
-            d = hashlib.md5()
+        # FIXME: make this config.option
+        digest_method = 'md5'
+        digest = digests.make_digest(evt.arg('digest', None))
+        if digest is None or digest[0] != digest_method:
+            d = digests.DigestConstructor(digest_method)
             d.update(cdata)
-            digest = ('md5', d.hexdigest())
+            digest = (digest_method, d.hexdigest())
         if codec != "base64":
             data = event.encode("base64", cdata)
         if finfo.has_key('be:uploading_as'):

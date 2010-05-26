@@ -189,9 +189,10 @@ def file(name=None, digest=None, size=None, codec=None, content_handler=None,
 
     Parameters:
     - name - a human readable file name. Should be unique within a test.
-    - digest - a pair of (method, checksum), where method is "md5" or "sha256"
-      and checksum is a checksum of the decoded file created using given
-      method.
+    - digest - a pair of (method, checksum), where method is "md5", "sha1",
+      "sha256" or "sha512", and checksum is a checksum of the whole decoded
+      file created using given method. Checksum component can be None, and
+      method is used to verify particular code chunks only.
     - size - the size of the file.
     - codec - transformations applied to single chunks of data. E.g. "base64", "gz",
       "bz2". These can be concatenated using "|". Example: "base64|gz".
