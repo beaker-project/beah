@@ -400,7 +400,7 @@ class BeakerLCBackend(SerializingBackend):
                 SerializingBackend._queue_evt(self, evt, **flags)
                 self.__len_queue.append(len(ln))
             except:
-                log.on_error("Can not parse following line from journal: %r", ln)
+                self.on_exception("Can not parse a line from journal.", line=ln)
 
     def get_journal(self):
         if self.__journal_file is None:
@@ -461,7 +461,7 @@ class BeakerLCBackend(SerializingBackend):
         try:
             self.task_data = parse_recipe_xml(self.recipe_xml, self.hostname)
         except:
-            self.on_exception("parse_recipe_xml Failed: %s", format_exc())
+            self.on_exception("parse_recipe_xml Failed.")
             raise
 
         log.debug("handle_new_task: task_data = %r", self.task_data)
@@ -728,10 +728,6 @@ class BeakerLCBackend(SerializingBackend):
     def on_error(self, msg, *args, **kwargs):
         self.__on_error("ERROR", msg, traceback.format_stack(), *args, **kwargs)
 
-    def on_warning(self, msg, *args, **kwargs):
-        self.__on_error("WARNING", msg, traceback.format_stack(),
-                *args, **kwargs)
-
     def proc_evt_relation(self, evt):
         if evt.arg('handle') == 'result_file':
             rid = evt.arg('id1')
@@ -782,8 +778,8 @@ class BeakerLCBackend(SerializingBackend):
                 # task might want to re-upload file from offset 0.
                 log.info('Rewriting file %s.' % fid)
             else:
-                self.on_warning("Given offset (%s) does not match calculated (%s)."
-                        % (offset, seqoff))
+                log.warning("Given offset (%s) does not match calculated (%s).",
+                        offset, seqoff)
         data = evt.arg('data')
         try:
             cdata = event.decode(codec, data)
