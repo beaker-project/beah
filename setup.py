@@ -151,7 +151,7 @@ setup(
             'beah-fakelc = beah.tools.fakelc:main',
             'beah-rhts-task = beah.tasks.rhts_xmlrpc:main',
             'beah-root = beah.tools:main_root',
-            'beah-data-root = beah.tools:mina_data_root',
+            'beah-data-root = beah.tools:main_data_root',
             'beah-data-file = beah.tools:main_data_file',
             'beah-data-dir = beah.tools:main_data_dir',
         ),
