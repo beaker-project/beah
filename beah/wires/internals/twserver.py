@@ -120,6 +120,10 @@ def start_server(conf=None, backend_host=None, backend_port=None,
                 backend_port)
         reactor.listenTCP(backend_port, backend_listener, interface=backend_host)
     if backend_socket:
+        if os.path.exists(backend_socket):
+            # clean-up after e.g. system crash:
+            log.warning("Controller: BackendListener cleaning %s", backend_socket)
+            os.remove(backend_socket)
         log.info("Controller: BackendListener listening on %s", backend_socket)
         reactor.listenUNIX(backend_socket, backend_listener)
     task_listener = TaskListener(controller, task_adaptor)
@@ -127,6 +131,10 @@ def start_server(conf=None, backend_host=None, backend_port=None,
         log.info("Controller: TaskListener listening on %s:%s", task_host, task_port)
         reactor.listenTCP(task_port, task_listener, interface=task_host)
     if task_socket:
+        if os.path.exists(task_socket):
+            # clean-up after e.g. system crash:
+            log.warning("Controller: TaskListener cleaning %s", task_socket)
+            os.remove(task_socket)
         log.info("Controller: TaskListener listening on %s", task_socket)
         reactor.listenUNIX(task_socket, task_listener)
     return controller
