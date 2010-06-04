@@ -71,6 +71,7 @@ def Spawn(host, port, proto=None, socket=''):
                 )
         ll = config.get_conf('beah').get('TASK', 'LOG')
         task_env.setdefault('BEAH_TASK_LOG', ll)
+        task_env.setdefault('TERM', 'dumb')
         val = os.getenv('PYTHONPATH')
         if val:
             task_env['PYTHONPATH'] = val
