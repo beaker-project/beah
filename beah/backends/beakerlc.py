@@ -649,10 +649,11 @@ class BeakerLCBackend(SerializingBackend):
         if (cmd is not None and cmd.command()=='run'):
             rc = evt.arg('rc')
             if rc not in (ECHO.OK, ECHO.DUPLICATE):
+                id = evt.task_id
                 # FIXME: Start was not issued. Is it OK?
-                self.task_set_finished()
+                self.task_set_finished(id)
                 self.proxy.callRemote(self.TASK_STOP,
-                        evt.task_id,
+                        id,
                         # FIXME: This is not correct, is it?
                         self.stop_type("Cancel"),
                         self.mk_msg(reason="Harness could not run the task.",
@@ -665,15 +666,16 @@ class BeakerLCBackend(SerializingBackend):
         self.proxy.callRemote('extend_watchdog', evt.task_id, timeout)
 
     def proc_evt_start(self, evt):
-        if not self.task_has_started():
-            self.task_set_started()
-            self.proxy.callRemote(self.TASK_START, evt.task_id, 0)
+        id = evt.task_id
+        if not self.task_has_started(id):
+            self.task_set_started(id)
+            self.proxy.callRemote(self.TASK_START, id, 0)
             # FIXME: start local watchdog
 
     def proc_evt_end(self, evt):
         id = evt.task_id
         self.close_writers(id)
-        self.task_set_finished()
+        self.task_set_finished(id)
         self.proxy.callRemote(self.TASK_STOP,
                 id,
                 self.stop_type(evt.arg("rc", None)),
