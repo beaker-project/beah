@@ -369,7 +369,8 @@ class BeakerLCBackend(SerializingBackend):
             'proc_evt_start', 'proc_evt_end', 'proc_evt_result',
             'proc_evt_relation', 'proc_evt_file', 'proc_evt_file_meta',
             'proc_evt_file_write', 'handle_Stop', 'get_file_info',
-            'set_file_info', 'get_result_id', 'handle_Result']
+            'set_file_info', 'get_result_id', 'handle_Result', 'set_task_info',
+            'get_task_info']
 
     def __init__(self):
         self.conf = config.get_conf('beah-backend')
@@ -384,6 +385,7 @@ class BeakerLCBackend(SerializingBackend):
         self.__writer_args = {}
         self.__tasks_by_id = runtimes.TypeDict(self.runtime, 'tasks_by_id')
         self.__tasks_by_uuid = runtimes.TypeDict(self.runtime, 'tasks_by_uuid')
+        self.__task_info = {}
         self.__journal_file = None
         self.__len_queue = []
         offs = self.__journal_offs = self.runtime.type_get('', 'journal_offs', 0)
@@ -648,6 +650,7 @@ class BeakerLCBackend(SerializingBackend):
             rc = evt.arg('rc')
             if rc not in (ECHO.OK, ECHO.DUPLICATE):
                 # FIXME: Start was not issued. Is it OK?
+                self.task_set_finished()
                 self.proxy.callRemote(self.TASK_STOP,
                         evt.task_id,
                         # FIXME: This is not correct, is it?
@@ -662,12 +665,15 @@ class BeakerLCBackend(SerializingBackend):
         self.proxy.callRemote('extend_watchdog', evt.task_id, timeout)
 
     def proc_evt_start(self, evt):
-        self.proxy.callRemote(self.TASK_START, evt.task_id, 0)
-        # FIXME: start local watchdog
+        if not self.task_has_started():
+            self.task_set_started()
+            self.proxy.callRemote(self.TASK_START, evt.task_id, 0)
+            # FIXME: start local watchdog
 
     def proc_evt_end(self, evt):
         id = evt.task_id
         self.close_writers(id)
+        self.task_set_finished()
         self.proxy.callRemote(self.TASK_STOP,
                 id,
                 self.stop_type(evt.arg("rc", None)),
@@ -827,6 +833,38 @@ class BeakerLCBackend(SerializingBackend):
         """Handler for task_stop XML-RPC return."""
         log_flush(log)
         self.on_idle()
+
+    def get_task_info(self, id):
+        """Get data associated with task. Find task by UUID."""
+        tinfo = self.__task_info.get(id, None)
+        if tinfo:
+            return tinfo
+        tinfo = runtimes.TypeAddict(self.runtime, 'task_info/%s' % id)
+        if tinfo.has_key('__id'):
+            self.__task_info[id] = tinfo
+            return tinfo
+        return None
+
+    def set_task_info(self, id, *args, **kwargs):
+        """Attach data to task. Find task by UUID."""
+        tinfo = runtimes.TypeAddict(self.runtime, 'task_info/%s' % id)
+        tinfo.update(*args, **kwargs)
+        tinfo['__id'] = id
+        self.__task_info[id] = tinfo
+
+    def task_has_started(self, id):
+        tinfo = self.get_task_info(id)
+        return tinfo and tinfo.get('state', 0) >= 1
+
+    def task_has_finished(self, id):
+        tinfo = self.get_task_info(id)
+        return tinfo and tinfo.get('state', 0) >= 2
+
+    def task_set_started(self, id):
+        self.set_task_info(id, state=1)
+
+    def task_set_finished(self, id):
+        self.set_task_info(id, state=1)
 
     def get_file_info(self, id):
         """Get data associated with file. Find file by UUID."""
