@@ -436,8 +436,7 @@ class RHTSMain(object):
         self.process = reactor.callLater(2, reactor.spawnProcess, self.task,
                 self.TEST_RUNNER,
                 args=[self.TEST_RUNNER],
-                env=self.env, path=self.env.get('TESTPATH', '/tmp'),
-                usePTY=True)
+                env=self.env, path=self.env.get('TESTPATH', '/tmp'))
 
 
     def controller_input(self, cmd):
