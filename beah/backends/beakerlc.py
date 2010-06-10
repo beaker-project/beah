@@ -591,7 +591,7 @@ class BeakerLCBackend(SerializingBackend):
                 args = wrargs[name]
                 writer = self.get_writer(id, name, args[0], args[1])
                 if not writer:
-                    self.on_error("Can not open a writer(%r, %r)", id, name)
+                    self.on_error("Can not open a writer(%r, %r)" % (id, name))
                 else:
                     writer.close()
                     del writers[name]
@@ -829,7 +829,7 @@ class BeakerLCBackend(SerializingBackend):
         self.on_idle()
 
     def get_file_info(self, id):
-        """Get a data associated with file. Find file by UUID."""
+        """Get data associated with file. Find file by UUID."""
         finfo = self.__file_info.get(id, None)
         if finfo:
             return finfo
@@ -840,18 +840,18 @@ class BeakerLCBackend(SerializingBackend):
         return None
 
     def set_file_info(self, id, *args, **kwargs):
-        """Attach a data to file. Find file by UUID."""
+        """Attach data to file. Find file by UUID."""
         finfo = runtimes.TypeAddict(self.runtime, 'file_info/%s' % id)
         finfo.update(*args, **kwargs)
         finfo['__id'] = id
         self.__file_info[id] = finfo
 
     def get_result_id(self, event_id):
-        """Get a data associated with result. Find result by UUID."""
+        """Get data associated with result. Find result by UUID."""
         return self.__results_by_uuid.get(event_id, None)
 
     def handle_Result(self, result_id, event_id=None):
-        """Attach a data to a result. Find result by UUID."""
+        """Attach data to a result. Find result by UUID."""
         log.debug("%s.RETURN: %s (original event_id %s)",
                 self.TASK_RESULT, result_id, event_id)
         self.__results_by_uuid[event_id] = result_id
