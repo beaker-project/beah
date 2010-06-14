@@ -8,7 +8,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
 Name: beah
-Version: 0.6.4
+Version: 0.6.5
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -69,8 +69,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/%{name}
 
 %changelog
-* Tue Jun 08 2010 Marian Csontos <mcsontos@redhat.com> 0.6.4-1
-- Fixed: RHTS wrapper uses PTY for compatibility
+* Mon Jun 14 2010 Marian Csontos <mcsontos@redhat.com> 0.6.5-1
+- Fixed: task reports start multiple times to beaker
+- Fixed: a bug in logging code
 
 * Sat Jun 05 2010 Marian Csontos <mcsontos@redhat.com> 0.6.3-1
 - Fixed: clean-up files for unix sockets on start-up
