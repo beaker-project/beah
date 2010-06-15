@@ -48,8 +48,24 @@
         <rpm name="rh-tests-examples-testargs.noarch"/>
     </task>
 
+    <task avg_time="84400" id="98"
+            name="/distribution/reservesys" role="CLIENTS"
+            result="%(task98_res)s"
+            status="%(task98_stat)s"
+            >
+        <roles>
+            <role value="CLIENTS">
+                <system value="%(machine0)s"/>
+            </role>
+        </roles>
+        <params>
+            <param name="TESTORDER" value="98"/>
+        </params>
+        <rpm name="rh-tests-distribution-reservesys.noarch"/>
+    </task>
+
     <task avg_time="84400" id="99"
-            name="/examples/rhts_tutorial/mcsontos/beah_reserve" role="CLIENTS"
+            name="/distribution/reservesys" role="CLIENTS"
             result="%(task99_res)s"
             status="%(task99_stat)s"
             >
@@ -61,7 +77,7 @@
         <params>
             <param name="TESTORDER" value="99"/>
         </params>
-        <rpm name="rh-tests-examples-rhts_tutorial-mcsontos-beah_reserve.noarch"/>
+        <rpm name="rh-tests-distribution-reservesys.noarch"/>
     </task>
 
 </recipe>
