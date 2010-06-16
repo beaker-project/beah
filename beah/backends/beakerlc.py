@@ -51,7 +51,7 @@ from beah.core import command, event, addict
 from beah.core.backends import SerializingBackend
 from beah.core.constants import ECHO, RC, LOG_LEVEL
 from beah.misc import format_exc, dict_update, log_flush, writers, runtimes, \
-        make_class_verbose, is_class_verbose, pre_open
+        make_class_verbose, is_class_verbose, pre_open, digests
 from beah.misc.log_this import log_this
 import beah.system
 # FIXME: using rpm's, yum - too much Fedora centric(?)
@@ -414,6 +414,7 @@ class BeakerLCBackend(SerializingBackend):
         data = jsonln((evt, flags))
         self.__len_queue.append(len(data))
         self.__journal_file.write(data)
+        self.__journal_file.flush()
         SerializingBackend._queue_evt(self, evt, **flags)
 
     def _pop_evt(self):
