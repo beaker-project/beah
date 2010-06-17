@@ -514,12 +514,6 @@ class BeakerLCBackend(SerializingBackend):
         # task can change it, and when restarted will continue with same
         # env(?) Task is able to handle this itself. Provide a library...
 
-    def stop_type(rc):
-        if rc==0:
-            return "stop"
-        return "cancel"
-    stop_type = staticmethod(stop_type)
-
     RESULT_TYPE = {
             RC.PASS:("pass_", "Pass"),
             RC.WARNING:("warn", "Warning"),
@@ -674,14 +668,13 @@ class BeakerLCBackend(SerializingBackend):
                 id = evt.task_id
                 # FIXME: Start was not issued. Is it OK?
                 self.task_set_finished(id)
-                self.proxy.callRemote(self.TASK_STOP,
-                        id,
-                        # FIXME: This is not correct, is it?
-                        self.stop_type("Cancel"),
-                        self.mk_msg(reason="Harness could not run the task.",
-                            event=evt)) \
-                                    .addCallback(self.handle_Stop)
-                                    # FIXME: addErrback(...) needed!
+                message = ("Harness could not run the task: %s rc=%s"
+                        % (evt.arg('message', 'no info'), rc))
+                self.proxy.callRemote(self.TASK_RESULT, id, RC.FAIL,
+                        "harness/run", 1, message)
+                self.proxy.callRemote(self.TASK_STOP, id, "stop", message) \
+                                    .addCallback(self.handle_Stop) \
+                                    .addErrback(self.on_lc_failure)
 
     def proc_evt_extend_watchdog(self, evt):
         timeout = evt.arg('timeout')
@@ -698,12 +691,16 @@ class BeakerLCBackend(SerializingBackend):
         id = evt.task_id
         self.close_writers(id)
         self.task_set_finished(id)
-        self.proxy.callRemote(self.TASK_STOP,
-                id,
-                self.stop_type(evt.arg("rc", None)),
-                self.mk_msg(event=evt)) \
-                        .addCallback(self.handle_Stop)
-                        # FIXME: addErrback(...) needed!
+        rc = int(evt.arg("rc", -1))
+        if rc != 0:
+            message = "Task exited with non zero exit code. rc=%s" % rc
+            self.proxy.callRemote(self.TASK_RESULT, id, RC.FAIL,
+                    "task/exit", rc, message)
+        else:
+            message = "OK"
+        self.proxy.callRemote(self.TASK_STOP, id, "stop", message) \
+                        .addCallback(self.handle_Stop) \
+                        .addErrback(self.on_lc_failure)
 
     def find_job_id(self, id):
         return id
