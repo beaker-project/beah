@@ -79,14 +79,35 @@ class RHTSTask(ShExecutable):
 cat >/tmp/etc/yum.repos.d/beaker-tests.repo <<REPO_END
 %s
 REPO_END
-yum -y --disablerepo=* --enablerepo=beaker-* install "$TESTRPMNAME"
-if ! rpm -q "$TESTRPMNAME"; then
-    echo "ERROR: $TESTRPMNAME was not installed." >&2
-    exit 1
+if rpm -q "$TESTRPMNAME"; then
+    beahsh INFO -H wrapper "$TESTRPMNAME is already installed."
+else
+    # This will happen only on first run so it is safe to override
+    # watchdog as it will be reset by task...
+    beahsh INFO -H wrapper "Installing the task $TESTRPMNAME"
+    beahsh extend_watchdog 20m
+    yum -y --disablerepo=* --enablerepo=beaker-* install "$TESTRPMNAME"
+    for iteration in $(seq 6); do
+        if ! rpm -q "$TESTRPMNAME"; then
+            beahsh INFO -H wrapper "$TESTRPMNAME not installed. Will retry in 300s..."
+            sleep 300
+            beahsh extend_watchdog 20m
+            beahsh INFO -H wrapper "Cleaning metadata and trying to get the task again..."
+            yum -y clean metadata
+            yum -y --disablerepo=* --enablerepo=beaker-* install "$TESTRPMNAME"
+        else
+            break
+        fi
+    done
+    if ! rpm -q "$TESTRPMNAME"; then
+        beahsh fail -H wrapper "$TESTRPMNAME was not installed."
+        exit
+    fi
 fi
 # This is a workaround for /distribution/reservesys test:
 touch /mnt/tests/runtests.sh
 chmod a+x /mnt/tests/runtests.sh
+beahsh INFO -H wrapper "Running the task..."
 beah-rhts-task
 #%s -m beah.tasks.rhts_xmlrpc
 """ % (self.__repof,
