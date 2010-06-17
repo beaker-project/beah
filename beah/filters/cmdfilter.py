@@ -114,7 +114,7 @@ class CmdFilter(object):
         f = getattr(self, "proc_cmd_"+cmd, None)
         if f:
             return f(cmd=cmd, cmd_args=args[1:])
-        return self.echoerr("Command %s is not implemented. Input line: %s" % (cmd, line))
+        return self.echoerr("Command %s is not implemented. Input line: %s" % (cmd, data))
 
     def usage_msg(self):
         return """\

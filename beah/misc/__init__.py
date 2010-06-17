@@ -25,6 +25,7 @@ import sys
 import logging
 import logging.handlers
 import inspect
+import re
 
 def raiser(exc=exceptions.Exception, *args, **kwargs):
     raise exc(*args, **kwargs)
@@ -214,4 +215,10 @@ def ensuredir(path):
     # check permissions
     if not os.access(path, os.X_OK | os.W_OK):
         raise exceptions.OSError("Directory '%s' not writable." % path)
+
+TIME_RE = re.compile('^([0-9]+)([dhms]?)$')
+TIME_UNITS = {'d':24*3600, 'h':3600, 'm':60, 's':1, '':1}
+def canonical_time(time):
+    amount, units = TIME_RE.match(time.lower()).group(1, 2)
+    return int(amount)*TIME_UNITS[units]
 

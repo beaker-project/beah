@@ -157,6 +157,7 @@ setup(
             'beah-data-root = beah.tools:main_data_root',
             'beah-data-file = beah.tools:main_data_file',
             'beah-data-dir = beah.tools:main_data_dir',
+            'beahsh = beah.tools.beahsh:main',
         ),
     },
 

@@ -18,12 +18,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-# FIXME! how to organize data?
-source $(beah-data-file bin/beahlib.sh)
-
-sleep 1; linfo  "Hello World!"
+sleep 1; beahsh linfo  "Hello World!"
 sleep 1; echo   "Some lose data"
 sleep 1; echo   "An error message" >&2
-sleep 1; lerror "Finito!"
+sleep 1; beahsh lerror "Finito!"
 sleep 1; exit 0
 

@@ -63,6 +63,7 @@ fi
 # FUNCTIONS:
 ################################################################################
 function beah() { python -c "from beah.bin.cli import main; main()" "$@"; }
+function beahsh() { python -c "from beah.tools.beahsh import main; main()" "$@"; }
 function beah-srv() { python -c "from beah.bin.srv import main; main()" "$@"; }
 function beah-out-backend() { python -c "from beah.bin.out_backend import main; main()" "$@"; }
 function beah-cmd-backend() { python -c "from beah.bin.cmd_backend import main; main()" "$@"; }

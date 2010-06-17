@@ -1,5 +1,4 @@
 include *.conf
-include beahlib.sh
 graft init.d
 graft examples
 graft recipes
