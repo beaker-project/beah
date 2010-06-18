@@ -820,11 +820,9 @@ class BeakerLCBackend(SerializingBackend):
         self.set_file_info(fid, offset=offset+size)
         # FIXME: make this config.option
         digest_method = 'md5'
-        digest = digests.make_digest(evt.arg('digest', None))
-        if digest is None or digest[0] != digest_method:
-            d = digests.DigestConstructor(digest_method)
-            d.update(cdata)
-            digest = (digest_method, d.hexdigest())
+        dm, digest = digests.make_digest(evt.arg('digest', None)) or (None, None)
+        if dm != digest_method:
+            digest = digests.DigestConstructor(digest_method)(cdata).hexdigest()
         if codec != "base64":
             data = event.encode("base64", cdata)
         if finfo.has_key('be:uploading_as'):
@@ -850,7 +848,7 @@ class BeakerLCBackend(SerializingBackend):
             finfo['be:uploading_as'] = (method, id, path, filename)
 
         self.proxy.callRemote(method, id, path, filename,
-                str(size), digest[1], str(offset), data)
+                str(size), digest, str(offset), data)
 
     def handle_Stop(self, result):
         """Handler for task_stop XML-RPC return."""
