@@ -670,7 +670,7 @@ class BeakerLCBackend(SerializingBackend):
                 self.task_set_finished(id)
                 message = ("Harness could not run the task: %s rc=%s"
                         % (evt.arg('message', 'no info'), rc))
-                self.proxy.callRemote(self.TASK_RESULT, id, RC.FAIL,
+                self.proxy.callRemote(self.TASK_RESULT, id, "fail",
                         "harness/run", 1, message)
                 self.proxy.callRemote(self.TASK_STOP, id, "stop", message) \
                                     .addCallback(self.handle_Stop) \
@@ -691,11 +691,15 @@ class BeakerLCBackend(SerializingBackend):
         id = evt.task_id
         self.close_writers(id)
         self.task_set_finished(id)
-        rc = int(evt.arg("rc", -1))
-        if rc != 0:
+        rc = evt.arg("rc", None)
+        if rc is None:
+            score = 999
+        else:
+            score = int(rc)
+        if score != 0:
             message = "Task exited with non zero exit code. rc=%s" % rc
-            self.proxy.callRemote(self.TASK_RESULT, id, RC.FAIL,
-                    "task/exit", rc, message)
+            self.proxy.callRemote(self.TASK_RESULT, id, "fail",
+                    "task/exit", score, message)
         else:
             message = "OK"
         self.proxy.callRemote(self.TASK_STOP, id, "stop", message) \
