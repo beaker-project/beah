@@ -391,6 +391,36 @@ function lm_clean()
   rm -rf /var/cache/rhts
 }
 
+function lm_stop_test()
+{
+  service beah-fakelc stop
+}
+
+function lm_clean_test()
+{
+  lm_stop_test
+  #lm_rm_logs
+  rm -f /tmp/beah-fakelc*.out /var/log/beah-fakelc*.log /tmp/var/log/rhts_task*.log
+  rm -rf /tmp/beah-fakelc-logs
+  #lm_rm_runtime
+  rm -rf /var/beah/beah_fakelc*
+  rm -rf /var/beah/rhts_task_*
+  rm -rf /tmp/beah-fakelc-logs/*
+  rm -rf /var/cache/rhts
+}
+
+function lm_start_test()
+{
+  service beah-fakelc start
+  lm_mon
+}
+
+function lm_restart_test()
+{
+  lm_clean_test
+  lm_start_test
+}
+
 function lm_start()
 {
   rm -rf /var/cache/rhts
