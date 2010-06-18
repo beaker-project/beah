@@ -439,11 +439,12 @@ class RHTSMain(object):
         self.__controller_output(json.dumps(evt))
 
     TEST_RUNNER = 'rhts-test-runner.sh'
+    SHELL = '/bin/bash'
     def server_started(self):
         # FIXME: Install rhts-test-runner.sh somewhere!
+        args = [self.SHELL, '-c', 'exec %s < /dev/null' % self.TEST_RUNNER]
         self.process = reactor.callLater(2, reactor.spawnProcess, self.task,
-                self.TEST_RUNNER,
-                args=[self.TEST_RUNNER],
+                args[0], args=args,
                 env=self.env, path=self.env.get('TESTPATH', '/tmp'))
 
 

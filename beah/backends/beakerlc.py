@@ -108,7 +108,7 @@ fi
 touch /mnt/tests/runtests.sh
 chmod a+x /mnt/tests/runtests.sh
 beahsh INFO -H wrapper "Running the task..."
-beah-rhts-task
+exec beah-rhts-task
 #%s -m beah.tasks.rhts_xmlrpc
 """ % (self.__repof,
                 sys.executable))
