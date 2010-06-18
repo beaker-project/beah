@@ -28,7 +28,7 @@ def main_data_root():
 
 def get_file(fname):
     if os.path.isabs(fname):
-        if os.path.isfile(fn):
+        if os.path.isfile(fname):
             return fname
     else:
         for rt in get_data_root():
@@ -45,7 +45,7 @@ def main_data_file():
 
 def get_dir(fname):
     if os.path.isabs(fname):
-        if os.path.isdir(fn):
+        if os.path.isdir(fname):
             return fname
     else:
         for rt in get_data_root():
