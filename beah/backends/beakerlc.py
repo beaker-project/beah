@@ -73,12 +73,14 @@ class RHTSTask(ShExecutable):
 
     def content(self):
         self.write_line("""
-# THIS SHOULD PREVENT rhts-test-runner.sh to install rpm from default rhts
-# repository and use repositories defined in recipe
+# This wrapper should prevent rhts-test-runner.sh to install rpm from default
+# rhts repository and use repositories defined in recipe
 #mkdir -p $TESTPATH
-cat >/tmp/etc/yum.repos.d/beaker-tests.repo <<REPO_END
+if [[ -n "$BEAH_MAKE_REPOS" ]]; then
+cat >/etc/yum.repos.d/beaker-tests.repo <<REPO_END
 %s
 REPO_END
+fi
 if rpm -q "$TESTRPMNAME"; then
     beahsh INFO -H wrapper "$TESTRPMNAME is already installed."
 else
