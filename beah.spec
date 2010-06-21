@@ -8,7 +8,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
 Name: beah
-Version: 0.6.5
+Version: 0.6.6
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -69,6 +69,11 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/%{name}
 
 %changelog
+* Mon Jun 21 2010 Marian Csontos <mcsontos@redhat.com> 0.6.6-1
+- Fixed: use /dev/null for stdin
+- Fixed: harness becoming unresponsive
+- Fixed: yum will retry getting the task
+- Added: Use no digest by default - fixing FIPS issues
 * Mon Jun 14 2010 Marian Csontos <mcsontos@redhat.com> 0.6.5-1
 - Fixed: task reports start multiple times to beaker
 - Fixed: a bug in logging code
