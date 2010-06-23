@@ -258,7 +258,7 @@ function lm_config_beah()
 {
   cat > /etc/beah_beaker.conf <<END
 [DEFAULT]
-LAB_CONTROLLER=${LAB_CONTROLLER:-"http://localhost:5222/client"}
+LAB_CONTROLLER=${LAB_CONTROLLER:-"http://127.0.0.1:5222/client"}
 
 # PRETEND TO BE ANOTHER MACHINE:
 HOSTNAME=${BEAKER_HOSTNAME:-"$HOSTNAME"}

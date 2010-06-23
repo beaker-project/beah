@@ -310,7 +310,7 @@ def beah_defaults():
             'BACKEND.INTERFACE':'',
             'BACKEND.PORT':'12432',
             'BACKEND.PORT_OPT':'False',
-            'TASK.INTERFACE':'localhost',
+            'TASK.INTERFACE':'127.0.0.1',
             'TASK.PORT':'12434'})
     if os.name == 'posix':
         # using PORT as ID, not NAME. NAME could (and should) be different for
@@ -615,17 +615,17 @@ if __name__ == '__main__':
             _tst_eq(c._get_conf_file('empty-beah.conf.tmp'), '')
 
             cfg = c.conf
-            cfg.set('BACKEND', 'INTERFACE', "localhost")
+            cfg.set('BACKEND', 'INTERFACE', "127.0.0.1")
             _tst_eq(parse_bool(cfg.get('DEFAULT', 'DEVEL')), True)
             _tst_eq(parse_bool(cfg.get('DEFAULT', 'LOG')), False)
-            _tst_eq(cfg.get('BACKEND', 'INTERFACE'), "localhost")
+            _tst_eq(cfg.get('BACKEND', 'INTERFACE'), "127.0.0.1")
             _tst_eq(int(cfg.get('BACKEND', 'PORT')), 12432)
             _tst_eq(cfg.get('DEFAULT', 'ROOT'), "/tmp")
 
             cfg.set('DEFAULT', 'LOG', 'True')
             _tst_eq(parse_bool(cfg.get('DEFAULT', 'DEVEL')), True)
             _tst_eq(parse_bool(cfg.get('DEFAULT', 'LOG')), True)
-            _tst_eq(cfg.get('BACKEND', 'INTERFACE'), "localhost")
+            _tst_eq(cfg.get('BACKEND', 'INTERFACE'), "127.0.0.1")
             _tst_eq(int(cfg.get('BACKEND', 'PORT')), 12432)
             _tst_eq(cfg.get('DEFAULT', 'ROOT'), "/tmp")
 
@@ -667,7 +667,7 @@ if __name__ == '__main__':
         assert conf['LOG'] == 'info'
         assert conf['CONSOLE_LOG'] == 'True'
 
-        cmd_args = "-v -v -v -v -q -p 1234 -i '' -P 4321 -I localhost -c conf -L debug -O arg1 arg2".split(" ")
+        cmd_args = "-v -v -v -v -q -p 1234 -i '' -P 4321 -I 127.0.0.1 -c conf -L debug -O arg1 arg2".split(" ")
         opts, args = opt.parse_args(cmd_args)
         #print opts, args, conf
 
