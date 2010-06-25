@@ -98,6 +98,54 @@ class Controller(object):
                 return task
         return None
 
+    def proc_local_variable_set(self, evt):
+        key = evt.arg('key')
+        method = evt.arg('method', event.VARIABLE_SET_METHOD.SET)
+        value = evt.arg('value')
+        if method != event.VARIABLE_SET_METHOD.SET:
+            val = value
+            value = self.runtime.vars.get(key, [])
+            if method == event.VARIABLE_SET_METHOD.APPEND:
+                value.append(val)
+            elif method == event.VARIABLE_SET_METHOD.ADD:
+                if val not in value:
+                    value.append(val)
+                else:
+                    return False
+            elif method == event.VARIABLE_SET_METHOD.DELETE:
+                if val in value:
+                    value.remove(val)
+                else:
+                    return False
+            else:
+                log.warning("variable_set: method %s not supported.", method)
+                return False
+        self.runtime.vars[key] = value
+        return True
+
+    PROC_VARIABLES = {
+            event.VARIABLE_METHOD.COUNT:(lambda: [0], lambda x, k, v: x.__setitem__(0, x[0]+1)),
+            event.VARIABLE_METHOD.LIST:(lambda: [], lambda x, k, v: x.append(k)),
+            event.VARIABLE_METHOD.DICT:(lambda: {}, lambda x, k, v: x.__setitem__(k, v)),
+            }
+
+    def proc_local_variables(self, evt):
+        method = evt.arg('method', event.VARIABLE_METHOD.DEFINED)
+        answ, foldf = self.PROC_VARIABLES.get(method, (lambda: False, None))
+        answ = answ()
+        if foldf is None:
+            for key in evt.arg('keys'):
+                if self.runtime.vars.has_key(key):
+                    answ = True
+                    break
+        else:
+            for key in evt.arg('keys'):
+                if self.runtime.vars.has_key(key):
+                    foldf(answ, key, self.runtime.vars[key])
+        if method == event.VARIABLE_METHOD.COUNT:
+            return answ[0]
+        return answ
+
     def proc_evt(self, task, evt):
         """
         Process Event received from task.
@@ -117,31 +165,41 @@ class Controller(object):
             if not self.find_task(task_id):
                 log.error("Controller: No task %s", task_id)
             return
-        elif evev in ['variable_set', 'variable_get']:
+        elif evev in ['variable_set', 'variable_get', 'variables']:
             handle = evt.arg('handle', '')
             dest = evt.arg('dest', '')
-            key = evt.arg('key')
             if handle == '' and localhost(dest):
                 if evev == 'variable_set':
-                    self.runtime.vars[key] = evt.arg('value')
+                    self.proc_local_variable_set(evt)
+                elif evev == 'variables':
+                    task.proc_cmd(command.answer(evt.id(), self.proc_local_variables(evt)))
                 else:
+                    key = evt.arg('key')
                     if self.runtime.vars.has_key(key):
                         value = self.runtime.vars[key]
                         task.proc_cmd(command.variable_value(key, value,
                             handle=handle, dest=dest))
+                    else:
+                        task.proc_cmd(command.variable_value(key, None,
+                            handle=handle, error="Undefined variable.", dest=dest))
                 return
             else:
-                if dest == 'test.loop':
-                    dest = ''
-                s = repr(("command.variable_value", key, handle, dest))
-                if self.__waiting_tasks.has_key(s):
-                    _, l = self.__waiting_tasks[s]
-                    if task not in l:
-                        l.append(task)
-                        log.debug("Controller.__waiting_tasks=%r", self.__waiting_tasks)
-                    return
-                _, l = self.__waiting_tasks[s] = (evt, [task])
-                log.debug("Controller.__waiting_tasks=%r", self.__waiting_tasks)
+                if evev == 'variables':
+                    s = repr(("command.answer", evt.id()))
+                    self.__waiting_tasks[s] = (evt, [task])
+                elif evev == 'variable_get':
+                    key = evt.arg('key')
+                    if dest == 'test.loop':
+                        dest = ''
+                    s = repr(("command.variable_value", key, handle, dest))
+                    if self.__waiting_tasks.has_key(s):
+                        _, l = self.__waiting_tasks[s]
+                        if task not in l:
+                            l.append(task)
+                            log.debug("Controller.__waiting_tasks=%r", self.__waiting_tasks)
+                        return
+                    _, l = self.__waiting_tasks[s] = (evt, [task])
+                    log.debug("Controller.__waiting_tasks=%r", self.__waiting_tasks)
         # controller - spawn_task
         orig = evt.origin()
         if not orig.has_key('id'):
@@ -224,23 +282,30 @@ class Controller(object):
         evt = event.event(cmd.arg('event'))
         evev = evt.event()
         # FIXME: incomming events filter - CHECK
-        if evev not in ['variable_get', 'variable_set']:
+        if evev not in ['variable_get', 'variable_set', 'variables']:
             echo_evt.args['rc'] = ECHO.EXCEPTION
             echo_evt.args['message'] = 'Event %r is not permitted here.' % evev
             return
         fake_task = self.BackendFakeTask(self, backend, cmd.id())
         self.proc_evt(fake_task, evt)
 
-    def proc_cmd_variable_value(self, backend, cmd, echo_evt):
-        s = repr(("command.variable_value", cmd.arg("key"), cmd.arg("handle"), cmd.arg("dest")))
-        _, l = self.__waiting_tasks.get(s, (None, None))
-        log.debug("Controller.__waiting_tasks[%r]=%r", s, l)
+    def proc_answer(self, cmd, wait_id):
+        _, l = self.__waiting_tasks.get(wait_id, (None, None))
+        log.debug("Controller.__waiting_tasks[%r]=%r", wait_id, l)
         if l is not None:
             for task in l:
                 log.debug("Controller: %s.proc_cmd(%r)", task, cmd)
                 task.proc_cmd(cmd)
-            del self.__waiting_tasks[s]
+            del self.__waiting_tasks[wait_id]
         log.debug("Controller.__waiting_tasks=%r", self.__waiting_tasks)
+
+    def proc_cmd_answer(self, backend, cmd, echo_evt):
+        s = repr(("command.answer", cmd.arg("request_id")))
+        self.proc_answer(cmd, s)
+
+    def proc_cmd_variable_value(self, backend, cmd, echo_evt):
+        s = repr(("command.variable_value", cmd.arg("key"), cmd.arg("handle"), cmd.arg("dest")))
+        self.proc_answer(cmd, s)
 
     def proc_cmd_ping(self, backend, cmd, echo_evt):
         evt = event.Event('pong', message=cmd.arg('message', None))

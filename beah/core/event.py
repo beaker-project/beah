@@ -261,8 +261,14 @@ def file_close(file_id, origin={}, timestamp=None, **kwargs):
     return Event('file_close', origin=origin, timestamp=timestamp,
             file_id=file_id, **kwargs)
 
-def variable_set(key, value, handle='', origin={}, timestamp=None,
-        **kwargs):
+class VARIABLE_SET_METHOD:
+    SET=0 # set the value
+    APPEND=1 # add value to a list
+    ADD=2 # add value to a list if not present already
+    DELETE=3 # delete value from a list
+
+def variable_set(key, value, handle='', method=VARIABLE_SET_METHOD.SET,
+        origin={}, timestamp=None, **kwargs):
     """
     Set a "variable's" value.
 
@@ -280,7 +286,7 @@ def variable_set(key, value, handle='', origin={}, timestamp=None,
     - dest - used with handle == '': the FQDN of remote machine.
     """
     return Event('variable_set', origin=origin, timestamp=timestamp,
-            key=key, value=value, handle=handle, **kwargs)
+            key=key, value=value, handle=handle, method=method, **kwargs)
 
 def variable_get(key, handle='', origin={}, timestamp=None, **kwargs):
     """
@@ -290,6 +296,31 @@ def variable_get(key, handle='', origin={}, timestamp=None, **kwargs):
     """
     return Event('variable_get', origin=origin, timestamp=timestamp,
             key=key, handle=handle, **kwargs)
+
+class VARIABLE_METHOD:
+    DEFINED=0
+    COUNT=1
+    LIST=2
+    DICT=3
+
+def variables(keys, handle='', method=VARIABLE_METHOD.DEFINED, origin={}, timestamp=None, **kwargs):
+    """
+    Check existence of variable(s).
+
+    A command.answer is expected in answer.
+
+    Parameters:
+    - keys - variable names to look-up.
+    - method - function used to produce result. Return value in answer
+      depending on method will be:
+      - VARIABLE_METHOD.DEFINED - True if any of variables exists
+      - VARIABLE_METHOD.COUNT - count of defined variables
+      - VARIABLE_METHOD.LIST - list of names
+      - VARIABLE_METHOD.DICT - dictionary of (name, value) tuples
+    See variable_set for meaning of handle and other parameters.
+    """
+    return Event('variables', origin=origin, timestamp=timestamp,
+            keys=keys, handle=handle, method=method, **kwargs)
 
 def forward_response(command, forward_id, origin={}, timestamp=None,
         **kwargs):

@@ -292,9 +292,9 @@ class RHTSSync(xmlrpc.XMLRPC):
             state):
         log.debug("XMLRPC: sync.set(%r, %r, %r, %r, %r)", recipe_set_id,
                 test_order, result_server, hostname, state)
-        evt = event.variable_set('sync/recipe_set_%s/test_order_%s' \
+        evt = event.variable_set('sync/recipe_set_%s/test_order_%s/long_state' \
                 % (recipe_set_id, test_order),
-                state, dest=self.trhostname(hostname))
+                state, method=event.VARIABLE_SET_METHOD.APPEND, dest=self.trhostname(hostname))
         self.main.send_evt(evt)
         return 0 # or "Failure reason"
     xmlrpc_set.signature = [['int', 'int', 'int', 'string', 'string', 'string']]
@@ -306,8 +306,8 @@ class RHTSSync(xmlrpc.XMLRPC):
         answ = []
         wait_for = []
         for hostname in hostnames:
-            name = 'sync/recipe_set_%s/test_order_%s' \
-                    % (recipe_set_id, test_order)
+            name = ('sync/recipe_set_%s/test_order_%s/long_state'
+                    % (recipe_set_id, test_order))
             dest = self.trhostname(hostname)
             evt = event.variable_get(name, dest=dest)
             self.main.send_evt(evt)
@@ -498,6 +498,10 @@ class RHTSMain(object):
     def handle_variable_value(self, cmd):
         log.debug("handling variable_value.")
         log.debug("...waiting for: %r", self.__waits_for)
+        err = cmd.arg('error')
+        if err:
+            log.debug("variable_value error: %s", err)
+            return
         cmd_name = cmd.arg('key')
         cmd_handle = cmd.arg('handle')
         cmd_dest = cmd.arg('dest')
@@ -514,9 +518,11 @@ class RHTSMain(object):
                     log.debug("variable match: %r", var)
                 if answ is not None:
                     value = var[3]
-                    if value in states:
-                        log.debug("value match: %r", value)
-                        answ.append(value)
+                    for state in states:
+                        if state in value:
+                            log.debug("state %r found in value %r", state, value)
+                            answ.append(state)
+                            break
                     else:
                         answ = None
             if answ is not None:

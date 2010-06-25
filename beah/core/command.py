@@ -56,10 +56,19 @@ def no_input():
 def no_output():
     return Command('no_output')
 
-def variable_value(key, value, handle='', **kwargs):
+def variable_value(key, value, handle='', error=None, **kwargs):
     """Used to return a "variable's" value to task."""
     return Command('variable_value', key=key, value=value, handle=handle,
-            **kwargs)
+            error=error, **kwargs)
+
+def answer(request, value, error=None):
+    """Command used as an answer to an event identified by request.
+    
+    request - either an event instance or id."""
+    request_id = request
+    if not isinstance(request, basestring):
+        request_id = event.event(request).id()
+    return Command('answer', request_id=request_id, value=value, error=error)
 
 def forward(event):
     """

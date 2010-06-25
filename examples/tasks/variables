@@ -1,0 +1,185 @@
+#!/usr/bin/python -u
+
+import simplejson as json
+import thread
+import sys
+import time
+
+from beah.core import event, command
+
+def print_(msg):
+    print msg
+    sys.stdout.flush()
+
+def reader():
+    while True:
+        line = sys.stdin.readline()
+        print_("echo: %s" % line)
+
+def get_cmd():
+    # do this only when running on PTY
+    print_("Waiting for answer...")
+    line = sys.stdin.readline()
+    print_("echo: %r" % line)
+    try:
+        return command.command(json.loads(line))
+    except:
+        raise
+        #return None
+
+def send_evt(evt):
+    print_(json.dumps(evt))
+    sys.stdout.flush()
+
+def cmd_wait(c):
+    while True:
+        cmd = get_cmd()
+        if not cmd:
+            send_evt(event.warning(handle=name, message="Not a command."))
+        elif cmd.command() != c:
+            send_evt(event.warning(handle=name, message="Unexpected command."))
+        else:
+            return cmd
+
+def cmd_err(name, c='variable_value'):
+    cmd = cmd_wait(c)
+    if cmd.arg('error') is None:
+        send_evt(event.failed(handle=name, message="Error was expected."))
+        return False
+    return True
+
+def cmd_value(name, value, c='variable_value'):
+    cmd = cmd_wait(c)
+    if cmd.arg('error') is not None:
+        send_evt(event.failed(handle=name, message="Unexpected error."))
+        return False
+    if cmd.arg('value') != value:
+        send_evt(event.failed(handle=name, message="Wrong value."))
+        return False
+    return True
+
+if __name__ == '__main__':
+    #tid = thread.start_new_thread(reader, ())
+    #print_("thread: %s" % tid)
+    send_evt(event.variable_get('test_variables/var1'))
+    #cmd_err('test_variables/var1/error') # NOTE: returns None!
+    cmd_value('test_variables/var1/value', None)
+    #time.sleep(2)
+
+    send_evt(event.variable_set('test_variables/var2', 'val2'))
+    #time.sleep(1)
+    send_evt(event.variable_get('test_variables/var2'))
+    cmd_value('test_variables/var2/value', 'val2')
+    #time.sleep(2)
+
+    send_evt(event.variable_set('test_variables/var3', 'val31',
+        method=event.VARIABLE_SET_METHOD.ADD))
+    #time.sleep(1)
+    send_evt(event.variable_get('test_variables/var3'))
+    cmd_value('test_variables/var3/add31', ['val31'])
+    #time.sleep(2)
+
+    send_evt(event.variable_set('test_variables/var3', 'val32',
+        method=event.VARIABLE_SET_METHOD.ADD))
+    #time.sleep(1)
+    send_evt(event.variable_get('test_variables/var3'))
+    cmd_value('test_variables/var3/add32', ['val31', 'val32'])
+    #time.sleep(2)
+
+    send_evt(event.variable_set('test_variables/var3', 'val31',
+        method=event.VARIABLE_SET_METHOD.ADD))
+    #time.sleep(1)
+    send_evt(event.variable_get('test_variables/var3'))
+    cmd_value('test_variables/var3/duplicate31', ['val31', 'val32'])
+    #time.sleep(2)
+
+    send_evt(event.variable_set('test_variables/var4', 'val41',
+        method=event.VARIABLE_SET_METHOD.APPEND))
+    #time.sleep(1)
+    send_evt(event.variable_get('test_variables/var4'))
+    cmd_value('test_variables/var4/add41', ['val41'])
+    #time.sleep(2)
+
+    send_evt(event.variable_set('test_variables/var4', 'val42',
+        method=event.VARIABLE_SET_METHOD.APPEND))
+    #time.sleep(1)
+    send_evt(event.variable_get('test_variables/var4'))
+    cmd_value('test_variables/var4/add42', ['val41', 'val42'])
+    #time.sleep(2)
+
+    send_evt(event.variable_set('test_variables/var4', 'val41',
+        method=event.VARIABLE_SET_METHOD.APPEND))
+    #time.sleep(1)
+    send_evt(event.variable_get('test_variables/var4'))
+    cmd_value('test_variables/var4/duplicate41', ['val41', 'val42', 'val41'])
+    #time.sleep(2)
+
+    send_evt(event.variable_set('test_variables/var4', 'val43',
+        method=event.VARIABLE_SET_METHOD.DELETE))
+    #time.sleep(1)
+    send_evt(event.variable_get('test_variables/var4'))
+    cmd_value('test_variables/var4/del43', ['val41', 'val42', 'val41'])
+    #time.sleep(2)
+
+    send_evt(event.variable_set('test_variables/var4', 'val42',
+        method=event.VARIABLE_SET_METHOD.DELETE))
+    #time.sleep(1)
+    send_evt(event.variable_get('test_variables/var4'))
+    cmd_value('test_variables/var4/del42', ['val41', 'val41'])
+    #time.sleep(2)
+
+    send_evt(event.variable_set('test_variables/var4', 'val41',
+        method=event.VARIABLE_SET_METHOD.DELETE))
+    #time.sleep(1)
+    send_evt(event.variable_get('test_variables/var4'))
+    cmd_value('test_variables/var4/del41', ['val41'])
+    #time.sleep(2)
+
+    send_evt(event.variable_set('test_variables/var4', 'val41',
+        method=event.VARIABLE_SET_METHOD.DELETE))
+    #time.sleep(1)
+    send_evt(event.variable_get('test_variables/var4'))
+    cmd_value('test_variables/var4/del41_2', [])
+    #time.sleep(2)
+
+    send_evt(event.variable_set('test_variables/var4', 'val41',
+        method=event.VARIABLE_SET_METHOD.DELETE))
+    #time.sleep(1)
+    send_evt(event.variable_get('test_variables/var4'))
+    cmd_value('test_variables/var4/del41_3', [])
+    #time.sleep(2)
+
+    send_evt(event.variable_set('test_variables/var5', 'val51',
+        method=event.VARIABLE_SET_METHOD.DELETE))
+    #time.sleep(1)
+    send_evt(event.variable_get('test_variables/var5'))
+    cmd_value('test_variables/var5/del', None) # NOTE: returns None!
+    #time.sleep(2)
+
+    send_evt(event.variables(['test_variables/var5'], method=event.VARIABLE_METHOD.DEFINED))
+    cmd_value('test_variables/vars_5_defined', False, 'answer')
+    send_evt(event.variables(['test_variables/var5'], method=event.VARIABLE_METHOD.COUNT))
+    cmd_value('test_variables/vars_5_count', 0, 'answer')
+    send_evt(event.variables(['test_variables/var5'], method=event.VARIABLE_METHOD.LIST))
+    cmd_value('test_variables/vars_5_list', [], 'answer')
+    #time.sleep(2)
+
+    send_evt(event.variables(['test_variables/var4'], method=event.VARIABLE_METHOD.DEFINED))
+    cmd_value('test_variables/vars_4_defined', True, 'answer')
+    send_evt(event.variables(['test_variables/var4'], method=event.VARIABLE_METHOD.COUNT))
+    cmd_value('test_variables/vars_4_count', 1, 'answer')
+    send_evt(event.variables(['test_variables/var4'], method=event.VARIABLE_METHOD.LIST))
+    cmd_value('test_variables/vars_4_list', ['test_variables/var4'], 'answer')
+    #time.sleep(2)
+
+    send_evt(event.variables(['test_variables/var4', 'test_variables/var5'], method=event.VARIABLE_METHOD.DEFINED))
+    cmd_value('test_variables/vars_45_defined', True, 'answer')
+    send_evt(event.variables(['test_variables/var4', 'test_variables/var5'], method=event.VARIABLE_METHOD.COUNT))
+    cmd_value('test_variables/vars_45_count', 1, 'answer')
+    send_evt(event.variables(['test_variables/var4', 'test_variables/var5'], method=event.VARIABLE_METHOD.LIST))
+    cmd_value('test_variables/vars_45_list', ['test_variables/var4'], 'answer')
+    send_evt(event.variables(['test_variables/var4', 'test_variables/var5'], method=event.VARIABLE_METHOD.DICT))
+    cmd_value('test_variables/vars_45_dict', {'test_variables/var4': []}, 'answer')
+    #time.sleep(2)
+
+    #thread.exit()
