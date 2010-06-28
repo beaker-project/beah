@@ -1,0 +1,5 @@
+["recipes/test-sync-single.xml",
+ ["machine0", "test.loop", "test.loop1"],
+ [40, 41, 42, 98, 99],
+ {}]
+

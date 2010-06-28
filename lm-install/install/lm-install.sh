@@ -421,7 +421,7 @@ function lm_restart_test()
   lm_start_test
 }
 
-function lm_start()
+function lm_start_()
 {
   rm -rf /var/cache/rhts
   service beah-srv start
@@ -436,6 +436,11 @@ function lm_start()
   fi
   service beah-beaker-backend start
   service beah-fwd-backend start
+}
+
+function lm_start()
+{
+  lm_start_
   lm_mon
 }
 

@@ -17,7 +17,7 @@
     </hostRequires>
 
     <task avg_time="1200" id="40"
-            name="/examples/rhts_tutorial/mcsontos/beah_iptables"
+            name="/distribution/beaker/beah/misc/iptables"
             role="STANDALONE"
             result="%(task40_res)s"
             status="%(task40_stat)s"
@@ -27,7 +27,7 @@
                 <system value="%(machine0)s"/>
             </role>
         </roles>
-        <rpm name="tmp-examples-rhts_tutorial-mcsontos-beah_iptables.noarch"/>
+        <rpm name="rh-tests-distribution-beaker-beah-misc-iptables.noarch"/>
     </task>
     <!--
     <task ...
