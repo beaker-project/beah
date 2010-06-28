@@ -518,11 +518,14 @@ class RHTSMain(object):
                     log.debug("variable match: %r", var)
                 if answ is not None:
                     value = var[3]
-                    for state in states:
-                        if state in value:
-                            log.debug("state %r found in value %r", state, value)
-                            answ.append(state)
-                            break
+                    if value is not None:
+                        for state in states:
+                            if state in value:
+                                log.debug("state %r found in value %r", state, value)
+                                answ.append(state)
+                                break
+                        else:
+                            answ = None
                     else:
                         answ = None
             if answ is not None:
