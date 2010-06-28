@@ -106,7 +106,7 @@ class ForwarderBackend(ExtBackend):
         if host[:9] == 'test.loop':
             # test.loop for testing forwarder on single machine.
             # could be used with port number test.loop:11432
-            host = 'localhost'
+            host = '127.0.0.1'
             # Clean the dest field to avoid inifinite loop:
             evt.args()['dest'] = ''
             port = int(host[10:] or port)

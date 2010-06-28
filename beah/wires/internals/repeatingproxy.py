@@ -250,7 +250,7 @@ if __name__ == '__main__':
 
     make_class_verbose(RepeatingProxy, print_this)
     make_class_verbose(TestHandler, print_this)
-    p = RepeatingProxy(url='http://localhost:54123/')
+    p = RepeatingProxy(url='http://127.0.0.1:54123/')
     #def accepted_failure(fail):
     #    if fail.check(exceptions.NotImplementedError):
     #        # This does not work :-(
@@ -286,6 +286,6 @@ if __name__ == '__main__':
     reactor.callWhenRunning(rem_call, p, 'test2', False)
     reactor.callWhenRunning(rem_call, p, 'test_exc', False)
     reactor.callWhenRunning(rem_call, p, 'test_exc2', False)
-    reactor.callLater(10, reactor.listenTCP, 54123, server.Site(TestHandler(), timeout=60), interface='localhost')
+    reactor.callLater(10, reactor.listenTCP, 54123, server.Site(TestHandler(), timeout=60), interface='127.0.0.1')
     reactor.run()
 

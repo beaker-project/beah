@@ -57,8 +57,11 @@ def mktemppipe():
             if retries <= 0:
                 raise
 
+def localhost_(host):
+    return host in ['', 'localhost', 'localhost.localdomain', '127.0.0.1', 'localhost4', 'localhost4.localdomain4']
+
 def localhost(host):
-    if host in [None, '', 'localhost']:
+    if host is None or localhost_(host):
         return True
     if host in ['test.loop']:
         return False
