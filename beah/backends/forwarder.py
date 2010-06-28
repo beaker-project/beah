@@ -21,7 +21,7 @@ from beah.core.backends import ExtBackend
 from beah.core import command, event
 from beah.core.constants import ECHO
 from beah.misc.log_this import log_this
-from beah.misc import localhost, make_class_verbose
+from beah.misc import localhost, make_class_verbose, test_loop, test_loop_port, TEST_LOOP
 from beah import config
 
 from twisted.internet.defer import Deferred
@@ -85,6 +85,9 @@ class ForwarderBackend(ExtBackend):
             reactor.callLater(self.RETRY_IN, self.proc_evt_variable_get, evt)
             return
         if type == 'forward_response' and pass_ and rest.command() == 'variable_value':
+            dest = rest.arg('dest')
+            if TEST_LOOP(dest):
+                rest.args()['dest'] = dest.lower()
             self.controller.proc_cmd(self, rest)
             remote_be.done(cmd_id)
             return
@@ -103,13 +106,13 @@ class ForwarderBackend(ExtBackend):
         # FIXME? remote Controller could listen on another port:
         port = self.def_port
         # loop for testing:
-        if host[:9] == 'test.loop':
+        if test_loop(host):
             # test.loop for testing forwarder on single machine.
             # could be used with port number test.loop:11432
+            # Modify the dest field to avoid inifinite loop:
+            evt.args()['dest'] = host.upper()
             host = '127.0.0.1'
-            # Clean the dest field to avoid inifinite loop:
-            evt.args()['dest'] = ''
-            port = int(host[10:] or port)
+            port = int(test_loop_port(host) or port)
         cmd = command.forward(event=evt)
         d = self.remote_call(cmd, host, port)
         if d:

@@ -60,10 +60,40 @@ def mktemppipe():
 def localhost_(host):
     return host in ['', 'localhost', 'localhost.localdomain', '127.0.0.1', 'localhost4', 'localhost4.localdomain4']
 
+def test_loop_port(host):
+    """
+    Return None if host is not testing loop.
+    Otherwise empty string or port number is returned.
+    """
+    if host[:9] == 'test.loop':
+        return host[10:]
+    return None
+
+def test_loop(host):
+    """
+    Returns True if host is testing loop, False otherwise.
+
+    Constrain: this must use lowercase characters only!
+    """
+    return host[:9] == 'test.loop'
+
+def TEST_LOOP(host):
+    """
+    Returns True if host is testing loop, False otherwise.
+
+    Constrain: this must use uppercase characters only!
+    """
+    return host[:9] == 'TEST.LOOP'
+
 def localhost(host):
-    if host is None or localhost_(host):
+    """
+    Returns True if host is localhost, False otherwise.
+
+    This recognizes constant names as well as attempts to resolve the name.
+    """
+    if host is None or localhost_(host) or TEST_LOOP(host):
         return True
-    if host in ['test.loop']:
+    if test_loop(host):
         return False
     hfqdn, haliaslist, hipaddrs = socket.gethostbyname_ex(host)
     if 'localhost' in haliaslist:

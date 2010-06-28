@@ -189,8 +189,6 @@ class Controller(object):
                     self.__waiting_tasks[s] = (evt, [task])
                 elif evev == 'variable_get':
                     key = evt.arg('key')
-                    if dest == 'test.loop':
-                        dest = ''
                     s = repr(("command.variable_value", key, handle, dest))
                     if self.__waiting_tasks.has_key(s):
                         _, l = self.__waiting_tasks[s]
