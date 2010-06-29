@@ -430,21 +430,28 @@ function lm_restart_test()
   lm_start_test
 }
 
-function lm_start()
+function lm_start_()
 {
   rm -rf /var/cache/rhts
   service beah-srv start
-  if [[ -n "$FAKELC_SERVICE" ]]; then
-    service beah-fakelc start
-  else
-    if [[ -n "$LM_FAKELC" ]]; then
-      beah-fakelc &> /tmp/beah-fakelc.out &
-      echo "$!" > /tmp/beah-fakelc.pid
-      sleep 2
+  if [[ -z "$NO_FAKELC" ]]; then
+    if [[ -n "$FAKELC_SERVICE" ]]; then
+      service beah-fakelc start
+    else
+      if [[ -n "$LM_FAKELC" ]]; then
+        beah-fakelc &> /tmp/beah-fakelc.out &
+        echo "$!" > /tmp/beah-fakelc.pid
+        sleep 2
+      fi
     fi
   fi
   service beah-beaker-backend start
   service beah-fwd-backend start
+}
+
+function lm_start()
+{
+  lm_start_
   lm_mon
 }
 
@@ -488,8 +495,14 @@ function lm_main_beah()
   if ! chkconfig beah-fwd-backend; then
     chkconfig --add beah-fwd-backend
   fi
-  if ! chkconfig beah-fakelc; then
-    chkconfig --add beah-fakelc
+  if [[ -z $NO_FAKELC && -n $FAKELC_SERVICE ]]; then
+    if ! chkconfig beah-fakelc; then
+      chkconfig --add beah-fakelc
+    fi
+  else
+    if chkconfig beah-fakelc; then
+      chkconfig --del beah-fakelc
+    fi
   fi
 }
 

@@ -38,8 +38,8 @@ from beah import misc
 from beah.misc import log_this, runtimes
 import beah.tools
 
-LOG_PATH = '/var/log'
-VAR_PATH = '/var/beah'
+LOG_PATH = 'var/log'
+VAR_PATH = 'var/beah'
 
 def conf_opt(args):
     """
@@ -70,6 +70,9 @@ def conf_opt(args):
     opt.add_option("-r", "--recipe", action="store", dest="recipe",
             metavar="RECIPE",
             help="RECIPE is name of file which contains JSON definition of recipe.")
+    opt.add_option("-R", "--root", action="store", dest="root_dir", metavar="ROOT",
+            default='/',
+            help="All files will be made relative to ROOT directory.")
     #opt.add_option("-S", "--recipes", action="store", dest="recipeset",
     #        metavar="RECIPESET",
     #        help="RECIPESET is name of file which contains JSON definition of recipe set.")
@@ -81,6 +84,7 @@ def conf_opt(args):
 def conf_main(conf, args):
     (opts, _) = conf_opt(args)
     conf['name'] = opts.name or 'beah_fakelc'
+    conf['root'] = opts.root_dir or '/'
     beah.config.proc_verbosity(opts, conf)
     conf['port'] = int(opts.port or 5222)
     conf['interface'] = opts.interface or ''
@@ -347,9 +351,8 @@ class Uploader:
         return True
 ### </STOLEN>
 
-uploader = Uploader("/tmp/beah-fakelc-logs/")
-
 def do_upload_file(path, name, size, digest, offset, data):
+    global uploader
     log.info("do_upload_file(path=%r, name=%r, size=%r, digest=%r, offset=%r, data='...')",
             path, name, size, digest, offset)
     uploader.uploadFile(path, name, size, digest, offset, data)
@@ -545,13 +548,14 @@ def main():
 ################################################################################
 # EXECUTE:
 ################################################################################
-    global conf, runtime
+    global conf, runtime, uploader
     conf = conf_main({}, sys.argv[1:])
     name = conf['name']
-    runtime = runtimes.ShelveRuntime(VAR_PATH + '/' + name)
+    var_path = os.path.join(conf['root'], VAR_PATH, name)
+    runtime = runtimes.ShelveRuntime(os.path.join(var_path, "runtime"))
     log = logging.getLogger('beah_fakelc')
     # FIXME: redirect to console or syslog?
-    misc.make_log_handler(log, LOG_PATH, "%s.log" % name)
+    misc.make_log_handler(log, os.path.join(conf['root'], LOG_PATH), "%s.log" % name)
     log.setLevel(misc.str2log_level(conf.get('LOG', 'warning')))
     if conf.get('DEVEL', False):
         print_this = log_this.log_this(lambda s: log.debug(s), log_on=True)
@@ -562,6 +566,7 @@ def main():
     lc = LCHandler()
     s = server.Site(lc, None, 60*60*12)
     reactor.listenTCP(conf['port'], s, interface=conf['interface'])
+    uploader = Uploader(os.path.join(var_path, "fakelc-uploads"))
     reactor.run()
 
 ################################################################################
