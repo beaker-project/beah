@@ -224,10 +224,7 @@ import os.path
 import fcntl
 import stat
 import errno
-try:
-    from hashlib import md5 as md5_constructor
-except ImportError:
-    from md5 import new as md5_constructor
+from beah.misc import digests
 
 def decode_int(n):
     """If n is not an integer, attempt to convert it"""
@@ -267,11 +264,16 @@ class Uploader:
         # we will accept offset and size as strings to work around xmlrpc limits
         offset = decode_int(offset)
         size = decode_int(size)
+        digest_method = digests.which_digest(md5sum)
+        if digest_method:
+            digest_constructor = digests.DigestConstructor(digest_method)
+        else:
+            digest_constructor = None
         if offset != -1:
             if size is not None:
                 if size != len(contents): return False
-            if md5sum is not None:
-                if md5sum != md5_constructor(contents).hexdigest():
+            if digest_constructor:
+                if md5sum != digest_constructor(contents).hexdigest():
                     return False
         uploadpath = self.basepath
         #XXX - have an incoming dir and move after upload complete
@@ -323,9 +325,9 @@ class Uploader:
                         # log_error("truncating fd %r to size %r" % (fd,size))
                     finally:
                         fcntl.lockf(fd, fcntl.LOCK_UN)
-                if md5sum is not None:
+                if digest_constructor:
                     #check final md5sum
-                    sum = md5_constructor()
+                    sum = digest_constructor()
                     fcntl.lockf(fd, fcntl.LOCK_SH|fcntl.LOCK_NB)
                     try:
                         # log_error("checking md5sum")
