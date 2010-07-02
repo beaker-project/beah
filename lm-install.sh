@@ -36,7 +36,7 @@ fi
 ################################################################################
 # SET-UP:
 ################################################################################
-export BEAH_VER="${BEAH_VER:-"0.6.5"}"
+export BEAH_VER="${BEAH_VER:-"0.6.6"}"
 export BEAH_DEV=".dev$(date "+%Y%m%d%H%M")"
 
 if [[ -f "$LM_INSTALL_ENV" ]]; then
@@ -79,7 +79,7 @@ cp install-el5.sh $DISTRO_ROOT/install
 
 cat >$DISTRO_ROOT/install/env.sh <<END
 LM_INSTALL_ROOT="${LM_INSTALL_ROOT}"
-LAB_CONTROLLER="${LAB_CONTROLLER:-http://localhost:5222/}"
+LAB_CONTROLLER="${LAB_CONTROLLER:-http://127.0.0.1:5222/}"
 BEAKER_HOSTNAME="${BEAKER_HOSTNAME:-$LABM}"
 LM_NO_RHTS="${LM_NO_RHTS}"
 LM_RHTS_REPO="${LM_RHTS_REPO}"

@@ -16,6 +16,13 @@ function psgrep()
   ps -ef | grep "$@"
 }
 
+function kill3()
+{
+  local pids=$(ps -o pid --ppid $1 | grep -v PID)
+  kill $1
+  for pid in $pids; do kill3 $pid; done
+}
+
 function lm_env_check()
 {
   local _answ=0
@@ -258,7 +265,7 @@ function lm_config_beah()
 {
   cat > /etc/beah_beaker.conf <<END
 [DEFAULT]
-LAB_CONTROLLER=${LAB_CONTROLLER:-"http://localhost:5222/client"}
+LAB_CONTROLLER=${LAB_CONTROLLER:-"http://127.0.0.1:5222/client"}
 
 # PRETEND TO BE ANOTHER MACHINE:
 HOSTNAME=${BEAKER_HOSTNAME:-"$HOSTNAME"}
@@ -276,7 +283,7 @@ END
 LM_LOGS="/tmp/beah*.out /var/log/beah*.log /tmp/var/log/rhts_task*.log"
 function lm_tar_logs()
 {
-  tar cf $LM_INSTALL_ROOT/lm-logs.tar.gz $LM_LOGS
+  tar czf $LM_INSTALL_ROOT/lm-logs-$(date +%Y%m%d-%H%M%S).tar.gz $LM_LOGS
 }
 
 function lm_logs()
@@ -340,10 +347,10 @@ function lm_view_logs()
 
 function lm_mon()
 {
-  local file1=/tmp/lm_mon_file1
-  local file2=/tmp/lm_mon_file2
-  touch $file1
-  touch $file2
+  local file1=/tmp/lm_mon_file1 file2=/tmp/lm_mon_file2
+  rm -f $file1 $file2 &>/dev/null
+  lm_ps &> $file2
+  cat $file2
   while true; do
     lm_ps &> $file1
     if ! diff $file1 $file2 &>/dev/null; then

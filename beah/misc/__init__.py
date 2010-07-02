@@ -57,23 +57,78 @@ def mktemppipe():
             if retries <= 0:
                 raise
 
+def localhost_(host):
+    return host in ['', 'localhost', 'localhost.localdomain', '127.0.0.1', 'localhost4', 'localhost4.localdomain4']
+
+def _localhosts_aggressive():
+    answ={}
+    stack=['localhost', '127.0.0.1', socket.getfqdn(), socket.gethostname()]
+    def lh_add(*hs):
+        for h in hs:
+            if answ.has_key(h):
+                continue
+            stack.append(h)
+    while stack:
+        h = stack.pop()
+        if answ.has_key(h):
+            continue
+        answ[h] = True
+        lh_add(socket.getfqdn(h))
+        try:
+            lh_add(socket.gethostbyname(h))
+        except:
+            pass
+        try:
+            fqdn, aliases, ip_addresses = socket.gethostbyname_ex(h)
+            lh_add(fqdn, *aliases)
+            lh_add(*ip_addresses)
+        except:
+            pass
+        try:
+            fqdn, aliases, ip_addresses = socket.gethostbyaddr(h)
+            lh_add(fqdn, *aliases)
+            lh_add(*ip_addresses)
+        except:
+            pass
+    return answ
+
+_LOCALHOSTS = {}
+def _localhosts():
+    global _LOCALHOSTS
+    if not _LOCALHOSTS:
+        _LOCALHOSTS.update(_localhosts_aggressive())
+    return _LOCALHOSTS
+
+def _set_local(host, local):
+    global _LOCALHOSTS
+    _localhosts()
+    _LOCALHOSTS[host] = local
+    return local
+
 def localhost(host):
-    if host in [None, '', 'localhost']:
+    if not host:
         return True
     if host in ['test.loop']:
         return False
-    hfqdn, haliaslist, hipaddrs = socket.gethostbyname_ex(host)
-    if 'localhost' in haliaslist:
-        return True
-    fqdn, aliaslist, ipaddrs = socket.gethostbyname_ex(socket.gethostname())
-    if host == fqdn or host in aliaslist or host in ipaddrs:
-        return True
-    if hfqdn == fqdn:
-        return True
-    for hipaddr in hipaddrs:
-        if hipaddr in ipaddrs:
-            return True
-    return False
+    localhosts = _localhosts()
+    is_local = localhosts.get(host, None)
+    if is_local is not None:
+        return is_local
+    try:
+        hfqdn, haliaslist, hipaddrs = socket.gethostbyname_ex(host)
+        for name in [hfqdn] + haliaslist + hipaddrs:
+            if name in localhosts:
+                return _set_local(host, True)
+    except:
+        pass
+    try:
+        hfqdn, haliaslist, hipaddrs = socket.gethostbyaddr(host)
+        for name in [hfqdn] + haliaslist + hipaddrs:
+            if name in localhosts:
+                return _set_local(host, True)
+    except:
+        pass
+    return _set_local(host, False)
 
 if sys.version_info[1] < 4:
     def format_exc():

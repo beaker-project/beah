@@ -3,7 +3,7 @@
 #LM_INSTALL_ROOT=/tmp/lm-install
 
 # LAB_CONTROLLER - address of labcontroller (LC).
-# Optional. Defaults to localhost:5222 (on LM)
+# Optional. Defaults to 127.0.0.1:5222 (on LM)
 #LAB_CONTROLLER="http://$HOSTNAME:5222/"
 
 # LM_FAKELC - if set, start beah-fakelc on LM. (use default LAB_CONTROLLER

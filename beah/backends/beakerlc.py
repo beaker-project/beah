@@ -968,8 +968,8 @@ def defaults():
         if cs:
             lc = 'http://%s:8000/server' % cs
         else:
-            cs = 'localhost'
-            lc = 'http://localhost:5222/'
+            cs = '127.0.0.1'
+            lc = 'http://127.0.0.1:5222/'
     if not cs:
         cs = re.compile('^(https?://)?([^/:]+?)(:[0-9]+)?(/.*)?$').match(lc).group(2)
     d.update({

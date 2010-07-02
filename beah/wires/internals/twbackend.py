@@ -20,7 +20,7 @@ from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet import reactor
 from beah.wires.internals.twadaptors import ControllerAdaptor_Backend_JSON
 from beah import config
-from beah.misc import make_log_handler, str2log_level
+from beah.misc import make_log_handler, str2log_level, localhost_
 
 import os
 import sys
@@ -103,7 +103,7 @@ def start_backend(backend, host=None, port=None,
         if config.parse_bool(conf.get('DEFAULT', 'SOCKET_OPT')) and socket != '':
             port = ''
         # 1. check INTERFACE - if not empty nor localhost: must use TCP
-        if host != '' and host != 'localhost':
+        if not localhost_(host):
             socket = ''
         # 2. check PORT_OPT (port given on command line)
         if config.parse_bool(conf.get('DEFAULT', 'PORT_OPT')) and port != '':
