@@ -103,7 +103,7 @@ def start_backend(backend, host=None, port=None,
         if config.parse_bool(conf.get('DEFAULT', 'SOCKET_OPT')) and socket != '':
             port = ''
         # 1. check INTERFACE - if not empty nor localhost: must use TCP
-        if localhost_(host):
+        if not localhost_(host):
             socket = ''
         # 2. check PORT_OPT (port given on command line)
         if config.parse_bool(conf.get('DEFAULT', 'PORT_OPT')) and port != '':
