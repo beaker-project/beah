@@ -38,8 +38,8 @@ from beah import misc
 from beah.misc import log_this, runtimes
 import beah.tools
 
-LOG_PATH = '/var/log'
-VAR_PATH = '/var/beah'
+LOG_PATH = 'var/log'
+VAR_PATH = 'var/beah'
 
 def conf_opt(args):
     """
@@ -70,6 +70,9 @@ def conf_opt(args):
     opt.add_option("-r", "--recipe", action="store", dest="recipe",
             metavar="RECIPE",
             help="RECIPE is name of file which contains JSON definition of recipe.")
+    opt.add_option("-R", "--root", action="store", dest="root_dir", metavar="ROOT",
+            default='/',
+            help="All files will be made relative to ROOT directory.")
     #opt.add_option("-S", "--recipes", action="store", dest="recipeset",
     #        metavar="RECIPESET",
     #        help="RECIPESET is name of file which contains JSON definition of recipe set.")
@@ -81,6 +84,7 @@ def conf_opt(args):
 def conf_main(conf, args):
     (opts, _) = conf_opt(args)
     conf['name'] = opts.name or 'beah_fakelc'
+    conf['root'] = opts.root_dir or '/'
     beah.config.proc_verbosity(opts, conf)
     conf['port'] = int(opts.port or 5222)
     conf['interface'] = opts.interface or ''
@@ -224,10 +228,7 @@ import os.path
 import fcntl
 import stat
 import errno
-try:
-    from hashlib import md5 as md5_constructor
-except ImportError:
-    from md5 import new as md5_constructor
+from beah.misc import digests
 
 def decode_int(n):
     """If n is not an integer, attempt to convert it"""
@@ -267,11 +268,16 @@ class Uploader:
         # we will accept offset and size as strings to work around xmlrpc limits
         offset = decode_int(offset)
         size = decode_int(size)
+        digest_method = digests.which_digest(md5sum)
+        if digest_method:
+            digest_constructor = digests.DigestConstructor(digest_method)
+        else:
+            digest_constructor = None
         if offset != -1:
             if size is not None:
                 if size != len(contents): return False
-            if md5sum is not None:
-                if md5sum != md5_constructor(contents).hexdigest():
+            if digest_constructor:
+                if md5sum != digest_constructor(contents).hexdigest():
                     return False
         uploadpath = self.basepath
         #XXX - have an incoming dir and move after upload complete
@@ -323,9 +329,9 @@ class Uploader:
                         # log_error("truncating fd %r to size %r" % (fd,size))
                     finally:
                         fcntl.lockf(fd, fcntl.LOCK_UN)
-                if md5sum is not None:
+                if digest_constructor:
                     #check final md5sum
-                    sum = md5_constructor()
+                    sum = digest_constructor()
                     fcntl.lockf(fd, fcntl.LOCK_SH|fcntl.LOCK_NB)
                     try:
                         # log_error("checking md5sum")
@@ -345,9 +351,8 @@ class Uploader:
         return True
 ### </STOLEN>
 
-uploader = Uploader("/tmp/beah-fakelc-logs/")
-
 def do_upload_file(path, name, size, digest, offset, data):
+    global uploader
     log.info("do_upload_file(path=%r, name=%r, size=%r, digest=%r, offset=%r, data='...')",
             path, name, size, digest, offset)
     uploader.uploadFile(path, name, size, digest, offset, data)
@@ -543,13 +548,14 @@ def main():
 ################################################################################
 # EXECUTE:
 ################################################################################
-    global conf, runtime
+    global conf, runtime, uploader
     conf = conf_main({}, sys.argv[1:])
     name = conf['name']
-    runtime = runtimes.ShelveRuntime(VAR_PATH + '/' + name)
+    var_path = os.path.join(conf['root'], VAR_PATH, name)
+    runtime = runtimes.ShelveRuntime(os.path.join(var_path, "runtime"))
     log = logging.getLogger('beah_fakelc')
     # FIXME: redirect to console or syslog?
-    misc.make_log_handler(log, LOG_PATH, "%s.log" % name)
+    misc.make_log_handler(log, os.path.join(conf['root'], LOG_PATH), "%s.log" % name)
     log.setLevel(misc.str2log_level(conf.get('LOG', 'warning')))
     if conf.get('DEVEL', False):
         print_this = log_this.log_this(lambda s: log.debug(s), log_on=True)
@@ -560,6 +566,7 @@ def main():
     lc = LCHandler()
     s = server.Site(lc, None, 60*60*12)
     reactor.listenTCP(conf['port'], s, interface=conf['interface'])
+    uploader = Uploader(os.path.join(var_path, "fakelc-uploads"))
     reactor.run()
 
 ################################################################################

@@ -16,6 +16,13 @@ function psgrep()
   ps -ef | grep "$@"
 }
 
+function kill3()
+{
+  local pids=$(ps -o pid --ppid $1 | grep -v PID)
+  kill $1
+  for pid in $pids; do kill3 $pid; done
+}
+
 function lm_env_check()
 {
   local _answ=0
@@ -264,6 +271,8 @@ LAB_CONTROLLER=${LAB_CONTROLLER:-"http://127.0.0.1:5222/client"}
 HOSTNAME=${BEAKER_HOSTNAME:-"$HOSTNAME"}
 
 RUNTIME_FILE_NAME=%(VAR_ROOT)s/beah_beaker.runtime
+
+DIGEST=no
 END
 
   rm -f /etc/beah.conf.orig
@@ -274,7 +283,7 @@ END
 LM_LOGS="/tmp/beah*.out /var/log/beah*.log /tmp/var/log/rhts_task*.log"
 function lm_tar_logs()
 {
-  tar cf $LM_INSTALL_ROOT/lm-logs.tar.gz $LM_LOGS
+  tar czf $LM_INSTALL_ROOT/lm-logs-$(date +%Y%m%d-%H%M%S).tar.gz $LM_LOGS
 }
 
 function lm_logs()
@@ -338,10 +347,10 @@ function lm_view_logs()
 
 function lm_mon()
 {
-  local file1=/tmp/lm_mon_file1
-  local file2=/tmp/lm_mon_file2
-  touch $file1
-  touch $file2
+  local file1=/tmp/lm_mon_file1 file2=/tmp/lm_mon_file2
+  rm -f $file1 $file2 &>/dev/null
+  lm_ps &> $file2
+  cat $file2
   while true; do
     lm_ps &> $file1
     if ! diff $file1 $file2 &>/dev/null; then
@@ -425,13 +434,15 @@ function lm_start_()
 {
   rm -rf /var/cache/rhts
   service beah-srv start
-  if [[ -n "$FAKELC_SERVICE" ]]; then
-    service beah-fakelc start
-  else
-    if [[ -n "$LM_FAKELC" ]]; then
-      beah-fakelc &> /tmp/beah-fakelc.out &
-      echo "$!" > /tmp/beah-fakelc.pid
-      sleep 2
+  if [[ -z "$NO_FAKELC" ]]; then
+    if [[ -n "$FAKELC_SERVICE" ]]; then
+      service beah-fakelc start
+    else
+      if [[ -n "$LM_FAKELC" ]]; then
+        beah-fakelc &> /tmp/beah-fakelc.out &
+        echo "$!" > /tmp/beah-fakelc.pid
+        sleep 2
+      fi
     fi
   fi
   service beah-beaker-backend start
@@ -484,8 +495,14 @@ function lm_main_beah()
   if ! chkconfig beah-fwd-backend; then
     chkconfig --add beah-fwd-backend
   fi
-  if ! chkconfig beah-fakelc; then
-    chkconfig --add beah-fakelc
+  if [[ -z $NO_FAKELC && -n $FAKELC_SERVICE ]]; then
+    if ! chkconfig beah-fakelc; then
+      chkconfig --add beah-fakelc
+    fi
+  else
+    if chkconfig beah-fakelc; then
+      chkconfig --del beah-fakelc
+    fi
   fi
 }
 

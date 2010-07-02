@@ -36,7 +36,7 @@ fi
 ################################################################################
 # SET-UP:
 ################################################################################
-export BEAH_VER="${BEAH_VER:-"0.6.5"}"
+export BEAH_VER="${BEAH_VER:-"0.6.6"}"
 export BEAH_DEV=".dev$(date "+%Y%m%d%H%M")"
 
 if [[ -f "$LM_INSTALL_ENV" ]]; then
@@ -86,6 +86,7 @@ LM_RHTS_REPO="${LM_RHTS_REPO}"
 LM_RHTS_DEVEL_REPO="${LM_RHTS_DEVEL_REPO}"
 LM_YUM_FILE="${LM_YUM_FILE}"
 LM_YUM_PATH="${LM_YUM_PATH}"
+NO_FAKELC="${NO_FAKELC}"
 LM_FAKELC="${LM_FAKELC}"
 FAKELC_SERVICE="${FAKELC_SERVICE}"
 export BEAH_NODEP="${BEAH_NODEP}"

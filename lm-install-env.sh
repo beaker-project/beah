@@ -6,6 +6,10 @@
 # Optional. Defaults to 127.0.0.1:5222 (on LM)
 #LAB_CONTROLLER="http://$HOSTNAME:5222/"
 
+# NO_FAKELC - if set, do not start beah-fakelc on LM. (One can still use
+# `chkconfig --add beah-fakelc` to add the service or run it manually.)
+#NO_FAKELC=1
+
 # LM_FAKELC - if set, start beah-fakelc on LM. (use default LAB_CONTROLLER
 # setting with this option.)
 #LM_FAKELC=1

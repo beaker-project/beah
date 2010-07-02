@@ -343,7 +343,7 @@ class BeakerWriter(writers.JournallingWriter):
     _VERBOSE = ('write', 'send')
 
     def __init__(self, journal=None, offs=None, proxy=None, method=None, id=None, path=None,
-            filename=None, repr=None):
+            filename=None, repr=None, digest_method=None):
         if offs is None:
             raise exceptions.RuntimeError("empty offs passed!")
         for var in ('journal', 'proxy', 'id', 'filename'):
@@ -354,6 +354,7 @@ class BeakerWriter(writers.JournallingWriter):
         self.id = id
         self.path = path or '/'
         self.filename = filename
+        self.digest_constructor = digests.DigestConstructor(digest_method or 'md5')
         if repr:
             self.repr = repr
         writers.JournallingWriter.__init__(self, journal, offs, capacity=4096, no_split=True)
@@ -364,9 +365,7 @@ class BeakerWriter(writers.JournallingWriter):
         """
         size = len(cdata)
         offs = self.get_offset()
-        d = hashlib.md5()
-        d.update(cdata)
-        digest = d.hexdigest()
+        digest = self.digest_constructor(cdata).hexdigest()
         data = event.encode("base64", cdata)
         # FIXME? I would like to be able to append to the file. *_upload_file
         # calls require offset but the file is remote and there is no way to
@@ -398,6 +397,7 @@ class BeakerLCBackend(SerializingBackend):
     def __init__(self):
         self.conf = config.get_conf('beah-backend')
         self.hostname = self.conf.get('DEFAULT', 'HOSTNAME')
+        self.digest_method = self.conf.get('DEFAULT', 'DIGEST')
         self.waiting_for_lc = False
         self.runtime = runtimes.ShelveRuntime(self.conf.get('DEFAULT', 'RUNTIME_FILE_NAME'))
         self.__commands = {}
@@ -593,8 +593,8 @@ class BeakerLCBackend(SerializingBackend):
             journal = open_(jname, "ab+")
             writer = BeakerWriter(journal, offs, id=id,
                     filename=os.path.basename(name),
-                    path=os.path.dirname(name),
-                    proxy=self.proxy, *args, **kwargs)
+                    path=os.path.dirname(name), proxy=self.proxy,
+                    digest_method=self.digest_method, *args, **kwargs)
             writer_set_offset = writer.set_offset
             def wroff(offs):
                 offss[name] = offs
@@ -824,11 +824,9 @@ class BeakerLCBackend(SerializingBackend):
             return
         size = len(cdata)
         self.set_file_info(fid, offset=offset+size)
-        # FIXME: make this config.option
-        digest_method = 'md5'
         dm, digest = digests.make_digest(evt.arg('digest', None)) or (None, None)
-        if dm != digest_method:
-            digest = digests.DigestConstructor(digest_method)(cdata).hexdigest()
+        if dm != self.digest_method:
+            digest = digests.DigestConstructor(self.digest_method)(cdata).hexdigest()
         if codec != "base64":
             data = event.encode("base64", cdata)
         if finfo.has_key('be:uploading_as'):
@@ -954,6 +952,12 @@ def beakerlc_opts(opt, conf):
     opt.add_option("-H", "--hostname",
             action="callback", callback=hostname_cb, type='string',
             help="Identify as HOSTNAME when talking to Lab Controller.")
+    def digest_cb(option, opt_str, value, parser):
+        # FIXME!!! check value
+        conf['DIGEST'] = value
+    opt.add_option("--digest", metavar="DIGEST_METHOD",
+            action="callback", callback=digest_cb, type='string',
+            help="Use DIGEST_METHOD for checksums.")
     return opt
 
 def defaults():
@@ -972,7 +976,8 @@ def defaults():
             'NAME':'beah_beaker_backend',
             'LAB_CONTROLLER':lc,
             'COBBLER_SERVER':cs,
-            'HOSTNAME':os.getenv('HOSTNAME')
+            'HOSTNAME':os.getenv('HOSTNAME'),
+            'DIGEST':'md5',
             })
     return d
 
