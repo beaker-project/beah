@@ -678,14 +678,6 @@ class BeakerLCBackend(SerializingBackend):
                                     .addCallback(self.handle_Stop) \
                                     .addErrback(self.on_lc_failure)
 
-    def proc_evt_extend_watchdog(self, evt):
-        id = evt.task_id
-        if self.get_task_info(id).get("ended"):
-            # we have already received 'end' event and EWD is overridden
-            return
-        timeout = evt.arg('timeout')
-        self.proxy.callRemote('extend_watchdog', id, timeout)
-
     def proc_evt_start(self, evt):
         id = evt.task_id
         if not self.task_has_started(id):
@@ -713,14 +705,20 @@ class BeakerLCBackend(SerializingBackend):
                         .addErrback(self.on_lc_failure)
 
     def proc_evt(self, evt, **flags):
-        # end event has to be processed asynchronously, so it does not wait in
-        # queue...
-        if evt.event() == 'end':
+        # some events need asynchronous processing, so they do not wait in
+        # queue.
+        if evt.event() == 'extend_watchdog':
+            # extend_watchdog is send immediately, to prevent EWD killing us in
+            # case of network/LC problems.
+            id = self.get_evt_task_id(evt)
+            self.proxy.callRemote('extend_watchdog', id, evt.arg('timeout'))
+            return
+        elif evt.event() == 'end':
             # task is done: override EWD to allow for data submission, even in
             # case of network/LC problems:
             id = self.get_evt_task_id(evt)
-            self.set_task_info(id, ended=True)
             self.proxy.callRemote('extend_watchdog', id, 4*3600)
+            # end will be processed synchronously too to mark the task finished
         SerializingBackend.proc_evt(self, evt, **flags)
 
     def find_job_id(self, id):
