@@ -33,7 +33,7 @@ from twisted.internet import reactor
 
 import beah
 import beah.config
-from beah.wires.internals.twmisc import serveAnyChild, serveAnyRequest
+from beah.wires.internals.twmisc import serveAnyChild, serveAnyRequest, twisted_logging
 from beah import misc
 from beah.misc import log_this, runtimes
 import beah.tools
@@ -554,6 +554,7 @@ def main():
     var_path = os.path.join(conf['root'], VAR_PATH, name)
     runtime = runtimes.ShelveRuntime(os.path.join(var_path, "runtime"))
     log = logging.getLogger('beah_fakelc')
+    twisted_logging(log)
     # FIXME: redirect to console or syslog?
     misc.make_log_handler(log, os.path.join(conf['root'], LOG_PATH), "%s.log" % name)
     log.setLevel(misc.str2log_level(conf.get('LOG', 'warning')))

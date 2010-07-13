@@ -33,7 +33,7 @@ import logging
 import random
 from beah.core import event, command
 from beah.misc import format_exc, runtimes, make_log_handler, str2log_level, digests
-from beah.wires.internals.twmisc import serveAnyChild, serveAnyRequest, JSONProtocol
+from beah.wires.internals.twmisc import serveAnyChild, serveAnyRequest, JSONProtocol, twisted_logging
 from beah.core.constants import RC
 
 LOG_PATH = '/tmp/var/log'
@@ -392,6 +392,7 @@ class RHTSMain(object):
 
         # FIXME! use tempfile and upload log when process ends.
         log = logging.getLogger('rhts_task')
+        twisted_logging(log)
         make_log_handler(log, LOG_PATH, "rhts_task_%s.log" % (taskid,))
         log.setLevel(str2log_level(os.environ.get('BEAH_TASK_LOG', "warning")))
 

@@ -176,3 +176,11 @@ def make_logging_proxy(proxy):
 
     return proxy
 
+def twisted_logging(logger):
+    from twisted.python.log import PythonLoggingObserver
+    try:
+        observer = PythonLoggingObserver(logger.name)
+        observer.start()
+    except:
+        logger.critical("Could not add twisted observer!", exc_info=True)
+

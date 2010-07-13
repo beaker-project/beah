@@ -16,6 +16,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+from beah.wires.internals.twmisc import twisted_logging
 from beah.wires.internals.twadaptors import BackendAdaptor_JSON, TaskAdaptor_JSON
 from beah.wires.internals.twtask import Spawn
 from beah.core.controller import Controller
@@ -71,6 +72,7 @@ def start_server(conf=None, backend_host=None, backend_port=None,
         conf = config.get_conf('beah')
 
     # LOGGING:
+    twisted_logging(log)
     log.setLevel(str2log_level(conf.get('CONTROLLER', 'LOG')))
 
     # Create a directory for runtime

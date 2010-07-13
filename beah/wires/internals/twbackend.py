@@ -19,6 +19,7 @@
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet import reactor
 from beah.wires.internals.twadaptors import ControllerAdaptor_Backend_JSON
+from beah.wires.internals.twmisc import twisted_logging
 from beah import config
 from beah.misc import make_log_handler, str2log_level, localhost_
 
@@ -87,6 +88,7 @@ def log_handler(log_file_name=None):
             log_file_name = conf.get('DEFAULT', 'NAME') + '.log'
     lp = conf.get('DEFAULT', 'LOG_PATH') or "/var/log"
     log = logging.getLogger('backend')
+    twisted_logging(log)
     cons = config.parse_bool(conf.get('DEFAULT', 'CONSOLE_LOG'))
     make_log_handler(log, lp, log_file_name, syslog=True, console=cons)
     return log
