@@ -710,13 +710,16 @@ class BeakerLCBackend(SerializingBackend):
         if evt.event() == 'extend_watchdog':
             # extend_watchdog is send immediately, to prevent EWD killing us in
             # case of network/LC problems.
+            tio = evt.arg('timeout')
             id = self.get_evt_task_id(evt)
-            self.proxy.callRemote('extend_watchdog', id, evt.arg('timeout'))
+            log.info('Extending Watchdog for task %s by %s..', id, tio)
+            self.proxy.callRemote('extend_watchdog', id, tio)
             return
         elif evt.event() == 'end':
             # task is done: override EWD to allow for data submission, even in
             # case of network/LC problems:
             id = self.get_evt_task_id(evt)
+            log.info('Task %s done. Submitting logs...', id)
             self.proxy.callRemote('extend_watchdog', id, 4*3600)
             # end will be processed synchronously too to mark the task finished
         SerializingBackend.proc_evt(self, evt, **flags)
@@ -869,6 +872,8 @@ class BeakerLCBackend(SerializingBackend):
 
     def handle_Stop(self, result):
         """Handler for task_stop XML-RPC return."""
+        id = self.task_data['task_env']['TASKID']
+        log.info('Task %s done. Completely.', id)
         log_flush(log)
         self.on_idle()
 
