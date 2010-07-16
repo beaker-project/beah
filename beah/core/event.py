@@ -249,7 +249,7 @@ def file_write(file_id, data, digest=None, codec=None, offset=None, origin={},
     """
     return Event('file_write', origin=origin, timestamp=timestamp,
             file_id=file_id, data=data, offset=offset, digest=digest,
-            **kwargs)
+            codec=codec, **kwargs)
 
 def file_close(file_id, origin={}, timestamp=None, **kwargs):
     """
@@ -408,10 +408,40 @@ def decode(codec, data):
 ################################################################################
 # IMPLEMENTATION:
 ################################################################################
+class EventFactory(object):
+
+    event_classes = {}
+
+    def __init__(self):
+        """
+        This is a zero-ton class.
+        """
+        raise exceptions.NotImplementedError("This class is not to be instantiated")
+
+    def register_class(cls, class_):
+        """
+        aaa
+
+        This method can be used as decorator.
+        """
+        cls.event_classes[getattr(class_, "_", class_.__name__)] = class_
+        return class_
+    register_class = classmethod(register_class)
+
+    def get_constructor(cls, event):
+        return cls.event_classes.get(event, Event)
+    get_constructor = classmethod(get_constructor)
+
+    def make(cls, evt):
+        return cls.get_constructor(evt[Event.EVENT])(*evt)
+    make = classmethod(make)
+
+
 def event(evt):
     if isinstance(evt, Event):
         return evt
-    return Event(evt)
+    return EventFactory.make(evt)
+
 
 import time
 class Event(list):
@@ -440,6 +470,17 @@ class Event(list):
         TESTTYPE = (str, unicode)
     else:
         TESTTYPE = str
+
+    def __new__(cls, evt, origin={}, timestamp=None, id=None, **kwargs):
+        if not isinstance(evt, Event):
+            if isinstance(evt, list):
+                event = evt[Event.EVENT]
+            else:
+                event = evt
+            class_ = EventFactory.get_constructor(event)
+        else:
+            class_ = cls
+        return super(Event, cls).__new__(class_, evt, origin, timestamp, id, **kwargs)
 
     def __init__(self, evt, origin={}, timestamp=None, id=None, **kwargs):
         if isinstance(evt, list):
@@ -491,15 +532,43 @@ class Event(list):
             return True
         # FIXME: are there any other exceptions?
         return False
+    def register_class(cls):
+        return EventFactory.register_class(cls)
+    register_class = classmethod(register_class)
+
+    def printable(self):
+        return self
+
+    def __repr__(self):
+        return list.__repr__(self.printable())
+
+
+################################################################################
+# SUBCLASSES:
+################################################################################
+class file_write_(Event):
+    _ = 'file_write'
+    _f = file_write
+    def printable(self):
+        e = Event(self)
+        e.args()['data'] = '...%sB hidden...' % len(self.arg('data'))
+        return e
+file_write_.register_class()
+
 
 ################################################################################
 # TESTING:
 ################################################################################
 if __name__=='__main__':
     import traceback, sys
-    def test(expected, evt, origin={}, timestamp=None, **kwargs):
+    def test(expected, evt, origin={}, timestamp=None, cls=Event, **kwargs):
         try:
-            answ = list(Event(evt, origin, timestamp, **kwargs))
+            answ = Event(evt, origin=origin, timestamp=timestamp, **kwargs)
+            if not isinstance(answ, cls):
+                print >> sys.stderr, \
+                    "--- ERROR: Event(%r, %r) is a %s != %s" % (evt,
+                            kwargs, answ.__class__.__name__, cls.__name__)
+            answ = list(answ)
             if answ != expected:
                 print >> sys.stderr, "--- ERROR: Event(%r, %r) == %r != %r" % (evt,
                         kwargs, answ, expected)
@@ -514,12 +583,15 @@ if __name__=='__main__':
     test('TypeError', 1)
     test(['Event', 'ping', '99', {}, None, {}], evt='ping', id='99')
     test('TypeError', evt=1)
-    test('TypeError', evt='ping', origin='')
+    #test('TypeError', evt='ping', origin='') # dict('') is all right!
     test('TypeError', evt='ping', origin={}, timestamp='')
     test(['Event', 'ping', '99', {}, None, {'value':1}], evt='ping', value=1, id='99')
     test(['Event', 'ping', '99', {}, None, {'value':1}], **{'evt':'ping', 'value':1, 'id':'99'})
     test(['Event', 'ping', '99', {}, None, {'value':1}], value=1, evt='ping', id='99')
     test(['Event', 'ping', '99', {}, None, {'value':1}], **{'value':1, 'evt':'ping', 'id':'99'})
+    test(['Event', 'file_write', '99', {}, None, {'file_id':'FID', 'data':'DATA'}], evt='file_write', id='99', data='DATA', file_id='FID', cls=file_write_)
+    print file_write('FID', 'DATA').__str__()
+    print file_write('FID', 'DATA').__repr__()
 
     def test(codec, f):
         for s in ["Hello World!"]:

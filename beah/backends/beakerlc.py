@@ -634,10 +634,7 @@ class BeakerLCBackend(SerializingBackend):
         id = evt.task_id = self.get_evt_task_id(evt)
         if id is None:
             return True
-        if evt.event() == 'file_write':
-            evt = event.Event(evt)
-            evt.args()['data'] = '...hidden...'
-        self.get_writer(id, 'debug/.task_beah_raw').write(jsonln(evt))
+        self.get_writer(id, 'debug/.task_beah_raw').write(jsonln(evt.printable()))
         return False
 
     def proc_evt_output(self, evt):
