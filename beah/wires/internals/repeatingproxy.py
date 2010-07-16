@@ -29,11 +29,10 @@ RepeatingProxy(twisted.web.xmlrpc.Proxy):
 
 from twisted.internet import reactor
 from twisted.web.xmlrpc import Proxy
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred, TimeoutError
 from twisted.internet.error import ConnectError, DNSLookupError, ConnectionLost
 from beah.misc.log_this import print_this
 from beah.misc import make_class_verbose
-
 import sys
 
 class RepeatingProxy(Proxy):
@@ -77,6 +76,9 @@ class RepeatingProxy(Proxy):
         self.__pending = 0
         # __on_idle: deferred which will be called when there are no more calls
         self.__on_idle = None
+        # rc_timeout: all remote calls will expire in rc_timeout second. This will be
+        # treated as auto_retry_condition. Calls do not expire if set to None.
+        self.rc_timeout = 10
         # delay: number of seconds to wait before retrying
         self.delay = 60
         self.max_retries = None
@@ -105,7 +107,8 @@ class RepeatingProxy(Proxy):
 
         When True is returned the call is rescheduled.
         """
-        return fail.check(ConnectError, DNSLookupError, ConnectionLost)
+        return fail.check(ConnectError, DNSLookupError, ConnectionLost,
+                TimeoutError)
 
     def is_accepted_failure(self, fail):
         """
@@ -173,9 +176,11 @@ class RepeatingProxy(Proxy):
         [d, count, method, args, kwargs] = m = self.pop()
         if self.serializing:
             self.__sleep = True
-        self.callRemote_(method, *args, **kwargs) \
+        rc = self.callRemote_(method, *args, **kwargs) \
                 .addCallbacks(self.on_ok, self.on_error, callbackArgs=[d],
                         errbackArgs=[m])
+        if self.rc_timeout:
+            rc.setTimeout(self.rc_timeout)
         return True
 
     def callRemote_(self, method, *args, **kwargs):
