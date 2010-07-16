@@ -328,6 +328,7 @@ function rm_egg()
 function lm_rm_beah_eggs()
 {
   rm_egg beah
+  rm -f /usr/bin/beah*
 }
 
 function lm_rm_all()
