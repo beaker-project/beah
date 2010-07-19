@@ -675,10 +675,6 @@ class BeakerLCBackend(SerializingBackend):
                                     .addCallback(self.handle_Stop) \
                                     .addErrback(self.on_lc_failure)
 
-    def proc_evt_extend_watchdog(self, evt):
-        timeout = evt.arg('timeout')
-        self.proxy.callRemote('extend_watchdog', evt.task_id, timeout)
-
     def proc_evt_start(self, evt):
         id = evt.task_id
         if not self.task_has_started(id):
@@ -704,6 +700,26 @@ class BeakerLCBackend(SerializingBackend):
         self.proxy.callRemote(self.TASK_STOP, id, "stop", message) \
                         .addCallback(self.handle_Stop) \
                         .addErrback(self.on_lc_failure)
+
+    def proc_evt(self, evt, **flags):
+        # some events need asynchronous processing, so they do not wait in
+        # queue.
+        if evt.event() == 'extend_watchdog':
+            # extend_watchdog is send immediately, to prevent EWD killing us in
+            # case of network/LC problems.
+            tio = evt.arg('timeout')
+            id = self.get_evt_task_id(evt)
+            log.info('Extending Watchdog for task %s by %s..', id, tio)
+            self.proxy.callRemote('extend_watchdog', id, tio)
+            return
+        elif evt.event() == 'end':
+            # task is done: override EWD to allow for data submission, even in
+            # case of network/LC problems:
+            id = self.get_evt_task_id(evt)
+            log.info('Task %s done. Submitting logs...', id)
+            self.proxy.callRemote('extend_watchdog', id, 4*3600)
+            # end will be processed synchronously too to mark the task finished
+        SerializingBackend.proc_evt(self, evt, **flags)
 
     def find_job_id(self, id):
         return id
@@ -853,6 +869,8 @@ class BeakerLCBackend(SerializingBackend):
 
     def handle_Stop(self, result):
         """Handler for task_stop XML-RPC return."""
+        id = self.task_data['task_env']['TASKID']
+        log.info('Task %s done. Completely.', id)
         log_flush(log)
         self.on_idle()
 
