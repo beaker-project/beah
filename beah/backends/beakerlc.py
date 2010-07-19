@@ -468,7 +468,7 @@ class BeakerLCBackend(SerializingBackend):
         SerializingBackend.set_controller(self, controller)
         if controller:
             url = self.conf.get('DEFAULT', 'LAB_CONTROLLER')
-            self.proxy = RepeatingProxy(url)
+            self.proxy = RepeatingProxy(url, allowNone=True)
             self.proxy.serializing = True
             self.proxy.on_idle = self.set_idle
             if is_class_verbose(self):
