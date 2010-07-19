@@ -16,6 +16,7 @@
         <system_type value="Machine"/>
     </hostRequires>
 
+    <!--
     <task avg_time="1200" id="40"
             name="/distribution/beaker/beah/misc/iptables"
             role="STANDALONE"
@@ -29,7 +30,6 @@
         </roles>
         <rpm name="rh-tests-distribution-beaker-beah-misc-iptables.noarch"/>
     </task>
-    <!--
     <task ...
             name="/beah-tests/beah_iptables"
             ...>...
@@ -169,7 +169,6 @@
         </roles>
         <rpm name="tmp-examples-rhts_tutorial-mcsontos-beah_logs.noarch"/>
     </task>
-    -->
 
     <task avg_time="84400" id="98"
             name="/distribution/reservesys" role="CLIENTS"
@@ -186,6 +185,7 @@
         </params>
         <rpm name="rh-tests-distribution-reservesys.noarch"/>
     </task>
+    -->
 
     <task avg_time="84400" id="99"
             name="/distribution/reservesys" role="CLIENTS"
