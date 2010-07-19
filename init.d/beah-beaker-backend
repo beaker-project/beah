@@ -23,6 +23,10 @@ BEAH_INSTALL_ROOT=/usr
 # FIXME: may need to change this(?)
 RUN_AS=root
 
+if [ -f /etc/profile.d/cobbler.sh ]; then
+    . /etc/profile.d/cobbler.sh
+fi
+
 if [ -f /etc/sysconfig/$prog ]; then
     . /etc/sysconfig/$prog
 fi

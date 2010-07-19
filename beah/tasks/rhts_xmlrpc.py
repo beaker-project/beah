@@ -443,7 +443,7 @@ class RHTSMain(object):
     SHELL = '/bin/bash'
     def server_started(self):
         # FIXME: Install rhts-test-runner.sh somewhere!
-        args = [self.SHELL, '-c', 'exec %s < /dev/null' % self.TEST_RUNNER]
+        args = [self.SHELL, '-l', '-c', 'exec %s < /dev/null' % self.TEST_RUNNER]
         self.process = reactor.callLater(2, reactor.spawnProcess, self.task,
                 args[0], args=args,
                 env=self.env, path=self.env.get('TESTPATH', '/tmp'))
