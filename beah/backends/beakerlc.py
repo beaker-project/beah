@@ -711,7 +711,7 @@ class BeakerLCBackend(SerializingBackend):
             id = self.get_evt_task_id(evt)
             log.info('Extending Watchdog for task %s by %s..', id, tio)
             self.proxy.callRemote('extend_watchdog', id, tio)
-            return
+            #return
         elif evt.event() == 'end':
             # task is done: override EWD to allow for data submission, even in
             # case of network/LC problems:
