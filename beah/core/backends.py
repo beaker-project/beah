@@ -116,8 +116,11 @@ class SerializingBackend(ExtBackend):
 
 import pprint
 class PprintBackend(ExtBackend):
+    def __init__(self, width=80):
+        self.width = 80
+        self.pprinter = pprint.PrettyPrinter(width=width)
     def pre_proc(self, evt):
-        pprint.pprint(evt)
+        self.pprinter.pprint(list(evt.printable()))
         return False
 
 from simplejson import dumps
