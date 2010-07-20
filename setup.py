@@ -104,7 +104,7 @@ else:
 
 requirements = []
 
-version = "0.6.8"
+version = "0.6.9"
 
 long_version = os.environ.get('BEAH_VER', version) + os.environ.get('BEAH_DEV', strftime(".dev%Y%m%d%H%M"))
 
