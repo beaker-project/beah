@@ -70,6 +70,7 @@ def test_variables(test, dest, keys, vals):
     #time.sleep(2)
 
 def test(dest=''):
+    title("=", "test(%r)" % dest)
     #tid = thread.start_new_thread(reader, ())
     #print_("thread: %s" % tid)
     send_evt(event.variable_get('test_variables/var1', dest=dest))
@@ -190,7 +191,7 @@ def title(c, str):
     print("\n%s\n%s\n%s\n" % (delim, str, delim))
 
 if __name__ == '__main__':
-    title("=", "test('test.loop')")
-    test('test.loop')
-    title("=", "test()")
     test()
+    test('127.0.0.1')
+    test('localhost')
+    test('test.loop')
