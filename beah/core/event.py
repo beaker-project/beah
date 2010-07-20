@@ -433,7 +433,7 @@ class EventFactory(object):
     get_constructor = classmethod(get_constructor)
 
     def make(cls, evt):
-        return cls.get_constructor(evt[Event.EVENT])(*evt)
+        return cls.get_constructor(evt[Event.EVENT])(evt)
     make = classmethod(make)
 
 
@@ -561,6 +561,8 @@ file_write_.register_class()
 ################################################################################
 if __name__=='__main__':
     import traceback, sys
+
+    # test constructor:
     def test(expected, evt, origin={}, timestamp=None, cls=Event, **kwargs):
         try:
             answ = Event(evt, origin=origin, timestamp=timestamp, **kwargs)
@@ -590,9 +592,29 @@ if __name__=='__main__':
     test(['Event', 'ping', '99', {}, None, {'value':1}], value=1, evt='ping', id='99')
     test(['Event', 'ping', '99', {}, None, {'value':1}], **{'value':1, 'evt':'ping', 'id':'99'})
     test(['Event', 'file_write', '99', {}, None, {'file_id':'FID', 'data':'DATA'}], evt='file_write', id='99', data='DATA', file_id='FID', cls=file_write_)
-    print file_write('FID', 'DATA').__str__()
-    print file_write('FID', 'DATA').__repr__()
 
+    # test overridden methods:
+    s = "Data to be written but not displayed"
+    fw = file_write('FID', s)
+    assert fw.__str__().find(s) == -1
+    assert fw.__repr__().find(s) == -1
+
+    # test copy constructors:
+    def test_copy(e, copy):
+        assert copy.same_as(e)
+        assert copy.id() == e.id()
+
+    def test_constructors(e):
+        test_copy(e, Event(e))
+        test_copy(e, Event(list(e)))
+        test_copy(e, event(list(e)))
+        if isinstance(e, Event):
+            assert e is event(e)
+
+    test_constructors(pong(message='Hello World!'))
+    test_constructors(file_write('FID', 'DATA'))
+
+    # test encoder/decoder:
     def test(codec, f):
         for s in ["Hello World!"]:
             assert decode(codec, f(s)) == s
