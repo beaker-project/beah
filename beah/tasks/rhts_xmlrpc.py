@@ -409,6 +409,9 @@ class RHTSMain(object):
         self.env['RESULT_SERVER'] = "%s:%s%s" % ("127.0.0.1", port, "")
         self.env.setdefault('DIGEST_METHOD', 'no_digest') # use no digests by default... Seems waste of time on localhost.
         self.env.setdefault('TESTORDER', '123') # FIXME: More sensible default
+        # provide sensible defaults for selected system env.variables:
+        self.env.setdefault('HOME', '/root')
+        self.env.setdefault('LANG', 'en_US.UTF-8')
 
         # FIXME: should any checks go here?
         # e.g. does Makefile PURPOSE exist? try running `make testinfo.desc`? ...
