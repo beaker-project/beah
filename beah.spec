@@ -8,7 +8,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
 Name: beah
-Version: 0.6.9
+Version: 0.6.9.1
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -69,6 +69,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/%{name}
 
 %changelog
+* Mon Jul 26 2010 Marian Csontos <mcsontos@redhat.com> 0.6.9.1-1
+- reverted XML-RPC timeout
 * Tue Jul 20 2010 Marian Csontos <mcsontos@redhat.com> 0.6.9-1
 - Fixed bug in factory method used to create events breaking MH jobs
 * Mon Jul 19 2010 Marian Csontos <mcsontos@redhat.com> 0.6.8-1
