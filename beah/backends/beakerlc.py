@@ -727,6 +727,9 @@ class BeakerLCBackend(SerializingBackend):
     def find_recipe_id(self, id):
         return id
 
+    def find_recipeset_id(self, id):
+        return id
+
     def proc_evt_abort(self, evt):
         type = evt.arg('type', '')
         if not type:
@@ -734,14 +737,23 @@ class BeakerLCBackend(SerializingBackend):
             raise exceptions.RuntimeError("No abort type specified.")
         target = evt.arg('target', None)
         d = None
-        if type == 'job':
+        msg = evt.arg('msg', '')
+        if msg:
+            msg = " aborted by task %s: %s" % (evt.task_id, msg)
+        else:
+            msg = " aborted by task %s" % (evt.task_id,)
+        if type == 'recipeset':
+            target = self.find_recipeset_id(target)
+            if target is not None:
+                d = self.proxy.callRemote('recipeset_stop', target, 'abort', "RecipeSet"+msg)
+        elif type == 'job':
             target = self.find_job_id(target)
             if target is not None:
-                d = self.proxy.callRemote('job_stop', target, 'abort', 'Aborted by task.')
+                d = self.proxy.callRemote('job_stop', target, 'abort', "Job"+msg)
         elif type == 'recipe':
             target = self.find_recipe_id(target)
             if target is not None:
-                d = self.proxy.callRemote('recipe_stop', target, 'abort', 'Aborted by task.')
+                d = self.proxy.callRemote('recipe_stop', target, 'abort', "Recipe"+msg)
 
     def proc_evt_result(self, evt):
         try:
