@@ -57,7 +57,7 @@ import beah.system
 # FIXME: using rpm's, yum - too much Fedora centric(?)
 from beah.system.dist_fedora import RPMInstaller
 from beah.system.os_linux import ShExecutable
-from beah.wires.internals.repeatingproxy import RepeatingProxy
+from beah.wires.internals import repeatingproxy
 from beah.wires.internals.twbackend import start_backend, log_handler
 from beah.wires.internals.twmisc import make_logging_proxy
 
@@ -468,7 +468,12 @@ class BeakerLCBackend(SerializingBackend):
         SerializingBackend.set_controller(self, controller)
         if controller:
             url = self.conf.get('DEFAULT', 'LAB_CONTROLLER')
-            self.proxy = RepeatingProxy(url, allowNone=True)
+            self.proxy = repeatingproxy.RepeatingProxy(url, allowNone=True)
+            try:
+                rpc_timeout = float(self.conf.get('DEFAULT', 'RPC_TIMEOUT'))
+                self.proxy.set_timeout(repeatingproxy.IncreasingTimeout(rpc_timeout, max=300))
+            except:
+                self.proxy.set_timeout(None)
             self.proxy.serializing = True
             self.proxy.on_idle = self.set_idle
             if is_class_verbose(self):
@@ -955,7 +960,7 @@ def start_beaker_backend():
         print_this = log_this(lambda s: log.debug(s), log_on=True)
         make_class_verbose(BeakerLCBackend, print_this)
         make_class_verbose(BeakerWriter, print_this)
-        make_class_verbose(RepeatingProxy, print_this)
+        make_class_verbose(repeatingproxy.RepeatingProxy, print_this)
     backend = BeakerLCBackend()
     # Start a default TCP client:
     start_backend(backend)
@@ -1005,6 +1010,7 @@ def defaults():
             'COBBLER_SERVER':cs,
             'HOSTNAME':os.getenv('HOSTNAME'),
             'DIGEST':'md5',
+            'RPC_TIMEOUT':'60',
             })
     return d
 
@@ -1034,6 +1040,8 @@ def test_configure():
     assert conf.has_option('DEFAULT', 'VAR_ROOT')
     assert conf.has_option('DEFAULT', 'LOG_PATH')
     assert conf.has_option('DEFAULT', 'RUNTIME_FILE_NAME')
+    assert conf.has_option('DEFAULT', 'DIGEST')
+    assert conf.has_option('DEFAULT', 'RPC_TIMEOUT')
 
 def test():
     # FIXME!!! Implement self-test

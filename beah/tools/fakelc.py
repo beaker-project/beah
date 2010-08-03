@@ -29,7 +29,7 @@ import simplejson as json
 from optparse import OptionParser
 
 from twisted.web import xmlrpc, server
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 
 import beah
 import beah.config
@@ -79,6 +79,9 @@ def conf_opt(args):
     opt.add_option("-D", "--define", action="append", dest="variables",
             metavar="VARIABLES",
             help="VARIABLES specify list of overrides.")
+    opt.add_option("--timeout", action="store", dest="timeout", type="int",
+            default=0,
+            help="XMLRPC duration.")
     return opt.parse_args(args)
 
 def conf_main(conf, args):
@@ -86,8 +89,9 @@ def conf_main(conf, args):
     conf['name'] = opts.name or 'beah_fakelc'
     conf['root'] = opts.root_dir or '/'
     beah.config.proc_verbosity(opts, conf)
-    conf['port'] = int(opts.port or 5222)
+    conf['port'] = safe_int(opts.port, 5222)
     conf['interface'] = opts.interface or ''
+    conf['timeout'] = safe_int(opts.timeout, 0)
     job_id = opts.job_id
     if job_id is None:
         job_id = 100 + randint(0, 99)
@@ -229,6 +233,12 @@ import fcntl
 import stat
 import errno
 from beah.misc import digests
+
+def safe_int(n, default=None):
+    try:
+        return int(n)
+    except:
+        return default
 
 def decode_int(n):
     """If n is not an integer, attempt to convert it"""
@@ -420,45 +430,54 @@ class LCHandler(xmlrpc.XMLRPC):
         recipes = LCRecipes()
         recipes.putSubHandler('tasks', LCRecipeTasks())
         self.putSubHandler('recipes', recipes)
+        self.XMLRPC_TIMEOUT = 0
+
+    def Return(self, value):
+        if self.XMLRPC_TIMEOUT:
+            d = defer.Deferred()
+            reactor.callLater(self.XMLRPC_TIMEOUT, d.callback, value)
+            return d
+        else:
+            return value
 
     def xmlrpc_get_recipe(self, fqdn):
-        return do_get_recipe("get_recipe", fqdn)
+        return self.Return(do_get_recipe("get_recipe", fqdn))
 
     def xmlrpc_task_start(self, task_id, kill_time):
-        return do_task_start("task_start", task_id, kill_time)
+        return self.Return(do_task_start("task_start", task_id, kill_time))
 
     def xmlrpc_task_stop(self, task_id, stop_type, msg=''):
-        return do_task_stop("task_stop", task_id, stop_type, msg)
+        return self.Return(do_task_stop("task_stop", task_id, stop_type, msg))
 
     def xmlrpc_recipeset_stop(self, recipeset_id, stop_type, msg=''):
         log.info('recipeset_stop(%r, %r, %r)', recipeset_id, stop_type, msg)
-        return 0
+        return self.Return(0)
 
     def xmlrpc_recipe_stop(self, recipe_id, stop_type, msg=''):
         log.info('recipe_stop(%r, %r, %r)', recipe_id, stop_type, msg)
-        return 0
+        return self.Return(0)
 
     def xmlrpc_job_stop(self, job_id, stop_type, msg=''):
         log.info('job_stop(%r, %r, %r)', job_id, stop_type, msg)
-        return 0
+        return self.Return(0)
 
     def xmlrpc_task_result(self, task_id, result_type, path, score, summary):
-        return do_task_result("task_result", task_id, result_type, path, score,
-                summary)
+        return self.Return(do_task_result("task_result", task_id, result_type, path, score,
+                summary))
 
     def xmlrpc_extend_watchdog(self, task_id, kill_time):
         log.info('extend_watchdog(%r, %r)', task_id, kill_time)
-        return 0
+        return self.Return(0)
 
     def xmlrpc_task_upload_file(self, task_id, path, name, size, digest,
             offset, data):
-        return do_task_upload_file("task_upload_file", task_id, path, name,
-                size, digest, offset, data)
+        return self.Return(do_task_upload_file("task_upload_file", task_id, path, name,
+                size, digest, offset, data))
 
     def xmlrpc_result_upload_file(self, result_id, path, name, size, digest,
             offset, data):
-        return do_result_upload_file("result_upload_file", result_id, path, name,
-                size, digest, offset, data)
+        return self.Return(do_result_upload_file("result_upload_file", result_id, path, name,
+                size, digest, offset, data))
 
     def catch_xmlrpc(self, method, *args):
         """Handler for unhandled requests."""
@@ -565,6 +584,7 @@ def main():
         misc.make_class_verbose(LCRecipeTasks, print_this)
         misc.make_class_verbose(LCHandler, print_this)
     lc = LCHandler()
+    lc.XMLRPC_TIMEOUT = safe_int(conf['timeout'], 0)
     s = server.Site(lc, None, 60*60*12)
     reactor.listenTCP(conf['port'], s, interface=conf['interface'])
     uploader = Uploader(os.path.join(var_path, "fakelc-uploads"))

@@ -218,6 +218,29 @@ def is_class_verbose(cls):
         return cls.is_class_verbose()
     return '_class_is_verbose' in dir(cls) and cls._class_is_verbose
 
+
+def make_methods_verbose(cls, print_on_call, method_list):
+    for id in method_list:
+        if isinstance(id, (tuple, list)):
+            if id[1] == classmethod:
+                # FIXME: Have a look at following! It sort-of works, but I
+                # am not sure it is correct.
+                #setattr(cls, id[0], staticmethod(print_on_call(getattr(cls, id[0]))))
+                print >> sys.stderr, "ERROR: at the moment classmethod can not be reliably made verbose."
+                continue
+            else:
+                meth = getattr(cls, id[0])
+                new_meth = print_on_call(meth)
+                new_meth.original_method = meth
+                new_meth = id[1](new_meth)
+                setattr(cls, id[0], new_meth)
+        else:
+            meth = getattr(cls, id)
+            new_meth = print_on_call(meth)
+            new_meth.original_method = meth
+            setattr(cls, id, new_meth)
+
+
 def make_class_verbose(cls, print_on_call):
     if not inspect.isclass(cls):
         cls = cls.__class__
@@ -228,30 +251,15 @@ def make_class_verbose(cls, print_on_call):
         if getattr(cls, '_class_is_verbose', False):
             return
         cls._class_is_verbose = True
-        for id in cls._VERBOSE:
-            if isinstance(id, (tuple, list)):
-                if id[1] == classmethod:
-                    # FIXME: Have a look at following! It sort-of works, but I
-                    # am not sure it is correct.
-                    #setattr(cls, id[0], staticmethod(print_on_call(getattr(cls, id[0]))))
-                    print >> sys.stderr, "ERROR: at the moment classmethod can not be reliably made verbose."
-                    continue
-                else:
-                    meth = getattr(cls, id[0])
-                    new_meth = print_on_call(meth)
-                    new_meth.original_method = meth
-                    new_meth = id[1](new_meth)
-                    setattr(cls, id[0], new_meth)
-            else:
-                meth = getattr(cls, id)
-                new_meth = print_on_call(meth)
-                new_meth.original_method = meth
-                setattr(cls, id, new_meth)
+        make_methods_verbose(cls, print_on_call, cls._VERBOSE)
     for c in getattr(cls, '__bases__', ()):
         try:
             make_class_verbose(c, print_on_call)
         except:
             print >> sys.stderr, "ERROR: can not make %s verbose." % (c,)
+    if hasattr(cls, '_VERBOSE_CLASSES'):
+        for cls_ in cls._VERBOSE_CLASSES:
+            make_class_verbose(cls_, print_on_call)
 
 
 # Auxiliary functions for testing:
