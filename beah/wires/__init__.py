@@ -1,6 +1,6 @@
 # Beah - Test harness. Part of Beaker project.
 #
-# Copyright (C) 2009 Marian Csontos <mcsontos@redhat.com>
+# Copyright (C) 2009 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
