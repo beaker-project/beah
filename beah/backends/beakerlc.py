@@ -1009,7 +1009,7 @@ def defaults():
             'LAB_CONTROLLER':lc,
             'COBBLER_SERVER':cs,
             'HOSTNAME':os.getenv('HOSTNAME'),
-            'DIGEST':'md5',
+            'DIGEST':'no-digest',
             'RPC_TIMEOUT':'60',
             })
     return d
