@@ -8,7 +8,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
 Name: beah
-Version: 0.6.12
+Version: 0.6.13
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -69,6 +69,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/%{name}
 
 %changelog
+* Sun Aug 15 2010 Marian Csontos <mcsontos@redhat.com> 0.6.13-1
+- beaker: Use no-digest by default (mcsontos@redhat.com)
+
 * Tue Aug 10 2010 Marian Csontos <mcsontos@redhat.com> 0.6.12-1
 - Added: timeout and repeat RPCs
 
