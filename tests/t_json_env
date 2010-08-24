@@ -1,0 +1,141 @@
+#!/bin/bash
+
+# Beah - Test harness. Part of Beaker project.
+#
+# Copyright (C) 2010 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+
+OUTENV="PATH=$PATH PYTHONPATH=$PYTHONPATH OUTER1=outer1 OUTER2=outer2 OUTER3=outer3"
+
+testcat() {
+  while [[ -n $2 ]]; do
+    local tag=$1
+    local file=$2
+    shift 2
+    cat <<-END
+	: <<END_OF_$tag
+	$(cat $file)
+	END_OF_$tag
+	END
+  done
+}
+
+test_json() {
+  local variable=$1
+  local checkout="$2"
+  local checkerr="$3"
+  shift 3
+  local fail=
+  local outfile=$(mktemp)
+  local errfile=$(mktemp)
+  #env - $OUTENV json-env "$@" bash -c "echo $variable=\$$variable" > $outfile 2> $errfile
+  env - $OUTENV $(which json-env) "$@" "$(which env)" > $outfile 2> $errfile
+  echo "" >> $outfile
+  echo "" >> $errfile
+  if [[ -n $checkout ]]; then
+    if ! grep $checkout $outfile &> /dev/null; then
+      echo "# test_json '$variable' '$checkout' '$checkerr' $*"
+      echo "fail # stdout for variable '$variable' does not contain '$checkout'"
+      fail=1
+    fi
+  fi
+
+  if [[ -n $fail ]]; then
+    testcat STDOUT $outfile STDERR $errfile
+    echo
+  fi
+  rm -f $outfile
+  rm -f $errfile
+  return $fail
+}
+
+test_() {
+  local var=$1
+  local val=$2
+  shift 2
+  test_json $var "^$var=$val\$" "" "$@"
+}
+
+test_not() {
+  local var=$1
+  shift 2
+  test_json $var "-v ^$var=" "" "$@"
+}
+
+result() {
+  if ! "$@"; then
+    RESULT=$(expr $RESULT + 1)
+    false
+  else
+    true
+  fi
+}
+
+def_env() {
+  local file=$1
+  shift 1
+  json-env -s $file "$@" &> /dev/null
+}
+
+RESULT=
+
+def_env  env_u_OUTER1 - -u OUTER1
+def_env  env_u_OUTER2 - -OUTER2=
+def_env  env_d_OUTER1 - OUTER1=inner1
+def_env  env_DEFAULT  -u OUTER1 - -OUTER2= OUTER3=default INNER1=default DEF___=default
+
+result test_    OUTER1 "outer1"  -- INNER1=inner1
+result test_    INNER1 "inner1"  -- INNER1=inner1
+result test_not OUTER1 ""        -
+result test_not OUTER1 ""        -u OUTER1
+result test_not OUTER1 ""        -- -OUTER1=
+result test_not OUTER1 ""        -i
+result test_not OUTER1 ""        -
+result test_not OUTER1 ""        -u OUTER1 OUTER2=inner2
+result test_    OUTER2 "inner2"  -u OUTER1 OUTER2=inner2
+result test_not OUTER1 ""        -i
+
+result test_not OUTER1 ""        -- =env_u_OUTER1
+result test_    OUTER2 "outer2"  -- =env_u_OUTER1
+result test_not OUTER2 ""        -- =env_u_OUTER2
+result test_    OUTER1 "outer1"  -- =env_u_OUTER2
+result test_    OUTER1 "inner1"  -- =env_d_OUTER1
+
+result test_    OUTER3 "default" -d env_DEFAULT -
+result test_    INNER1 "default" -d env_DEFAULT -
+result test_    DEF___ "default" -d env_DEFAULT -
+result test_not OUTER1 ""        -d env_DEFAULT -
+result test_not OUTER2 ""        -d env_DEFAULT -
+
+result test_    OUTER3 "outer3"  -d env_DEFAULT
+result test_    OUTER3 "outer3"  -d env_DEFAULT --
+result test_    INNER1 "default" -d env_DEFAULT
+result test_    INNER1 "default" -d env_DEFAULT --
+result test_    DEF___ "default" -d env_DEFAULT
+result test_    DEF___ "default" -d env_DEFAULT --
+
+more env_*
+rm -f env_DEFAULT env_u_OUTER* env_d_OUTER*
+
+#echo expected failure(s):
+#test OUTER1 "^OUTER1=$" "" -- INNER1=inner1 INNER2=inner2
+
+if [[ -n $RESULT ]]; then
+  echo "# Summary $RESULT failure(s)"
+  exit $RESULT
+fi
+

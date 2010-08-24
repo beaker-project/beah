@@ -158,6 +158,7 @@ setup(
             'beah-data-file = beah.tools:main_data_file',
             'beah-data-dir = beah.tools:main_data_dir',
             'beahsh = beah.tools.beahsh:main',
+            'json-env = beah.bin.jsonenv:main',
         ),
     },
 

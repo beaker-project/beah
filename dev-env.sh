@@ -75,7 +75,8 @@ function beah-root() { python -c "from beah import tools; tools.main_root()" "$@
 function beah-data-root() { python -c "from beah import tools; tools.main_data_root()" "$@"; }
 function beah-data-file() { python -c "from beah import tools; tools.main_data_file()" "$@"; }
 function beah-data-dir() { python -c "from beah import tools; tools.main_data_dir()" "$@"; }
-BEAH_FUNCTIONS="$BEAH_FUNCTIONS beah $(echo beah-{srv,{out,cmd,beaker,fwd}-backend,fakelc,root,data-{root,file,dir}})"
+function json-env() { python -c "from beah.bin.jsonenv import main; main()"; "$@"; }
+BEAH_FUNCTIONS="$BEAH_FUNCTIONS beah $(echo beah-{srv,{out,cmd,beaker,fwd}-backend,fakelc,root,data-{root,file,dir}},json-env)"
 
 function inst1() { if [[ ! -z "$LABM1" ]]; then inst_all -m $LABM1; fi }
 function inst2() { if [[ ! -z "$LABM2" ]]; then inst_all -m $LABM2; fi }
