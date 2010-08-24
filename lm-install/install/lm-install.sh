@@ -291,6 +291,12 @@ function lm_logs()
   vim -o $LM_LOGS
 }
 
+function lm_results()
+{
+  local uploads=/var/beah/beah_fakelc/fakelc-uploads
+  vim -o $uploads/ $uploads/task_*/debug/task_log
+}
+
 function lm_rm_logs()
 {
   rm -f $LM_LOGS

@@ -23,6 +23,7 @@ import exceptions
 import traceback
 import pprint
 import re
+import time
 from random import randint
 import logging
 import simplejson as json
@@ -209,7 +210,7 @@ def do_task_result(fname, task_id, result_type, path, score, summary):
             or (RESULT_TYPE_.count(result_type) > 0 \
                     and RESULT_TYPE_.find(result) < RESULT_TYPE_.find(result_type)):
             rec_args[ix]=result_type
-        result_id = randint(1, 9999999)
+        result_id = "%s%s%.2d" % (task_id, time.strftime("%H%M%S"), randint(0, 99))
         add_result(task_id, result_id)
         log.info("%s.RETURN: %s", fname, result_id)
         misc.log_flush(log)
