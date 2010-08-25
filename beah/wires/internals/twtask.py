@@ -20,11 +20,13 @@ from twisted.internet import reactor
 from twisted.internet.protocol import ProcessProtocol, ReconnectingClientFactory
 from beah.wires.internals import twadaptors, twmisc
 from beah import config
-from beah.misc import dict_update
+from beah.misc import dict_update, jsonenv
 import logging
 import os
 
 log = logging.getLogger('beah')
+
+ENV_PATHNAME_TEMPLATE = 'beah_task_%s.env'
 
 class TaskStdoutProtocol(ProcessProtocol):
     def __init__(self, task_id, task_protocol=twadaptors.TaskAdaptor_JSON):
@@ -63,6 +65,8 @@ def Spawn(host, port, proto=None, socket=''):
         # BEAH_TID - id of task - used to introduce itself when opening socket
         task_id = task_info['id']
         conf = config.get_conf('beah')
+        env_file = os.path.join(conf.get('TASK', 'VAR_ROOT'),
+                ENV_PATHNAME_TEMPLATE % task_id)
         dict_update(task_env,
                 CALLED_BY_BEAH="1",
                 BEAH_THOST=str(host),
@@ -70,6 +74,7 @@ def Spawn(host, port, proto=None, socket=''):
                 BEAH_TSOCKET=str(socket),
                 BEAH_TID=str(task_id),
                 BEAH_ROOT=conf.get('TASK', 'ROOT'),
+                BEAH_ENV=env_file,
                 )
         ll = conf.get('TASK', 'LOG')
         task_env.setdefault('BEAH_TASK_LOG', ll)
@@ -77,6 +82,7 @@ def Spawn(host, port, proto=None, socket=''):
         val = os.getenv('PYTHONPATH')
         if val:
             task_env['PYTHONPATH'] = val
+        jsonenv.export_env(env_file, task_env)
         # 2. spawn a task
         protocol = (proto or TaskStdoutProtocol)(task_id)
         protocol.controller = controller

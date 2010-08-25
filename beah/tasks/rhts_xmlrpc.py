@@ -33,7 +33,7 @@ import uuid
 import logging
 import random
 from beah.core import event, command
-from beah.misc import format_exc, runtimes, make_log_handler, str2log_level, digests
+from beah.misc import format_exc, runtimes, make_log_handler, str2log_level, digests, jsonenv
 from beah.wires.internals import twmisc
 from beah.core.constants import RC
 
@@ -41,6 +41,7 @@ BEAH_ROOT = os.path.join('/', os.getenv('BEAH_ROOT', ''))
 LOG_PATH = os.path.join(BEAH_ROOT, 'var', 'log', 'rhts')
 VAR_PATH = os.path.join(BEAH_ROOT, 'var', 'beah')
 RUNTIME_PATHNAME_TEMPLATE = VAR_PATH + '/rhts_task_%s.db'
+ENV_PATHNAME_TEMPLATE = VAR_PATH + '/rhts_task_%s.env'
 
 log = logging.getLogger('rhts_task')
 
@@ -414,6 +415,12 @@ class RHTSMain(object):
         self.env['RESULT_SERVER'] = "%s:%s%s" % ("127.0.0.1", port, "")
         self.env.setdefault('DIGEST_METHOD', 'no_digest') # use no digests by default... Seems waste of time on localhost.
         self.env.setdefault('TESTORDER', '123') # FIXME: More sensible default
+
+        # save env:
+        env_file = ENV_PATHNAME_TEMPLATE % taskid
+        self.env['RHTS_ENV'] = env_file
+        jsonenv.export_env(env_file, self.env)
+
         # provide sensible defaults for selected system env.variables:
         self.env.setdefault('HOME', '/root')
         self.env.setdefault('LANG', 'en_US.UTF-8')
