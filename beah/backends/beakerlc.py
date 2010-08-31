@@ -384,6 +384,8 @@ class BeakerLCBackend(SerializingBackend):
     TASK_STOP = 'task_stop'
     TASK_RESULT = 'task_result'
 
+    PENDING_RESULT = "?"
+
     _VERBOSE = ['on_idle', 'on_lc_failure', 'set_controller',
             'handle_new_task', 'save_command', 'get_command', 'get_writer',
             'close_writers', 'pre_proc', 'proc_evt_output',
@@ -697,8 +699,8 @@ class BeakerLCBackend(SerializingBackend):
         else:
             score = int(rc)
         if score != 0:
-            message = "Task exited with non zero exit code. rc=%s" % rc
-            self.proxy.callRemote(self.TASK_RESULT, id, "fail",
+            message = "Task adaptor returned non zero exit code. This is likely a harness problem. rc=%s" % rc
+            self.proxy.callRemote(self.TASK_RESULT, id, "warn",
                     "task/exit", score, message)
         else:
             message = "OK"
@@ -772,7 +774,7 @@ class BeakerLCBackend(SerializingBackend):
             self.proxy.callRemote(self.TASK_RESULT, evt.task_id,
                     type[0], handle, score, message) \
                             .addCallback(self.handle_Result, event_id=evt.id())
-            self.__results_by_uuid[evt.id()] = ""
+            self.__results_by_uuid[evt.id()] = self.PENDING_RESULT
         except:
             s = format_exc()
             log.error("Exception in proc_evt_result: %s", s)
@@ -798,7 +800,7 @@ class BeakerLCBackend(SerializingBackend):
             if result_id is None:
                 self.on_error("Result with given id (%s) does not exist." % rid)
                 return
-            if result_id == '':
+            if result_id == self.PENDING_RESULT:
                 self.on_error("Waiting for result_id from LC for given id (%s)." % rid)
                 return
             fid = evt.arg('id2')

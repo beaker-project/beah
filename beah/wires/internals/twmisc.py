@@ -184,3 +184,10 @@ def twisted_logging(logger):
     except:
         logger.critical("Could not add twisted observer!", exc_info=True)
 
+def reason2rc(end_reason):
+    sig = end_reason.value.signal
+    if sig:
+        return -sig
+    else:
+        return end_reason.value.exitCode
+

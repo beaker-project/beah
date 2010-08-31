@@ -18,7 +18,7 @@
 
 from twisted.internet import reactor
 from twisted.internet.protocol import ProcessProtocol, ReconnectingClientFactory
-from beah.wires.internals import twadaptors
+from beah.wires.internals import twadaptors, twmisc
 from beah import config
 from beah.misc import dict_update
 import logging
@@ -50,7 +50,7 @@ class TaskStdoutProtocol(ProcessProtocol):
 
     def processEnded(self, reason):
         log.info("%s:processEnded(%s)", self.__class__.__name__, reason)
-        self.controller.task_finished(self.task, rc=reason.value.exitCode)
+        self.controller.task_finished(self.task, rc=twmisc.reason2rc(reason))
         self.task.set_controller()
 
 def Spawn(host, port, proto=None, socket=''):

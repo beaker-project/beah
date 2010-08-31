@@ -24,6 +24,7 @@ import simplejson as json
 import sys
 import os
 import os.path
+import signal
 import re
 import tempfile
 import exceptions
@@ -33,7 +34,7 @@ import logging
 import random
 from beah.core import event, command
 from beah.misc import format_exc, runtimes, make_log_handler, str2log_level, digests
-from beah.wires.internals.twmisc import serveAnyChild, serveAnyRequest, JSONProtocol, twisted_logging
+from beah.wires.internals import twmisc
 from beah.core.constants import RC
 
 LOG_PATH = '/tmp/var/log'
@@ -63,7 +64,7 @@ def result_rhts_to_beah(result):
 ################################################################################
 # CONTROLLER LINK:
 ################################################################################
-class ControllerLink(JSONProtocol):
+class ControllerLink(twmisc.JSONProtocol):
 
     from os import linesep as delimiter
 
@@ -341,8 +342,8 @@ class RHTSHandler(xmlrpc.XMLRPC):
             out_handle='xmlrpc'))
         return "Error: Server can not handle command %s" % method
 
-serveAnyChild(RHTSHandler)
-serveAnyRequest(RHTSHandler, 'catch_xmlrpc', xmlrpc.XMLRPC)
+twmisc.serveAnyChild(RHTSHandler)
+twmisc.serveAnyRequest(RHTSHandler, 'catch_xmlrpc', xmlrpc.XMLRPC)
 
 class RHTSServer(server.Site):
 
@@ -392,7 +393,7 @@ class RHTSMain(object):
 
         # FIXME! use tempfile and upload log when process ends.
         log = logging.getLogger('rhts_task')
-        twisted_logging(log)
+        twmisc.twisted_logging(log)
         make_log_handler(log, LOG_PATH, "rhts_task_%s.log" % (taskid,))
         log.setLevel(str2log_level(os.environ.get('BEAH_TASK_LOG', "warning")))
 
@@ -427,13 +428,25 @@ class RHTSMain(object):
     def on_exit(self, exitCode):
         # FIXME! handling!
         # should submit captured files (AVC_ERROR, OUTPUTFILE)
-        if self.variables['nohup']:
+        if exitCode in (0, -signal.SIGTERM):
+            result = RC.PASS
+            message = 'rhts-test-runner.sh exited with rc=%s' % exitCode
+        else:
+            result = RC.FAIL
+            message = "rhts-test-runner.sh exited with rc=%s. Check task's stderr." % exitCode
+        if exitCode != 0:
+            evt = event.result_ex(
+                    result,
+                    handle="rhts_task/exit",
+                    message=message,
+                    statistics={'score':exitCode})
+            self.send_evt(evt)
+        if result == RC.PASS and self.variables['nohup']:
             log.info("waiting for finish...")
         else:
             log.info("quitting...")
             reactor.callLater(1, reactor.stop)
         self.__done = True
-        self.exitCode = exitCode
 
     def __controller_output(self, data):
         self.controller.sendLine(data)
@@ -492,12 +505,12 @@ class RHTSMain(object):
     def task_exited(self, reason):
         log.info("task_exited(%s)", reason)
         if not self.__done:
-            self.on_exit(reason.value.exitCode)
+            self.on_exit(twmisc.reason2rc(reason))
 
     def task_ended(self, reason):
         log.info("task_ended(%s)", reason)
         if not self.__done:
-            self.on_exit(reason.value.exitCode)
+            self.on_exit(twmisc.reason2rc(reason))
 
     def handle_variable_value(self, cmd):
         log.debug("handling variable_value.")
@@ -596,7 +609,6 @@ def main(task_path=None):
         #    raise exceptions.RuntimeError("Test directory not provided.")
     m = RHTSMain(task_path, USE_DEFAULT)
     reactor.run()
-    sys.exit(getattr(m, 'exitCode', -1))
 
 
 ################################################################################
