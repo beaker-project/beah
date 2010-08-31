@@ -115,6 +115,8 @@ class RHTSResults(xmlrpc.XMLRPC):
 
     def xmlrpc_result(self, test_name, parent_string, result, result_value,
             test_version, recipe_test_id):
+        if not self.main.variables['has_result']:
+            self.main.variables['has_result'] = True
         log.debug("XMLRPC: results.result(%r, %r, %r, %r, %r, %r)",
                 test_name, parent_string, result, result_value, test_version,
                 recipe_test_id)
@@ -405,6 +407,7 @@ class RHTSMain(object):
         self.variables = runtimes.TypeDict(rt, 'variables')
         port = self.variables.setdefault('port', os.environ.get('RHTS_PORT', random.randint(7080, 7099)))
         self.variables.setdefault('nohup', False)
+        self.variables.setdefault('has_result', False)
 
         # RESULT_SERVER - host:port[/prefixpath]
         self.env['RESULT_SERVER'] = "%s:%s%s" % ("127.0.0.1", port, "")
@@ -444,6 +447,13 @@ class RHTSMain(object):
         if result == RC.PASS and self.variables['nohup']:
             log.info("waiting for finish...")
         else:
+            if not self.variables['has_result']:
+                evt = event.result_ex(
+                        RC.FAIL,
+                        handle="rhts_task/no_result",
+                        message="The rhts-task has reported no result."
+                        )
+                self.send_evt(evt)
             log.info("quitting...")
             reactor.callLater(1, reactor.stop)
         self.__done = True
