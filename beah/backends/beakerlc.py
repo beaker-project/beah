@@ -102,7 +102,8 @@ else
         fi
     done
     if ! rpm -q "$TESTRPMNAME"; then
-        beahsh fail -H wrapper "$TESTRPMNAME was not installed."
+        #beahsh fail -H wrapper "$TESTRPMNAME was not installed."
+        beahsh abort_task -m "$TESTRPMNAME was not installed."
         exit
     fi
 fi
@@ -610,6 +611,14 @@ class BeakerLCBackend(SerializingBackend):
             self.__writers[id][name] = writer
         return writer
 
+    def flush_writers(self, id):
+        writers = self.__writers.get(id, {})
+        wrargs = self.__writer_args.get(id, {})
+        for name in list(writers.keys()):
+            if name not in wrargs.keys():
+                log.warning("flush_writers: writer(%r, %r) without args record", id, name)
+            writers[name].flush()
+
     def close_writers(self, id):
         wrargs = self.__writer_args.get(id, None)
         if wrargs is not None:
@@ -639,7 +648,8 @@ class BeakerLCBackend(SerializingBackend):
 
     def pre_proc(self, evt):
         id = evt.task_id = self.get_evt_task_id(evt)
-        if id is None:
+        if id is None or self.task_has_finished(id):
+            # Do not submit to finished tasks!
             return True
         self.get_writer(id, 'debug/.task_beah_raw').write(jsonln(evt.printable()))
         return False
@@ -672,13 +682,12 @@ class BeakerLCBackend(SerializingBackend):
             rc = evt.arg('rc')
             if rc not in (ECHO.OK, ECHO.DUPLICATE):
                 id = evt.task_id
-                # FIXME: Start was not issued. Is it OK?
                 self.task_set_finished(id)
                 message = ("Harness could not run the task: %s rc=%s"
                         % (evt.arg('message', 'no info'), rc))
                 self.proxy.callRemote(self.TASK_RESULT, id, "fail",
                         "harness/run", 1, message)
-                self.proxy.callRemote(self.TASK_STOP, id, "stop", message) \
+                self.proxy.callRemote(self.TASK_STOP, id, "abort", message) \
                                     .addCallback(self.handle_Stop) \
                                     .addErrback(self.on_lc_failure)
 
@@ -737,11 +746,15 @@ class BeakerLCBackend(SerializingBackend):
     def find_recipeset_id(self, id):
         return id
 
+    def find_task_id(self, id):
+        return id
+
     def proc_evt_abort(self, evt):
         type = evt.arg('type', '')
         if not type:
             log.error("No abort type specified.")
             raise exceptions.RuntimeError("No abort type specified.")
+        self.flush_writers(id)
         target = evt.arg('target', None)
         d = None
         msg = evt.arg('msg', '')
@@ -761,6 +774,12 @@ class BeakerLCBackend(SerializingBackend):
             target = self.find_recipe_id(target)
             if target is not None:
                 d = self.proxy.callRemote('recipe_stop', target, 'abort', "Recipe"+msg)
+        elif type == 'task':
+            target = self.find_task_id(target)
+            if target is not None:
+                d = self.proxy.callRemote('task_stop', target, 'abort', "Task"+msg)
+                if target == evt.task_id:
+                    d.addCallback(self.handle_Stop).addErrback(self.on_lc_failure)
 
     def proc_evt_result(self, evt):
         try:
@@ -923,7 +942,7 @@ class BeakerLCBackend(SerializingBackend):
         self.set_task_info(id, state=1)
 
     def task_set_finished(self, id):
-        self.set_task_info(id, state=1)
+        self.set_task_info(id, state=2)
 
     def get_file_info(self, id):
         """Get data associated with file. Find file by UUID."""
