@@ -44,7 +44,7 @@ import logging
 from xml.dom import minidom
 
 from twisted.web.xmlrpc import Proxy
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 
 from beah import config
 from beah.core import command, event, addict
@@ -165,170 +165,270 @@ def proc_roles(roles, roles_node):
         systems = roles.setdefault(role, [])
         proc_role(systems, role_node)
 
-def parse_recipe_xml(input_xml, hostname):
 
-    task_env = {}
-    root = minidom.parseString(input_xml)
-    for er in root.getElementsByTagName('recipe'):
-        system = xml_attr(er, 'system')
-        if system == hostname:
-            task_env['RECIPETYPE'] = 'machine'
+def find_recipe(node, hostname):
+    for er in node.getElementsByTagName('recipe'):
+        if xml_attr(er, 'system') == hostname:
+            return er
+    for er in node.getElementsByTagName('guestrecipe'):
+        if xml_attr(er, 'system') == hostname:
+            return er
+    return None
+
+
+class RecipeException(Exception):
+    pass
+
+
+class BeakerRecipe(object):
+
+    def make(input_xml, hostname):
+        """
+        Takes an input XML string and creates recipe for given hostname.
+        """
+        root = minidom.parseString(input_xml)
+        submitter = None
+        for job in root.getElementsByTagName('job'):
+            submitter = xml_attr(job, 'owner')
             break
-    else:
-        for er in root.getElementsByTagName('guestrecipe'):
-            system = xml_attr(er, 'system')
-            if system == hostname:
-                task_env['RECIPETYPE'] = 'guest'
-                break
-        else:
-            log.info("parse_recipe_xml: No recipe for %s." % hostname)
+        recipe = find_recipe(root, hostname)
+        if not recipe:
             return None
+        return BeakerRecipe(recipe, hostname=hostname, submitter=submitter)
+    make = staticmethod(make)
 
-    rs = xml_attr(er, 'status')
-    if rs not in ['Running', 'Waiting']:
-        log.info("parse_recipe_xml: This recipe has finished.")
-        return None
-
-    variant = xml_attr(er, 'variant', '')
-    if variant == 'None':
-        variant = ''
-    dict_update(task_env,
-            ARCH=xml_attr(er, 'arch'),
-            RECIPEID=xml_attr(er, 'id'),
-            JOBID=xml_attr(er, 'job_id'),
-            RECIPESETID=xml_attr(er, 'recipe_set_id'),
-            DISTRO=xml_attr(er, 'distro', ''),
-            FAMILY=xml_attr(er, 'family', ''),
-            VARIANT=variant,
-            HOSTNAME=hostname)
-
-    # The following is necessary for Virtual Workflows:
     GUEST_ATTRS = ('system', 'mac_address', 'location', 'guestargs', 'guestname')
-    task_env['GUESTS'] = '|'.join([
-        ';'.join([xml_attr(gr, a, '') for a in GUEST_ATTRS])
-            for gr in xml_get_nodes(er, 'guestrecipe')])
+    RECIPE_TYPE = {'recipe': 'machine', 'guestrecipe': 'guest'}
+    REPOF_TEMPLATE = """
+[%s]
+name=beaker provided '%s' repo
+baseurl=%s
+enabled=1
+gpgcheck=0
 
-    for job in root.getElementsByTagName('job'):
-        submitter = xml_attr(job, 'owner')
-        if submitter:
-            task_env['SUBMITTER'] = submitter
-        break
+"""
 
-    # FIXME: This will eventually need to be replaced by sth RPM independent...
-    repos = []
-    repof = ''
-    for r in xml_get_nodes(xml_first_node(er, 'repos'), 'repo'):
-        name = xml_attr(r, 'name')
-        repos.append(name)
-        repof += "[%s]\nname=beaker provided '%s' repo\nbaseurl=%s\nenabled=1\ngpgcheck=0\n\n" \
-                % (name, name, xml_attr(r, 'url'))
-    task_env['BEAKER_REPOS']=':'.join(repos)
+    def __init__(self, recipe_node, hostname='', submitter=None):
 
-    task_env['RECIPE_ROLE'] = xml_attr(er, 'role', '')
-    roles = {}
-    for roles_node in xml_get_nodes(er, 'roles'):
-        proc_roles(roles, roles_node)
-        break
+        recipe_type = self.RECIPE_TYPE.get(recipe_node.tagName, None)
+        if not recipe_type:
+            raise RecipeException("Unknown Tag %s" % recipe_node.tagName)
+        self.recipe_node = recipe_node
+        variant = xml_attr(recipe_node, 'variant', '')
+        if not variant or variant == 'None':
+            variant = ''
+        if not submitter:
+            submitter = ''
+        self._env = {
+                'ARCH': xml_attr(recipe_node, 'arch'),
+                'RECIPEID': xml_attr(recipe_node, 'id'),
+                'JOBID': xml_attr(recipe_node, 'job_id'),
+                'RECIPESETID': xml_attr(recipe_node, 'recipe_set_id'),
+                'DISTRO': xml_attr(recipe_node, 'distro', ''),
+                'FAMILY': xml_attr(recipe_node, 'family', ''),
+                'VARIANT': variant,
+                'HOSTNAME': hostname,
+                'RECIPETYPE': recipe_type,
+                'SUBMITTER': submitter,
+                }
+        # The following is necessary for Virtual Workflows:
+        self._env['GUESTS'] = '|'.join([
+            ';'.join([xml_attr(gr, a, '') for a in self.GUEST_ATTRS])
+                for gr in xml_get_nodes(recipe_node, 'guestrecipe')])
 
-    test_order = 0
+        # FIXME: This will eventually need to be replaced by sth RPM independent...
+        self.repos = []
+        self.repof = ''
+        for r in xml_get_nodes(xml_first_node(recipe_node, 'repos'), 'repo'):
+            name = xml_attr(r, 'name')
+            self.repos.append(name)
+            self.repof += self.REPOF_TEMPLATE % (name, name, xml_attr(r, 'url'))
+        self._env['BEAKER_REPOS']=':'.join(self.repos)
 
-    for task in xml_get_nodes(er, 'task'):
+        self._env['RECIPE_ROLE'] = xml_attr(recipe_node, 'role', '')
+        self.roles = {}
+        for roles_node in xml_get_nodes(recipe_node, 'roles'):
+            proc_roles(self.roles, roles_node)
+            break
 
-        to = xml_attr(task, 'testorder')
-        if to is not None:
-            test_order = int(to)
+    def tasks(self, collect_env=False):
+        test_order = 1 # internal counter - if prev_task does not have one
+        collected = {}
+        for task_node in xml_get_nodes(self.recipe_node, 'task'):
+            task = BeakerTask(task_node, self, test_order)
+            task.collected = dict(collected)
+            yield task
+            collected.update(task.get_params())
+            test_order = task.test_order + 1
+
+    def next_task(self, prev_task=None, collect_env=False):
+        found = not prev_task # if no prev.task - first will match
+        matcher = BeakerTask.matcher(prev_task)
+        for task in self.tasks(collect_env=collect_env):
+            if found:
+                yield task
+            else:
+                found = matcher(task.task_node)
+        if not found:
+            raise RaiseException('Could not find original task %s' % prev_task)
+
+    def find_task(self, task_spec, collect_env=False):
+        matcher = BeakerTask.matcher(task_spec)
+        for task in self.tasks(collect_env=collect_env):
+            if matcher(task.task_node):
+                yield task
+
+
+class BeakerTaskRpm(object):
+
+    def __init__(self, rpm_node, task, task_name):
+        rpm_name = xml_attr(rpm_node, 'name')
+        self.task = task
+        dict_update(task._env,
+                TEST=task_name,
+                TESTRPMNAME=normalize_rpm_name(rpm_name),
+                TESTPATH="/mnt/tests"+task_name,)
+        task.executable = mk_rhts_task(task._env, task.recipe.repos, task.recipe.repof)
+        task.args = [rpm_name]
+        log.info("RPMTest %s - %s %s", rpm_name, task.executable, task.args)
+
+
+def normalize_executable(executable, args):
+    proto_len = executable.find(':')
+    if proto_len >= 0:
+        proto = executable[:proto_len]
+        if proto == "file" and executable[proto_len+1:proto_len+3] == '//':
+            executable = executable[proto_len+3:]
         else:
-            test_order += 1
+            # FIXME: retrieve a file and set an executable bit.
+            log.warning("Feature not implemented yet. proto=%s",
+                    proto)
+            return ""
+    else:
+        executable = os.path.abspath(executable)
+    return (executable, args)
 
-        ts = xml_attr(task, 'status')
 
-        if ts not in ['Waiting', 'Running']:
-            log.debug("task id: %r status: %r", xml_attr(task, 'id'), ts)
-            continue
+class BeakerTaskExecutable(object):
 
-        task_id = xml_attr(task, 'id')
-        task_name = xml_attr(task, 'name')
-        dict_update(task_env,
-                TASKID=str(task_id),
-                RECIPETESTID=str(task_id),
-                TESTID=str(task_id),
-                TASKNAME=task_name,
-                ROLE=xml_attr(task, 'role', ''))
+    def __init__(self, executable_node, task):
+        self.task = task
+        if task.recipe.repof:
+            f = open('/etc/yum.repos.d/beaker-tests.repo', 'w+')
+            f.write(task.recipe.repof)
+            f.close()
+        args = []
+        for arg in executable_node.getElementsByTagName('arg'):
+            args.append(xml_attr(arg, 'value'))
+        task.executable, task.args = normalize_executable(xml_attr(executable_node, 'url'), args)
+        log.info("ExecutableTest %s %s", task.executable, task.args)
 
-        # FIXME: Anything else to save?
 
-        for p in task.getElementsByTagName('param'):
-            task_env[xml_attr(p, 'name')]=xml_attr(p, 'value')
+class BeakerTask(object):
 
-        for roles_node in xml_get_nodes(task, 'roles'):
+    def __init__(self, task_node, recipe, test_order):
+        self.recipe = recipe
+        self.task_node = task_node
+        self.beaker_id = xml_attr(task_node, 'id')
+        to = xml_attr(task_node, 'testorder')
+        if to is not None:
+            self.test_order = int(to)
+        else:
+            self.test_order = test_order
+        self._env = None
+        self.env = None
+
+    def get_env(self):
+        if not self.env:
+            if not self.parse():
+                raise Exception('Parse Error.')
+            self.env = dict(self.recipe._env)
+            self.env.update(self._env)
+        return self.env
+
+    def matcher(task_spec):
+        if not task_spec:
+            return lambda t: True
+        if isinstance(prev_task, basestring):
+            return lambda t: xml_attr(t, 'id') == task_spec
+        if isinstance(prev_task, BeakerTask):
+            task_node = task_spec.task_node
+            return lambda t: t == task_node
+        if isinstance(prev_task, minidom.XMLNode):
+            return lambda t: task_spec == t
+        raise TypeError('task_spec is of wrong type...')
+    matcher = staticmethod(matcher)
+
+    def get_params(self):
+        answ = {}
+        for p in self.task_node.getElementsByTagName('param'):
+            answ[xml_attr(p, 'name')]=xml_attr(p, 'value')
+        return answ
+
+    def get_roles(self):
+        roles = dict(self.recipe.roles)
+        for roles_node in xml_get_nodes(self.task_node, 'roles'):
             proc_roles(roles, roles_node)
             break
+        return roles
 
-        for role_str in roles.keys():
-            task_env[role_str]=' '.join(roles[role_str])
+    def parse(self):
 
-        ewd = xml_attr(task, 'avg_time')
-        task_env['KILLTIME'] = ewd
+        if not self._env:
 
-        executable = ''
-        args = []
-        while not executable:
+            task_id = self.beaker_id
+            task_name = xml_attr(self.task_node, 'name')
+            self.ewd = xml_attr(self.task_node, 'avg_time')
 
-            rpm_tags = task.getElementsByTagName('rpm')
-            log.debug("parse_recipe_xml: rpm tag: %s", rpm_tags)
-            if rpm_tags:
-                rpm_name = xml_attr(rpm_tags[0], 'name')
-                dict_update(task_env,
-                        TEST=task_name,
-                        TESTRPMNAME=normalize_rpm_name(rpm_name),
-                        TESTPATH="/mnt/tests"+task_name ,
-                        KILLTIME=str(ewd))
-                executable = mk_rhts_task(task_env, repos, repof)
-                args = [rpm_name]
-                log.info("parse_recipe_xml: RPMTest %s - %s %s", rpm_name, executable, args)
-                break
+            self._env = {
+                    'TASKID': str(task_id),
+                    'RECIPETESTID': str(task_id),
+                    'TESTID': str(task_id),
+                    'TASKNAME': task_name,
+                    'ROLE': xml_attr(self.task_node, 'role', ''),
+                    'KILLTIME': self.ewd,
+                    }
 
-            exec_tags = task.getElementsByTagName('executable')
-            log.debug("parse_recipe_xml: executable tag: %s", exec_tags)
-            if exec_tags:
-                if repof:
-                    f = open('/etc/yum.repos.d/beaker-tests.repo', 'w+')
-                    f.write(repof)
-                    f.close()
-                executable = xml_attr(exec_tag[0], 'url')
-                for arg in exec_tag[0].getElementsByTagName('arg'):
-                    args.append(xml_attr(arg, 'value'))
-                log.info("parse_recipe_xml: ExecutableTest %s %s", executable, args)
-                break
+            self._env.update(self.get_params())
 
-            break
-
-        proto_len = executable.find(':')
-        if proto_len >= 0:
-            proto = executable[:proto_len]
-            if proto == "file" and executable[proto_len+1:proto_len+3] == '//':
-                executable = executable[proto_len+3:]
+            if self._env.has_key('TESTORDER'):
+                self._env['TESTORDER'] = str(8*int(self._env['TESTORDER']) + 4)
             else:
-                # FIXME: retrieve a file and set an executable bit.
-                log.warning("parse_recipe_xml: Feature not implemented yet. proto=%s",
-                        proto)
-                continue
-        else:
-            executable = os.path.abspath(executable)
+                self._env['TESTORDER'] = str(8*self.test_order)
 
-        if not executable:
-            log.warning("parse_recipe_xml: Task %s(%s) does not have an executable associated!",
+            self.roles = self.get_roles()
+            for role_str in self.roles.keys():
+                self._env[role_str]=' '.join(self.roles[role_str])
+
+            self.executable = ''
+            self.args = []
+            while True:
+                rpm_tags = self.task_node.getElementsByTagName('rpm')
+                log.debug("rpm tag: %s", rpm_tags)
+                if rpm_tags:
+                    self.parsed = BeakerTaskRpm(rpm_tags[0], self, task_name)
+                    break
+                exec_tags = self.task_node.getElementsByTagName('executable')
+                log.debug("executable tag: %s", exec_tags)
+                if exec_tags:
+                    self.parsed = BeakerTaskExecutable(exec_tags[0], self)
+                    break
+                break
+
+        if not self.executable:
+            log.warning("Task %s(%s) does not have an executable associated!",
                     task_name, task_id)
-            continue
+            return None
 
-        if task_env.has_key('TESTORDER'):
-            task_env['TESTORDER'] = str(8*int(task_env['TESTORDER']) + 4)
+        return self
+
+    def task_data(self):
+        if self.parse():
+            return dict(task_env=self.get_env(), executable=self.executable,
+                    args=self.args, ewd=self.ewd)
         else:
-            task_env['TESTORDER'] = str(8*test_order)
-        return dict(task_env=task_env, executable=executable, args=args,
-                ewd=ewd)
+            return None
 
-    return None
 
 def handle_error(result, *args, **kwargs):
     log.warning("Deferred Failed(%r, *%r, **%r)", result, args, kwargs)
@@ -378,7 +478,17 @@ def open_(name, mode):
     pre_open(name)
     return open(name, mode)
 
+class NothingToDoException(Exception):
+    """
+    Exception raised when:
+    - scheduler does not have a recipe for the machine
+    - or recipe contains no more jobs.
+    """
+    pass
+
 class BeakerLCBackend(SerializingBackend):
+
+    CACHED_STATUS = False
 
     GET_RECIPE = 'get_recipe'
     TASK_START = 'task_start'
@@ -403,6 +513,7 @@ class BeakerLCBackend(SerializingBackend):
         self.digest_method = self.conf.get('DEFAULT', 'DIGEST')
         self.waiting_for_lc = False
         self.runtime = runtimes.ShelveRuntime(self.conf.get('DEFAULT', 'RUNTIME_FILE_NAME'))
+        self.__variables = runtimes.TypeDict(self.runtime, 'variables')
         self.__commands = {}
         self.__results_by_uuid = runtimes.TypeDict(self.runtime, 'results_by_uuid')
         self.__file_info = {}
@@ -411,6 +522,7 @@ class BeakerLCBackend(SerializingBackend):
         self.__writer_args = {}
         self.__tasks_by_id = runtimes.TypeDict(self.runtime, 'tasks_by_id')
         self.__tasks_by_uuid = runtimes.TypeDict(self.runtime, 'tasks_by_uuid')
+        self.recipe_xml = None
         self.__task_info = {}
         self.__journal_file = None
         self.__len_queue = []
@@ -450,7 +562,8 @@ class BeakerLCBackend(SerializingBackend):
 
     def on_lc_failure(self, result):
         self.waiting_for_lc = False
-        log.error(traceback.format_tb(result.getTracebackObject()))
+        if not result.check(NothingToDoException):
+            log.error(traceback.format_tb(result.getTracebackObject()))
         reactor.callLater(120, self.on_idle)
         return None
 
@@ -458,11 +571,88 @@ class BeakerLCBackend(SerializingBackend):
         if self.waiting_for_lc:
             self.on_error("on_idle called with waiting_for_lc already set.")
             return
+        if self.recipe_xml:
+            d = defer.maybeDeferred(self.next_task)
+        else:
+            recipe = self.__variables.get('RECIPE', None)
+            if recipe:
+                d = defer.succeed(recipe)
+            else:
+                self.waiting_for_lc = True
+                d = self.proxy.callRemote(self.GET_RECIPE, self.hostname) \
+                        .addCallback(self.store_recipe)
+            d.addCallback(self.handle_new_recipe)
+        d.addCallback(self.handle_new_task)
+        d.addErrback(self.on_lc_failure)
 
-        self.proxy.callRemote(self.GET_RECIPE, self.hostname) \
-                .addCallback(self.handle_new_task) \
-                .addErrback(self.on_lc_failure)
-        self.waiting_for_lc = True
+    def store_recipe(self, recipe_xml):
+        self.__variables['RECIPE'] = recipe_xml
+        return recipe_xml
+
+    def handle_new_recipe(self, recipe_xml):
+        """
+        Must return next task to run
+        """
+        self.waiting_for_lc = False
+        log.debug("handle_new_recipe(%s)", recipe_xml)
+        self.recipe_xml = recipe_xml
+        self.recipe = BeakerRecipe.make(recipe_xml, self.hostname)
+        if not self.recipe:
+            raise self.nothing_to_do("No recipe for %s." % self.hostname)
+        rs = xml_attr(self.recipe.recipe_node, 'status')
+        if rs not in ['Running', 'Waiting']:
+            raise self.nothing_to_do("The recipe has finished.")
+        # This IS an iterator!
+        self.tasks = self.recipe.tasks()
+        return self.next_task()
+
+    def nothing_to_do(self, msg=None):
+        self.store_recipe(None)
+        self.recipe_xml = None
+        self.task = None
+        self.task_data = None
+        self.tasks = None
+        if not msg:
+            msg = "Nothing to do..."
+        log.info(msg)
+        return NothingToDoException(msg)
+
+    def _next_task(self):
+        for task in self.tasks:
+            ts = xml_attr(task.task_node, 'status')
+            if ts not in ['Waiting', 'Running']:
+                log.debug("task id: %r status: %r", task.beaker_id, ts)
+                continue
+            if self.task_has_finished(task.beaker_id):
+                log.debug("task id: %r finished.", task.beaker_id)
+                continue
+            return task
+        raise self.nothing_to_do("No more tasks in recipe.")
+
+    def next_task(self, d=None):
+        """
+        Return next task to run.
+        """
+        assert self.recipe
+        task = self._next_task()
+        if getattr(self, 'cached_status', self.CACHED_STATUS):
+            self.task_data = task.task_data()
+            self.task = task
+            return self.task_data
+        if not d:
+            d = defer.Deferred()
+        self.proxy.callRemote("task_info", "T:%s" % task.beaker_id) \
+                .addCallback(self.handle_task_info, task, d) \
+                .addErrback(d.errback)
+        return d
+
+    def handle_task_info(self, task_info, task, d):
+        if task_info and task_info.get('is_finished', False):
+            self.next_task(d)
+        else:
+            self.task_data = task.task_data()
+            self.task = task
+            d.callback(self.task_data)
 
     def idle(self):
         return self.proxy.is_idle()
@@ -484,19 +674,9 @@ class BeakerLCBackend(SerializingBackend):
                 self.proxy.logging_print = log.info
             self.on_idle()
 
-    def handle_new_task(self, result):
+    def handle_new_task(self, task_data):
 
-        self.waiting_for_lc = False
-
-        log.debug("handle_new_task(%s)", result)
-
-        self.recipe_xml = result
-
-        try:
-            self.task_data = parse_recipe_xml(self.recipe_xml, self.hostname)
-        except:
-            self.on_exception("parse_recipe_xml Failed.")
-            raise
+        log.debug("handle_new_task(%s)", task_data)
 
         log.debug("handle_new_task: task_data = %r", self.task_data)
 
