@@ -19,6 +19,7 @@
 import sys
 import os
 import os.path
+import atexit
 import exceptions
 import traceback
 import pprint
@@ -163,6 +164,21 @@ def do_get_recipe(fname, fqdn):
     log.info("%s(fqdn=%r)", fname, fqdn)
     return print_(get_recipe_xml(fqdn=fqdn))
 
+def do_task_info(fname, qtask):
+    log.info("%s(qtask=%r)", fname, qtask)
+    if qtask.startswith('T:'):
+        task_id = qtask[2:]
+        rec_args = get_recipe_args(task_id=task_id)
+        if not rec_args:
+            raise Exception("ERROR: no task %s" % task_id)
+        status = rec_args['task%s_stat' % task_id]
+        return dict(
+                is_finished=(status in ("Completed", "Aborted", "Cancelled")),
+                state_label=status,
+                )
+    else:
+        raise NotImplementedError
+
 def do_task_start(fname, task_id, kill_time):
     log.info("%s(task_id=%r, kill_time=%r)", fname, task_id, kill_time)
     rec_args = get_recipe_args(task_id=task_id)
@@ -171,6 +187,8 @@ def do_task_start(fname, task_id, kill_time):
     rec_args['task%s_stat' % task_id]='Running'
     misc.log_flush(log)
     return 0
+
+STOP_TYPE = {'stop': 'Completed', 'abort': 'Aborted', 'cancel': 'Cancelled'}
 
 def do_task_stop(fname, task_id, stop_type, msg):
     """
@@ -185,7 +203,7 @@ def do_task_stop(fname, task_id, stop_type, msg):
     rec_args = get_recipe_args(task_id=task_id)
     if not rec_args:
         return "ERROR: no task %s" % task_id
-    rec_args['task%s_stat' % task_id]=stop_type
+    rec_args['task%s_stat' % task_id]=STOP_TYPE[stop_type]
     misc.log_flush(log)
     return 0
 
@@ -444,6 +462,9 @@ class LCHandler(xmlrpc.XMLRPC):
     def xmlrpc_get_recipe(self, fqdn):
         return self.Return(do_get_recipe("get_recipe", fqdn))
 
+    def xmlrpc_task_info(self, qtask):
+        return self.Return(do_task_info("task_info", qtask))
+
     def xmlrpc_task_start(self, task_id, kill_time):
         return self.Return(do_task_start("task_start", task_id, kill_time))
 
@@ -573,6 +594,9 @@ def main():
     name = conf['name']
     var_path = os.path.join(conf['root'], VAR_PATH, name)
     runtime = runtimes.ShelveRuntime(os.path.join(var_path, "runtime"))
+    def close_runtime():
+        runtime.close()
+    atexit.register(close_runtime)
     log = logging.getLogger('beah_fakelc')
     twisted_logging(log)
     # FIXME: redirect to console or syslog?
