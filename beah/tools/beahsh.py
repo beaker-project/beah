@@ -40,6 +40,7 @@ Use stdin: (NOTE: NOT IMPLEMENTED!)
 """
 
 
+import os
 import sys
 import shlex
 import simplejson as json
@@ -63,11 +64,16 @@ no_opts.disable_interspersed_args()
 def proc_evt_extend_watchdog(cmd, args):
     """Extend watchdog."""
     no_opts.prog = cmd
-    no_opts.usage = "%prog"
+    no_opts.usage = "%prog SECONDS"
     no_opts.description = "Extend watchdog."
     opts, args = no_opts.parse_args(args)
-    timeout = beah.misc.canonical_time(args[0])
-    return event.extend_watchdog(timeout)
+    if args:
+        timeout = beah.misc.canonical_time(args[0])
+    else:
+        print >> sys.stderr, "WARNING: SECONDS not specified. Extending for 1 more day."
+        timeout = 24*3600
+    return [event.extend_watchdog(timeout)]
+
 
 def proc_evt_nop(cmd, args):
     """Do nothing."""
@@ -83,7 +89,7 @@ def proc_evt_echo(cmd, args):
     no_opts.usage = "%prog MESSAGE..."
     no_opts.description = "Echo args to stdout"
     opts, args = no_opts.parse_args(args)
-    return event.stdout(" ".join(args))
+    return [event.stdout(" ".join(args))]
 
 
 def proc_evt_echo_err(cmd, args):
@@ -92,7 +98,7 @@ def proc_evt_echo_err(cmd, args):
     no_opts.usage = "%prog MESSAGE..."
     no_opts.description = "Echo args to stderr"
     opts, args = no_opts.parse_args(args)
-    return event.stderr(" ".join(args))
+    return [event.stderr(" ".join(args))]
 
 
 __TEXT_RESULT_TO_BEAH = {
@@ -128,8 +134,8 @@ def _proc_evt_result(cmd, args):
     statistics = {}
     if opts.score:
         statistics["score"] = opts.score
-    return event.result_ex(evt_result, handle=opts.handle,
-        message=" ".join(args), statistics=statistics)
+    return [event.result_ex(evt_result, handle=opts.handle,
+        message=" ".join(args), statistics=statistics)]
 
 
 proc_evt_pass = _proc_evt_result
@@ -137,6 +143,52 @@ proc_evt_warn = _proc_evt_result
 proc_evt_warning = _proc_evt_result
 proc_evt_fail = _proc_evt_result
 proc_evt_error = _proc_evt_result
+
+
+abort_opts = None
+
+
+def _proc_evt_abort(cmd, args):
+    """Abort TARGETS of given type.
+
+    If TARGETS are not given, aborts current task/recipe/recipeset as specified
+    by environment."""
+    global abort_opts
+    cmd = cmd.lower()
+    abort_type = cmd[len('abort'):]
+    if abort_type.startswith('_'):
+        abort_type = abort_type[1:]
+    abort_type = {'r':'recipe', 'rs':'recipeset', 't':'task'}.get(abort_type, abort_type)
+    if not abort_opts:
+        abort_opts = OptionParser(usage="%prog [OPTIONS] [TARGETS]",
+                description="Return a %prog result.")
+        abort_opts.disable_interspersed_args()
+        abort_opts.add_option("-m", "--message", action="store",
+                dest="message", help="message to log", type="string",
+                default="")
+    abort_opts.prog = cmd
+    opts, args = abort_opts.parse_args(args)
+    if args:
+        targets = args
+    else:
+        abort_env = {'task':'TASKID', 'recipe':'RECIPEID', 'recipeset':'RECIPESET'}[abort_type]
+        target = os.getenv(abort_env)
+        if target:
+            targets = [target]
+        else:
+            targets = []
+    evts = []
+    for target in targets:
+        evts.append(event.abort(abort_type, target=target, message=opts.message))
+    return evts
+
+
+proc_evt_abort_task = _proc_evt_abort
+proc_evt_abort_recipe = _proc_evt_abort
+proc_evt_abort_recipeset = _proc_evt_abort
+proc_evt_abort_t = _proc_evt_abort
+proc_evt_abort_r = _proc_evt_abort
+proc_evt_abort_rs = _proc_evt_abort
 
 
 __TEXT_LOG_LEVEL_TO_BEAH = {
@@ -166,8 +218,8 @@ def _proc_evt_log(cmd, args):
                 default="")
     log_opts.prog = text_level
     opts, args = log_opts.parse_args(args)
-    return event.log(message=" ".join(args), log_level=log_level,
-            log_handle=opts.handle)
+    return [event.log(message=" ".join(args), log_level=log_level,
+            log_handle=opts.handle)]
 
 
 proc_evt_log = _proc_evt_log
@@ -199,11 +251,12 @@ def _run(cmd_args, evt_send, print_id):
     if not f:
         echoerr("Command %s is not implemented. Command: %r" % (cmd, cmd_args))
         return False
-    evt = f(cmd, cmd_args[1:])
-    if evt:
-        if print_id:
-            print >> sys.stderr, "id=%s" % (evt.id(),)
-        evt_send(evt)
+    evts = f(cmd, cmd_args[1:])
+    if evts:
+        for evt in evts:
+            if print_id:
+                print >> sys.stderr, "id=%s" % (evt.id(),)
+            evt_send(evt)
     return True
 
 
