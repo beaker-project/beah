@@ -75,7 +75,7 @@ def introduce(task_id, origin={}, timestamp=None):
 def extend_watchdog(timeout, origin={}, timestamp=None):
     return Event('extend_watchdog', origin, timestamp, timeout=timeout)
 
-def abort(type, target=None, origin={}, timestamp=None):
+def abort(type, target=None, message=None, origin={}, timestamp=None):
     """
     Abort given {recipe,recipeset,job}.
 
@@ -83,7 +83,8 @@ def abort(type, target=None, origin={}, timestamp=None):
     """
     if type not in ('recipe', 'recipeset', 'job'):
         raise exceptions.NotImplementedError('type must be recipe, recipeset or job. %r given' % type)
-    return Event('abort', origin, timestamp, type=type, target=target)
+    return Event('abort', origin, timestamp, type=type, target=target,
+            message=message)
 
 def echo(cmd, rc, message="", origin={}, timestamp=None, **kwargs):
     """
