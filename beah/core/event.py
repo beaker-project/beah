@@ -81,7 +81,7 @@ def abort(type, target=None, message=None, origin={}, timestamp=None):
 
     Abort currently running recipe, recipeset or job, if no target is specified.
     """
-    if type not in ('recipe', 'recipeset', 'job'):
+    if type not in ('task', 'recipe', 'recipeset', 'job'):
         raise exceptions.NotImplementedError('type must be recipe, recipeset or job. %r given' % type)
     return Event('abort', origin, timestamp, type=type, target=target,
             message=message)
