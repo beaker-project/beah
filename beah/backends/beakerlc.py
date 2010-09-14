@@ -860,8 +860,8 @@ class BeakerLCBackend(SerializingBackend):
         cmd = self.get_command(evt.arg('cmd_id'))
         if (cmd is not None and cmd.command()=='run'):
             rc = evt.arg('rc')
-            if rc not in (ECHO.OK, ECHO.DUPLICATE):
-                id = evt.task_id
+            id = evt.task_id
+            if rc not in (ECHO.OK, ECHO.DUPLICATE) and not self.task_has_finished(id):
                 self.task_set_finished(id)
                 message = ("Harness could not run the task: %s rc=%s"
                         % (evt.arg('message', 'no info'), rc))
@@ -881,6 +881,8 @@ class BeakerLCBackend(SerializingBackend):
     def proc_evt_end(self, evt):
         id = evt.task_id
         self.close_writers(id)
+        if self.task_has_finished(id):
+            return
         self.task_set_finished(id)
         rc = evt.arg("rc", None)
         if rc is None:
@@ -934,6 +936,7 @@ class BeakerLCBackend(SerializingBackend):
         if not type:
             log.error("No abort type specified.")
             raise exceptions.RuntimeError("No abort type specified.")
+        id = evt.task_id
         self.flush_writers(id)
         target = evt.arg('target', None)
         d = None
@@ -957,9 +960,13 @@ class BeakerLCBackend(SerializingBackend):
         elif type == 'task':
             target = self.find_task_id(target)
             if target is not None:
-                d = self.proxy.callRemote('task_stop', target, 'abort', "Task"+msg)
-                if target == evt.task_id:
+                if target == id and not self.task_has_finished(id):
+                    d = self.proxy.callRemote('task_stop', target, 'abort', "Task"+msg)
+                    self.close_writers(id)
+                    self.task_set_finished(id)
                     d.addCallback(self.handle_Stop).addErrback(self.on_lc_failure)
+                else:
+                    log.warning("Can abort only currently running task.")
 
     def proc_evt_result(self, evt):
         try:
