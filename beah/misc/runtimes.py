@@ -56,7 +56,7 @@ class BaseRuntime(object):
     def close(self):
         self.sync()
 
-    def sync(self, key=None):
+    def sync(self, type=None):
         pass
 
     def type_set(self, type, key, value):
@@ -283,9 +283,11 @@ class ShelveRuntime(BaseRuntime):
         self.so = shelve.open(fname, 'c')
 
     def close(self):
-        self.so.close()
+        if self.so is not None:
+            self.so.close()
+            self.so = None
 
-    def sync(self, key=None):
+    def sync(self, type=None):
         self.so.sync()
 
     def mk_type_key(self, type, key):
