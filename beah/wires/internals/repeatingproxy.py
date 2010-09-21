@@ -128,6 +128,53 @@ class QueryFactoryWithTimeout(_QueryFactory):
     _VERBOSE = ('startedConnecting', 'clientConnectionLost')
 
 
+class repeatTimes(object):
+
+    """
+    Convenience repeat function to repeat call n times.
+    """
+
+    def __init__(self, n):
+        self.n = n
+
+    def __call__(self, fail):
+        self.n -= 1
+        return self.n >= 0
+
+
+class repeatWithHandle(object):
+
+    """
+    Repeat wrapper with first_time handle, which is triggered on first failure
+    only.
+    """
+
+    def __init__(self, repeat):
+        self.repeat = repeat
+        self.fired = False
+
+    def first_time(self, fail):
+        pass
+
+    def __call__(self, fail):
+        if not self.fired:
+            self.first_time(fail)
+            self.fired = True
+        return self.repeat(fail)
+
+        # FIXME: following does not work!
+        #self.first_time(fail)
+        #self.__call__ = self.repeat
+        #return self.__call__(fail)
+
+
+def repeatAlways(fail):
+    """
+    Convenience repeat function to repeat call forever.
+    """
+    return True
+
+
 class RepeatingProxy(Proxy):
 
     """
@@ -234,7 +281,10 @@ class RepeatingProxy(Proxy):
         if fail.check(AlreadyCalledError):
             return
         self.__pending -= 1
-        if not self.is_auto_retry_condition(fail):
+        repeat = self.is_auto_retry_condition(fail)
+        if m[5] is not None and m[5](fail):
+            repeat = True
+        if not repeat:
             if m[1] is None:
                 count = 1
             else:
@@ -272,7 +322,7 @@ class RepeatingProxy(Proxy):
         if self.serializing and self.__pending > 0:
             self.__sleep = True
             return False
-        [d, count, method, args, kwargs] = m = self.pop()
+        [d, count, method, args, kwargs, ffilter] = m = self.pop()
         if self.serializing:
             self.__sleep = True
         self.callRemote_(method, *args, **kwargs) \
@@ -288,16 +338,43 @@ class RepeatingProxy(Proxy):
         self.__pending += 1
         return answ
 
-    def callRemote(self, method, *args, **kwargs):
+    def _makeCall(self, method, args, kwargs, repeat):
         """
-        Overridden base class method, to handle retrying.
+        Queue remote call.
+
+        NOTE: Internal function. Do not use this directly.
+
+        repeat: a callable allowing per-call failure handling.
+        On failure, if this function returns True, call will be repeated.
         """
         # Method has to return new deferred, as the original one will be
         # consumed internally.
         d = Deferred()
-        self.push([d, self.max_retries, method, args, kwargs])
+        self.push([d, self.max_retries, method, args, kwargs, repeat])
         self.send_next()
         return d
+
+    def repeatedRemote(self, repeat, method, *args, **kwargs):
+        """
+        Remote call allowing per-call failure handling.
+
+        See _makeCall for repeat argument details.
+        """
+        return self._makeCall(method, args, kwargs, repeat)
+
+    def callRemote(self, method, *args, **kwargs):
+        """
+        Overridden base class method, to handle retrying.
+        """
+        return self._makeCall(method, args, kwargs, None)
+
+    def mustPassRemote(self, method, *args, **kwargs):
+        """
+        Remote call which accepts no failure.
+
+        Call is repeated until it succeeds.
+        """
+        return self._makeCall(method, args, kwargs, repeatAlways)
 
     def is_idle(self):
         return self.__pending == 0 and self.is_empty()
@@ -330,6 +407,44 @@ if __name__ == '__main__':
     import sys
     from beah.misc.log_this import log_this
     from beah.misc import make_class_verbose
+
+    for i in range(7):
+        assert repeatAlways(i)
+    r6 = repeatTimes(6)
+    for i in range(6):
+        assert r6(i)
+    assert not r6(7)
+    del r6
+    class repeatWithMemory(repeatWithHandle):
+        def __init__(self, repeat):
+            self.x = None
+            repeatWithHandle.__init__(self, repeat)
+        def first_time(self, fail):
+            self.x = fail
+    def testr6(i, expected_return, expected_x):
+        ret = r6(i)
+        if ret != expected_return:
+            assert False, "r6(i) is %s and not %s as expected." % (ret, expected_return)
+        if r6.x != expected_x:
+            assert False, "r6.x is %s and not %s as expected." % (r6.x, expected_x)
+    r6 = repeatWithMemory(repeatTimes(6))
+    assert r6.x is None
+    testr6(0, True, 0)
+    testr6(1, True, 0)
+    r6.x = None
+    for i in range(4):
+        testr6(2+i, True, None)
+    testr6(7, False, None)
+    try:
+        testr6(8, False, 0)
+        raise Error("Failure was expected.")
+    except AssertionError:
+        pass
+    try:
+        testr6(8, True, None)
+        raise Error("Failure was expected.")
+    except AssertionError:
+        pass
 
     def printf_w_timestamp(s):
         #ts = time.strftime("%Y%m%d-%H%M%S")
@@ -437,16 +552,29 @@ if __name__ == '__main__':
         return None
     chk = print_this(chk)
 
-    def rem_call(proxy, method, exp_, args=()):
-        return proxy.callRemote(method, *args) \
-                .addCallbacks(chk, chk,
-                        callbackArgs=[method, True, exp_],
-                        errbackArgs=[method, False, exp_])
+    def rem_call(proxy, method, exp_, args=(), repeat=None):
+        if repeat is None:
+            return proxy.callRemote(method, *args) \
+                    .addCallbacks(chk, chk,
+                            callbackArgs=[method, True, exp_],
+                            errbackArgs=[method, False, exp_])
+        else:
+            return proxy.repeatedRemote(repeat, method, *args) \
+                    .addCallbacks(chk, chk,
+                            callbackArgs=[method, True, exp_],
+                            errbackArgs=[method, False, exp_])
     rem_call = print_this(rem_call)
 
     class TestHandler(XMLRPC):
         _VERBOSE = ('xmlrpc_test', 'xmlrpc_test_exc', 'xmlrpc_test_exc2',
                 'xmlrpc_test_long_call')
+        def xmlrpc_retry_set(self, n):
+            self.retries = n
+        def xmlrpc_retry(self):
+            self.retries -= 1
+            if self.retries >= 0:
+                raise exceptions.RuntimeError("Sorry. Try again...")
+            return "Finally OK"
         def xmlrpc_test(self): return "OK"
         def xmlrpc_test_exc(self): raise exceptions.RuntimeError
         def xmlrpc_test_exc2(self): raise exceptions.NotImplementedError
@@ -494,19 +622,34 @@ if __name__ == '__main__':
         rem_call(p, 'test_exc2', False)
         rem_call(p, 'test_long_call', True, (p.LONG_CALL,))
         rem_call(p, 'test_long_call', True, (2*p.LONG_CALL,))
+        rem_call(p, 'retry_set', True, (2,))
+        rem_call(p, 'retry', True, args=(), repeat=repeatAlways)
     def stopper(delay=1):
         def cb(result):
             reactor.callLater(delay, reactor.stop)
         return cb
     p.when_idle().addCallback(run_again)
-    reactor.callWhenRunning(rem_call, p, 'test', True)
-    reactor.callWhenRunning(rem_call, p, 'test', True)
-    reactor.callWhenRunning(rem_call, p, 'test2', False)
-    reactor.callWhenRunning(rem_call, p, 'test_exc', False)
-    reactor.callWhenRunning(rem_call, p, 'test_exc2', False)
-    reactor.callWhenRunning(rem_call, p, 'test_long_call', True, (p.LONG_CALL,))
-    reactor.callWhenRunning(rem_call, p, 'test_long_call', True, (p.LONG_CALL,))
-    reactor.callWhenRunning(rem_call, p, 'test_long_call', True, (2*p.LONG_CALL,))
+    def run_first():
+        rem_call(p, 'test', True)
+        rem_call(p, 'test', True)
+        rem_call(p, 'test2', False)
+        rem_call(p, 'test_exc', False)
+        rem_call(p, 'test_exc2', False)
+        rem_call(p, 'test_long_call', True, (p.LONG_CALL,))
+        rem_call(p, 'test_long_call', True, (p.LONG_CALL,))
+        rem_call(p, 'test_long_call', True, (2*p.LONG_CALL,))
+        rem_call(p, 'retry_set', True, (2,))
+        rem_call(p, 'retry', True, args=(), repeat=repeatAlways)
+        rem_call(p, 'retry_set', True, (3,))
+        rem_call(p, 'retry', False, args=(), repeat=repeatTimes(2))
+    reactor.callWhenRunning(run_first)
+    #reactor.callWhenRunning(rem_call, p, 'test', True)
+    #reactor.callWhenRunning(rem_call, p, 'test2', False)
+    #reactor.callWhenRunning(rem_call, p, 'test_exc', False)
+    #reactor.callWhenRunning(rem_call, p, 'test_exc2', False)
+    #reactor.callWhenRunning(rem_call, p, 'test_long_call', True, (p.LONG_CALL,))
+    #reactor.callWhenRunning(rem_call, p, 'test_long_call', True, (p.LONG_CALL,))
+    #reactor.callWhenRunning(rem_call, p, 'test_long_call', True, (2*p.LONG_CALL,))
     reactor.callLater(5, reactor.listenTCP, 54123, server.Site(TestHandler(), timeout=30), interface='127.0.0.1')
     reactor.run()
     print 80*"="
