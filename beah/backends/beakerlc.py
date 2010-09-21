@@ -486,6 +486,15 @@ class NothingToDoException(Exception):
     """
     pass
 
+
+class repeatWithLog(repeatingproxy.repeatWithHandle):
+
+    logf = log.error
+
+    def first_time(self, fail):
+        self.logf("Remote call failed unexpectedly. Going into retry loop...\nFailure: %s", fail)
+
+
 class BeakerLCBackend(SerializingBackend):
 
     CACHED_STATUS = False
@@ -875,7 +884,7 @@ class BeakerLCBackend(SerializingBackend):
         id = evt.task_id
         if not self.task_has_started(id):
             self.task_set_started(id)
-            self.proxy.callRemote(self.TASK_START, id, 0)
+            self.proxy.repeatedRemote(repeatWithLog(repeatingproxy.repeatAlways), self.TASK_START, id, 0)
             # FIXME: start local watchdog
 
     def proc_evt_end(self, evt):

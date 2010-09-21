@@ -179,8 +179,24 @@ def do_task_info(fname, qtask):
     else:
         raise NotImplementedError
 
+
+class TaskStarter(object):
+
+    def __init__(self):
+        self.n = 3
+
+    def check(self):
+        self.n -= 1
+        if self.n >= 0:
+            raise Exception("Wait a minute!")
+
+task_starter = TaskStarter()
+
+
 def do_task_start(fname, task_id, kill_time):
     log.info("%s(task_id=%r, kill_time=%r)", fname, task_id, kill_time)
+    # Fail on start, to check start repeating.
+    task_starter.check()
     rec_args = get_recipe_args(task_id=task_id)
     if not rec_args:
         return "ERROR: no task %s" % task_id
