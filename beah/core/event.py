@@ -105,6 +105,10 @@ def lose_item(data, origin={}, timestamp=None):
     """Event generated when unformatted data are received."""
     return Event('lose_item', origin, timestamp, data=data)
 
+def section(parent_id, handle, origin={}, timestamp=None, **kwargs):
+    """Event which identifies new section, which can contain other events."""
+    return Event('section', origin, timestamp, handle=handle, parent_id=parent_id, **kwargs)
+
 def output(data, out_handle="", origin={}, timestamp=None):
     return Event('output', origin, timestamp, out_handle=out_handle, data=data)
 def stdout(data, origin={}, timestamp=None):
