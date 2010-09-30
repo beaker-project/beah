@@ -19,7 +19,7 @@
 import sys
 import os
 import os.path
-import atexit
+import signal
 import exceptions
 import traceback
 import pprint
@@ -97,11 +97,15 @@ def conf_main(conf, args):
     job_id = opts.job_id
     if job_id is None:
         job_id = 100 + randint(0, 99)
+        conf.setdefault('job_id', job_id)
+    else:
+        conf['job_id'] = recipeset_id
     recipeset_id = opts.recipeset_id
     if recipeset_id is None:
         recipeset_id = job_id*100 + randint(0, 99)
-    conf['job_id'] = job_id
-    conf['recipeset_id'] = recipeset_id
+        conf.setdefault('recipeset_id', recipeset_id)
+    else:
+        conf['recipeset_id'] = recipeset_id
     if opts.recipe is None:
         #raise exceptions.Exception("RECIPE must be specified!")
         conf['recipe'] = 'recipes/recipe0'
@@ -125,10 +129,25 @@ task_recipe = {}
 fqdn_def_recipe = None
 task_def_recipe = None
 
+class NoTaskException(Exception): pass
+class NoRecipeException(Exception): pass
+
+def no_recipe(fqdn=None):
+    return NoRecipeException("No recipe for this machine")
+
+def no_task(id=None, task_id=None, fqdn=None):
+    d = dict()
+    if id is not None: d['id'] = id
+    if fqdn is not None: d['fqdn'] = fqdn
+    if task_id is not None: d['task_id'] = task_id
+    return NoTaskException("No task matching %s" % d)
+
 def get_recipe_(fqdn=None, id=None, task_id=None):
     log.info("get_recipe_(fqdn=%s, id=%s, task_id=%s)", fqdn, id, task_id)
     if fqdn is not None:
         id = build_recipe(fqdn)
+    if not task_recipe:
+        id = build_recipe('')
     if task_id is not None:
         task_id = int(task_id)
         if task_recipe.has_key(task_id):
@@ -136,23 +155,19 @@ def get_recipe_(fqdn=None, id=None, task_id=None):
         else:
             id = task_def_recipe
     if id is None:
-        return None
+        raise no_task(fqdn=fqdn, task_id=task_id, id=id)
     id = int(id)
     if recipes.has_key(id):
         return recipes[id]
-    return None
+    raise no_task(fqdn=fqdn, task_id=task_id, id=id)
 
 def get_recipe_xml(**kwargs):
     rec = get_recipe_(**kwargs)
-    if not rec:
-        return None
     return rec[0] % rec[1]
 
 def get_recipe_args(**kwargs):
-    rec = get_recipe_(**kwargs)
-    if not rec:
-        return None
-    return rec[1]
+    return get_recipe_(**kwargs)[1]
+
 
 RESULT_TYPE_ = ["Pass", "Warn", "Fail", "Panic"]
 
@@ -168,9 +183,13 @@ def do_task_info(fname, qtask):
     log.info("%s(qtask=%r)", fname, qtask)
     if qtask.startswith('T:'):
         task_id = qtask[2:]
+        if not get_recipe_(task_id=task_id):
+            recipe = get_recipe_(fqdn='')
+            if not recipe:
+                raise no_recipe()
         rec_args = get_recipe_args(task_id=task_id)
         if not rec_args:
-            raise Exception("ERROR: no task %s" % task_id)
+            raise no_task(task_id=task_id)
         status = rec_args['task%s_stat' % task_id]
         return dict(
                 is_finished=(status in ("Completed", "Aborted", "Cancelled")),
@@ -182,15 +201,16 @@ def do_task_info(fname, qtask):
 
 class TaskStarter(object):
 
-    def __init__(self):
-        self.n = 3
+    def __init__(self, n=0):
+        self.n = n
 
     def check(self):
         self.n -= 1
         if self.n >= 0:
             raise Exception("Wait a minute!")
 
-task_starter = TaskStarter()
+#task_starter = TaskStarter(3)
+task_starter = TaskStarter(0)
 
 
 def do_task_start(fname, task_id, kill_time):
@@ -199,7 +219,7 @@ def do_task_start(fname, task_id, kill_time):
     task_starter.check()
     rec_args = get_recipe_args(task_id=task_id)
     if not rec_args:
-        return "ERROR: no task %s" % task_id
+        raise no_task(task_id=task_id)
     rec_args['task%s_stat' % task_id]='Running'
     misc.log_flush(log)
     return 0
@@ -218,7 +238,7 @@ def do_task_stop(fname, task_id, stop_type, msg):
             msg)
     rec_args = get_recipe_args(task_id=task_id)
     if not rec_args:
-        return "ERROR: no task %s" % task_id
+        raise no_task(task_id=task_id)
     rec_args['task%s_stat' % task_id]=STOP_TYPE[stop_type]
     misc.log_flush(log)
     return 0
@@ -237,7 +257,7 @@ def do_task_result(fname, task_id, result_type, path, score, summary):
                 fname, task_id, result_type, path, score, summary)
         rec_args = get_recipe_args(task_id=task_id)
         if not rec_args:
-            return "ERROR: no task %s" % task_id
+            raise no_task(task_id=task_id)
         ix = 'task%s_res' % task_id
         result = rec_args.get(ix, "Pass")
         if RESULT_TYPE_.count(result) == 0 \
@@ -458,7 +478,9 @@ class LCHandler(xmlrpc.XMLRPC):
     _VERBOSE = ('xmlrpc_get_recipe', 'xmlrpc_task_start', 'xmlrpc_task_stop',
             'xmlrpc_task_result', 'xmlrpc_task_upload_file', 'catch_xmlrpc',
             'xmlrpc_result_upload_file', 'xmlrpc_extend_watchdog',
-            'xmlrpc_recipeset_stop', 'xmlrpc_recipe_stop', 'xmlrpc_job_stop')
+            'xmlrpc_recipeset_stop', 'xmlrpc_recipe_stop', 'xmlrpc_job_stop',
+            'xmlrpc_task_info',
+            )
 
     def __init__(self, *args, **kwargs):
         xmlrpc.XMLRPC.__init__(self, *args, **kwargs)
@@ -601,6 +623,14 @@ def schedule(machine, recipe_id, recipe, args, tasks):
     for task in tasks:
         task_recipe[task] = recipe_id
 
+
+def close(log):
+    global runtime
+    runtime.close()
+    log.info("runtime closed.")
+    misc.log_flush(log)
+
+
 def main():
 ################################################################################
 # EXECUTE:
@@ -610,9 +640,6 @@ def main():
     name = conf['name']
     var_path = os.path.join(conf['root'], VAR_PATH, name)
     runtime = runtimes.ShelveRuntime(os.path.join(var_path, "runtime"))
-    def close_runtime():
-        runtime.close()
-    atexit.register(close_runtime)
     log = logging.getLogger('beah_fakelc')
     twisted_logging(log)
     # FIXME: redirect to console or syslog?
@@ -628,6 +655,7 @@ def main():
     lc.XMLRPC_TIMEOUT = safe_int(conf['timeout'], 0)
     s = server.Site(lc, None, 60*60*12)
     reactor.listenTCP(conf['port'], s, interface=conf['interface'])
+    reactor.addSystemEventTrigger("before", "shutdown", close, log)
     uploader = Uploader(os.path.join(var_path, "fakelc-uploads"))
     reactor.run()
 

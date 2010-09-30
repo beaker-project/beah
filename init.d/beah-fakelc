@@ -27,6 +27,8 @@ if [ -f /etc/sysconfig/$prog ]; then
     . /etc/sysconfig/$prog
 fi
 
+export HOSTNAME=${HOSTNAME:-`/bin/hostname`}
+
 # DO NOT CHANGE THESE VARIABLES WITHOUT GOOD REASON:
 
 path="$BEAH_INSTALL_ROOT/bin/$prog"
