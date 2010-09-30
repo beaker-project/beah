@@ -265,7 +265,7 @@ class TypeList(object):
         f = int(self.runtime.type_get(self.type, 'first', 0))
         l = int(self.runtime.type_get(self.type, 'last', -1))
         v = list([(str(i), self.runtime.type_get(self.type, str(i)))
-            for i in range(f, l+1) if self.runtime.type_has_key(self.type,
+            for i in xrange(f, l+1) if self.runtime.type_has_key(self.type,
                 str(i))])
         d = self.dump()
         r = (f, l, v)
