@@ -170,6 +170,38 @@ function gpwdless()
 }
 BEAH_PRIVATE="$BEAH_PRIVATE $(echo {,g}pwdless)"
 
+export LM_ROOT=/tmp
+export LM_LOGS="/tmp/beah*.out $LM_ROOT/var/log/beah*.log /tmp/var/log/rhts_task*.log"
+function lm_logs()
+{
+  vim -o $LM_LOGS
+}
+
+function lm_results()
+{
+  local uploads=$LM_ROOT/var/beah/beah_fakelc/fakelc-uploads
+  vim -o $uploads/ $uploads/task_*/debug/task_log
+}
+
+function lm_rm_logs()
+{
+  rm -f $LM_LOGS
+  rm -rf /tmp/beah-fakelc-logs
+}
+
+function lm_rm_runtime()
+{
+  rm -rf $LM_ROOT/var/beah/*
+  rm -rf /tmp/beah-fakelc-logs/*
+}
+
+function lm_clean()
+{
+  lm_rm_logs
+  lm_rm_runtime
+  rm -rf /var/cache/rhts
+}
+
 function launcher()
 (
   default="s o l"
@@ -217,7 +249,7 @@ function launcher()
         s|S) xt s 80x35-0-0 beah-srv & ;;
         c|C) xt c 80x20+0+0 beah-cmd-backend & ;;
         o|O) xt o 80x35-0+0 beah-out-backend & ;;
-        l|L) xt l 80x20+0-0 fakelc & ;;
+        l|L) xt l 80x20+0-0 beah-fakelc $BEAH_FAKELC_OPTS & ;;
         b|B) sleep 2 && # beaker backend should wait for fakelc.
              xt b 80x20+0+0 beah-beaker-backend & ;;
       esac

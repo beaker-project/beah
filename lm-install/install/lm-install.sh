@@ -385,6 +385,21 @@ function lm_ps()
   done
 }
 
+function lm_srv()
+{
+  service beah-srv ${1:-restart}
+}
+
+function lm_beaker()
+{
+  service beah-beaker-backend ${1:-restart}
+}
+
+function lm_fakelc()
+{
+  service beah-fakelc ${1:-restart}
+}
+
 function lm_stop()
 {
   service beah-beaker-backend stop
@@ -488,11 +503,24 @@ function lm_iptables()
   service iptables save
 }
 
-function lm_main_beah()
+function lm_chkconfig_del()
 {
-  lm_install_beah ${1:-yum} && \
-  lm_config_beah || return 1
-  lm_iptables
+  if chkconfig beah-srv; then
+    chkconfig --del beah-srv
+  fi
+  if chkconfig beah-beaker-backend; then
+    chkconfig --del beah-beaker-backend
+  fi
+  if chkconfig beah-fwd-backend; then
+    chkconfig --del beah-fwd-backend
+  fi
+  if chkconfig beah-fakelc; then
+    chkconfig --del beah-fakelc
+  fi
+}
+
+function lm_chkconfig_add()
+{
   if ! chkconfig beah-srv; then
     chkconfig --add beah-srv
   fi
@@ -511,6 +539,14 @@ function lm_main_beah()
       chkconfig --del beah-fakelc
     fi
   fi
+}
+
+function lm_main_beah()
+{
+  lm_install_beah ${1:-yum} && \
+  lm_config_beah || return 1
+  lm_iptables
+  lm_chkconfig_add
 }
 
 function lm_install_rhts_repo()
