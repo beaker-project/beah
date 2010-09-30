@@ -280,7 +280,7 @@ END
   sed -e 's/^DEVEL=.*$/DEVEL=True/' /etc/beah.conf.orig > /etc/beah.conf || true
 }
 
-LM_LOGS="/tmp/beah*.out /var/log/beah*.log /tmp/var/log/rhts_task*.log"
+LM_LOGS="/tmp/beah*.out /var/log/beah*.log /tmp/var/log/rhts_task*.log /var/log/rhts/*"
 function lm_tar_logs()
 {
   tar czf $LM_INSTALL_ROOT/lm-logs-$(date +%Y%m%d-%H%M%S).tar.gz $LM_LOGS

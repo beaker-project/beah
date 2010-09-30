@@ -37,8 +37,9 @@ from beah.misc import format_exc, runtimes, make_log_handler, str2log_level, dig
 from beah.wires.internals import twmisc
 from beah.core.constants import RC
 
-LOG_PATH = '/tmp/var/log'
-VAR_PATH = '/var/beah'
+BEAH_ROOT = os.path.join('/', os.getenv('BEAH_ROOT', ''))
+LOG_PATH = os.path.join(BEAH_ROOT, 'var', 'log', 'rhts')
+VAR_PATH = os.path.join(BEAH_ROOT, 'var', 'beah')
 RUNTIME_PATHNAME_TEMPLATE = VAR_PATH + '/rhts_task_%s.db'
 
 log = logging.getLogger('rhts_task')

@@ -62,14 +62,16 @@ def Spawn(host, port, proto=None, socket=''):
         # BEAH_TSOCKET - socket
         # BEAH_TID - id of task - used to introduce itself when opening socket
         task_id = task_info['id']
+        conf = config.get_conf('beah')
         dict_update(task_env,
                 CALLED_BY_BEAH="1",
                 BEAH_THOST=str(host),
                 BEAH_TPORT=str(port),
                 BEAH_TSOCKET=str(socket),
                 BEAH_TID=str(task_id),
+                BEAH_ROOT=conf.get('TASK', 'ROOT'),
                 )
-        ll = config.get_conf('beah').get('TASK', 'LOG')
+        ll = conf.get('TASK', 'LOG')
         task_env.setdefault('BEAH_TASK_LOG', ll)
         task_env.setdefault('TERM', 'dumb')
         val = os.getenv('PYTHONPATH')
