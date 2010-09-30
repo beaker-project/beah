@@ -36,8 +36,6 @@ import beahlib
 ################################################################################
 if __name__=='__main__':
 
-    beahlib.def_conf(timestamp=True)
-
     class LoggingAdaptor(ControllerAdaptor_Task_JSON):
         def connectionMade(self):
             print "%s: I am connected!" % self.__class__.__name__
@@ -69,33 +67,34 @@ if __name__=='__main__':
 
         def test_def(self):
 
-                beahlib.ldebug("environment", environment=dict(os.environ))
+                t = beahlib.get_task()
+                t.ldebug("environment", environment=dict(os.environ))
 
-                beahlib.linfo("introduce")
+                t.linfo("introduce")
                 self.controller.proc_evt(self, event.introduce(self.id))
                 yield
 
-                beahlib.linfo("try pong")
+                t.linfo("try pong")
                 self.controller.proc_evt(self, event.pong(message="Are you there?"))
                 yield
 
-                beahlib.linfo("try passed")
+                t.linfo("try passed")
                 self.controller.proc_evt(self, event.passed())
                 yield
 
-                beahlib.linfo("try failed")
+                t.linfo("try failed")
                 self.controller.proc_evt(self, event.failed())
                 yield
 
-                beahlib.linfo("try linfo")
+                t.linfo("try linfo")
                 self.controller.proc_evt(self, event.linfo("Info message"))
                 yield
 
-                beahlib.linfo("try lerror")
+                t.linfo("try lerror")
                 self.controller.proc_evt(self, event.lerror("Error message"))
                 yield
 
-                beahlib.linfo("try structured data as lose_data")
+                t.linfo("try structured data as lose_data")
                 self.controller.proc_evt(self, ['Object',{'what':'something else', 'where':'nowhere'}])
                 return
 
