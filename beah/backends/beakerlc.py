@@ -19,6 +19,22 @@
 """
 Backend translating beah events to XML-RPCs understood by beaker's Lab
 Controller.
+
+Classes:
+    BeakerLCBackend -- the main class
+    RecipeParser, TaskParser -- parsers classes
+    BeakerRecipe, BeakerTask, BeakerResult, BeakerFile
+        -- classes used to process events
+Auxiliary classes:
+    Container -- class used for caching objects
+    PersistentBeakerContainer -- container with memory
+    Item, PersistentItem -- building blocks
+    BeakerObject -- baseclass for Beaker* classes
+    PersistentBeakerObject -- baseclass with memory
+
+See BeakerLCBackend.proc_evt and BeakerLCBackend.proc_evt_* methods.
+Dispatching according to event type is performed by superclass
+(BasicBackend.proc_evt)
 """
 
 # Beaker Backend should invoke these XML-RPC:
@@ -137,6 +153,8 @@ def xml_attr(node, key, default=None):
         return default
 
 def xml_get_nodes(node, tag):
+    if not node:
+        return []
     return [n for n in node.childNodes if n.nodeName == tag]
 
 def xml_first_node(node, tag):
@@ -180,7 +198,7 @@ class RecipeException(Exception):
     pass
 
 
-class BeakerRecipe(object):
+class RecipeParser(object):
 
     def make(input_xml, hostname):
         """
@@ -194,7 +212,7 @@ class BeakerRecipe(object):
         recipe = find_recipe(root, hostname)
         if not recipe:
             return None
-        return BeakerRecipe(recipe, hostname=hostname, submitter=submitter)
+        return RecipeParser(recipe, hostname=hostname, submitter=submitter)
     make = staticmethod(make)
 
     GUEST_ATTRS = ('system', 'mac_address', 'location', 'guestargs', 'guestname')
@@ -219,9 +237,10 @@ gpgcheck=0
             variant = ''
         if not submitter:
             submitter = ''
+        self.beaker_id = xml_attr(recipe_node, 'id')
         self._env = {
                 'ARCH': xml_attr(recipe_node, 'arch'),
-                'RECIPEID': xml_attr(recipe_node, 'id'),
+                'RECIPEID': self.beaker_id,
                 'JOBID': xml_attr(recipe_node, 'job_id'),
                 'RECIPESETID': xml_attr(recipe_node, 'recipe_set_id'),
                 'DISTRO': xml_attr(recipe_node, 'distro', ''),
@@ -255,7 +274,7 @@ gpgcheck=0
         test_order = 1 # internal counter - if prev_task does not have one
         collected = {}
         for task_node in xml_get_nodes(self.recipe_node, 'task'):
-            task = BeakerTask(task_node, self, test_order)
+            task = TaskParser(task_node, self, test_order)
             task.collected = dict(collected)
             yield task
             collected.update(task.get_params())
@@ -263,7 +282,7 @@ gpgcheck=0
 
     def next_task(self, prev_task=None, collect_env=False):
         found = not prev_task # if no prev.task - first will match
-        matcher = BeakerTask.matcher(prev_task)
+        matcher = TaskParser.matcher(prev_task)
         for task in self.tasks(collect_env=collect_env):
             if found:
                 yield task
@@ -273,13 +292,13 @@ gpgcheck=0
             raise RaiseException('Could not find original task %s' % prev_task)
 
     def find_task(self, task_spec, collect_env=False):
-        matcher = BeakerTask.matcher(task_spec)
+        matcher = TaskParser.matcher(task_spec)
         for task in self.tasks(collect_env=collect_env):
             if matcher(task.task_node):
                 yield task
 
 
-class BeakerTaskRpm(object):
+class RpmTaskParser(object):
 
     def __init__(self, rpm_node, task, task_name):
         rpm_name = xml_attr(rpm_node, 'name')
@@ -309,7 +328,7 @@ def normalize_executable(executable, args):
     return (executable, args)
 
 
-class BeakerTaskExecutable(object):
+class ExecutableTaskParser(object):
 
     def __init__(self, executable_node, task):
         self.task = task
@@ -324,7 +343,7 @@ class BeakerTaskExecutable(object):
         log.info("ExecutableTest %s %s", task.executable, task.args)
 
 
-class BeakerTask(object):
+class TaskParser(object):
 
     def __init__(self, task_node, recipe, test_order):
         self.recipe = recipe
@@ -351,7 +370,7 @@ class BeakerTask(object):
             return lambda t: True
         if isinstance(prev_task, basestring):
             return lambda t: xml_attr(t, 'id') == task_spec
-        if isinstance(prev_task, BeakerTask):
+        if isinstance(prev_task, TaskParser):
             task_node = task_spec.task_node
             return lambda t: t == task_node
         if isinstance(prev_task, minidom.XMLNode):
@@ -406,12 +425,12 @@ class BeakerTask(object):
                 rpm_tags = self.task_node.getElementsByTagName('rpm')
                 log.debug("rpm tag: %s", rpm_tags)
                 if rpm_tags:
-                    self.parsed = BeakerTaskRpm(rpm_tags[0], self, task_name)
+                    self.parsed = RpmTaskParser(rpm_tags[0], self, task_name)
                     break
                 exec_tags = self.task_node.getElementsByTagName('executable')
                 log.debug("executable tag: %s", exec_tags)
                 if exec_tags:
-                    self.parsed = BeakerTaskExecutable(exec_tags[0], self)
+                    self.parsed = ExecutableTaskParser(exec_tags[0], self)
                     break
                 break
 
@@ -439,44 +458,10 @@ def jsonln(obj):
     return "%s\n" % json.dumps(obj)
 
 
-class BeakerWriter(writers.JournallingWriter):
-
-    _VERBOSE = ('write', 'send')
-
-    def __init__(self, journal=None, offs=None, proxy=None, method=None, id=None, path=None,
-            filename=None, repr=None, digest_method=None):
-        if offs is None:
-            raise exceptions.RuntimeError("empty offs passed!")
-        for var in ('journal', 'proxy', 'id', 'filename'):
-            if not locals()[var]:
-                raise exceptions.RuntimeError("empty %s passed!" % (var,))
-        self.proxy = proxy
-        self.method = method or 'task_upload_file'
-        self.id = id
-        self.path = path or '/'
-        self.filename = filename
-        self.digest_constructor = digests.DigestConstructor(digest_method or 'md5')
-        if repr:
-            self.repr = repr
-        writers.JournallingWriter.__init__(self, journal, offs, capacity=4096, no_split=True)
-
-    def send(self, cdata):
-        """
-        Calculate necessary fields and send.
-        """
-        size = len(cdata)
-        offs = self.get_offset()
-        digest = self.digest_constructor(cdata).hexdigest()
-        data = event.encode("base64", cdata)
-        # FIXME? I would like to be able to append to the file. *_upload_file
-        # calls require offset but the file is remote and there is no way to
-        # find the file's real size
-        return self.proxy.callRemote(self.method, self.id, self.path,
-                self.filename, str(size), digest, offs, data)
-
 def open_(name, mode):
     pre_open(name)
     return open(name, mode)
+
 
 class NothingToDoException(Exception):
     """
@@ -495,26 +480,677 @@ class repeatWithLog(repeatingproxy.repeatWithHandle):
         self.logf("Remote call failed unexpectedly. Going into retry loop...\nFailure: %s", fail)
 
 
-class BeakerLCBackend(SerializingBackend):
+class Container(object):
+
+    def __init__(self, parent, cls):
+        self.parent = parent
+        self.cls = cls
+        self.cached = {}
+
+    def set(self, id, obj):
+        if obj is None:
+            raise KeyError("%s instance with id '%s' does not exist." % (self.cls.__name__, id))
+        self.cached[id] = obj
+        return obj
+
+    def _get(self, id, args, kwargs):
+        o = self.cached.get(id, None)
+        if o is not None:
+            return o
+        try:
+            o = self.cls.get_object(id, self.parent, *args, **kwargs)
+        except KeyError:
+            o = None
+        if o is None:
+            o = self.default(id, args, kwargs)
+            if o is not None:
+                o._default_made = True
+        return self.set(id, o)
+
+    def get(self, id, default=None):
+        try:
+            return self._get(id, (), {})
+        except KeyError:
+            return default
+
+    def default(self, id, args, kwargs):
+        return self.cls.make_default(id, self.parent, *args, **kwargs)
+
+    def get_cached(self):
+        '''Return all in memory objects.'''
+        return self.cached.values()
+
+    def __getitem__(self, id):
+        return self._get(id, (), {})
+
+    def __setitem__(self, id, value):
+        return self.set(id, value)
+
+    def make(self, id, *args, **kwargs):
+        if self.cached.get(id, None) is not None:
+            raise KeyError("%s with id '%s' already exists." % (self.cls.__name__, id))
+        return self.set(id, self.cls.make_object(id, self.parent, *args, **kwargs))
+
+
+class Item(object):
+
+    def get_object(cls, id, parent, *args, **kwargs):
+        raise KeyError("%s instance with id '%s' does not exist." %
+                (cls.__name__, id))
+    get_object = classmethod(get_object)
+
+    def make_default(cls, id, parent, *args, **kwargs):
+        raise KeyError("%s instance with id '%s' does not exist. Default is not implememted." %
+                (cls.__name__, id))
+    make_default = classmethod(make_default)
+
+    def make_object(cls, id, parent, *args, **kwargs):
+        raise NotImplementedError
+    make_object = classmethod(make_object)
+
+
+class PersistentItem(Item):
+
+    def get_object(cls, id, parent, *args, **kwargs):
+        return cls.read_object(id, parent, *args, **kwargs)
+    get_object = classmethod(get_object)
+
+    def read_object(cls, id, parent, *args, **kwargs):
+        raise NotImplementedError
+    read_object = classmethod(read_object)
+
+    def write_object(self):
+        raise NotImplementedError
+
+
+class BeakerContainer(Container):
+
+    def __init__(self, parent, cls, id=None):
+        Container.__init__(self, parent, cls)
+
+    def close(self):
+        while self.cached:
+            id, obj = self.cached.popitem()
+            try:
+                obj.close()
+            except:
+                self.parent.backend().on_exception("can not close object %s" % (obj,))
+
+class PersistentBeakerContainer(BeakerContainer):
+
+    METADATA = ''
+
+    def __init__(self, parent, cls, id=None):
+        BeakerContainer.__init__(self, parent, cls)
+        list_id = "%s/children/%s" % (id or parent.id, self.METADATA or cls.__name__)
+        self.id_list = runtimes.TypeList(parent.runtime(), list_id)
+
+    def set(self, id, obj):
+        BeakerContainer.set(self, id, obj)
+        self.id_list.append(id)
+        return obj
+
+    def get_all_ids(self):
+        return list(self.id_list)
+
+    def get_all(self):
+        '''Return all objects including ones written to permanent storage.'''
+        ids = self.get_all_ids()
+        return [self.get(id) for id in ids]
+
+
+class BeakerObject(object):
+
+    def __init__(self, id, parent):
+        self.id = id
+        self._set_parent(parent)
+        self.__backend = parent.backend()
+        self.__proxy = self.__backend.proxy
+
+    def _set_parent(self, parent):
+        '''Use this to modify object hierarchy. Use with care!'''
+        self.parent = parent
+
+    def close(self):
+        self.parent = None
+        self.close = lambda: None
+
+    def parent_task(self):
+        return self.parent.parent_task()
+
+    def backend(self):
+        return self.__backend
+
+    def runtime(self):
+        return self.backend().runtime
+
+    def proxy(self):
+        return self.__proxy
+
+    def log_error(self, message):
+        self.backend().on_error(message)
+
+
+class PersistentBeakerObject(BeakerObject, PersistentItem):
+
+    METADATA = 'beaker_info'
+
+    def __init__(self, id, parent):
+        '''
+        Instance variables:
+
+        stored_data -- dictionary like structure. Items are written on
+        assignment. Use this for more frequently changed items.
+
+        NOTE: This is not an ordinary dictionary - it does not overwrite
+        existing data with None`s. Use delete instead.
+
+        meta_data -- dictionary which requires explicit write - write_metadata.
+        Use this for data written once, or just couple of times.
+        '''
+        BeakerObject.__init__(self, id, parent)
+        self.stored_data = runtimes.TypeAddict(self.runtime(), '%s/%s' % (self.METADATA, id))
+        self.meta_data = addict(self.stored_data.get('meta', {}))
+
+    def make_object(cls, id, parent, *args, **kwargs):
+        o = cls(id, parent, *args, **kwargs)
+        o.write_object()
+        return o
+    make_object = classmethod(make_object)
+
+    def read_object(cls, id, parent, *args, **kwargs):
+        if parent.runtime().type_has_key('%s/%s' % (cls.METADATA, id), 'meta'):
+            return cls(id, parent, *args, **kwargs)
+        raise NotImplementedError
+    read_object = classmethod(read_object)
+
+    def write_metadata(self):
+        self.stored_data['meta'] = dict(self.meta_data)
+
+    def write_object(self):
+        self.write_metadata()
+
+
+class BeakerWriter(writers.JournallingWriter, BeakerObject, Item):
+
+    _VERBOSE = ('write', 'send')
+
+    def __init__(self, name, parent):
+        BeakerObject.__init__(self, name, parent)
+        # Use private functions to avoid many self.parent... evaluations
+        id = parent.beaker_id
+        offs_ = 'offsets/%s' % parent.id
+        offs = parent.runtime().type_get(offs_, name, 0)
+        rpc = parent.proxy().callRemote
+        method = parent.UPLOAD_METHOD
+        digest_method = parent.digest_method()
+        filename=os.path.basename(name)
+        path=os.path.dirname(name) or '/'
+        digest_constructor = digests.DigestConstructor(digest_method or 'md5')
+        runtime_set = self.runtime().type_set
+        self.send = (lambda cdata:
+                rpc(method, id, path, filename, len(cdata),
+                    digest_constructor(cdata).hexdigest(),
+                    self.get_offset(),
+                    event.encode("base64", cdata)))
+        self.set_offset = (lambda offset: (
+            runtime_set(offs_, name, offset),
+            writers.JournallingWriter.set_offset(self, offset)))
+        jname = os.path.join(parent.backend().conf.get('DEFAULT', 'VAR_ROOT'), "journals", id, name)
+        journal = open_(jname, "ab+")
+        writers.JournallingWriter.__init__(self, journal, offs, capacity=4096, no_split=True)
+
+    def make_default(cls, id, parent):
+        return BeakerWriter(id, parent)
+    make_default = classmethod(make_default)
+
+
+class BeakerTask(PersistentBeakerObject):
+
+    _VERBOSE = ['__init__', 'start', 'end', 'abort', 'new_result', 'new_file', 'output', 'stop', 'writer']
+    METADATA = 'task_info'
+    UPLOAD_METHOD = 'task_upload_file'
+
+    def __init__(self, id, parent, name='', parsed=None):
+        PersistentBeakerObject.__init__(self, id, parent)
+        if parsed:
+            self.parsed = parsed
+            self.beaker_id = parsed.beaker_id
+            self._task_data = parsed.task_data()
+            if self._task_data:
+                self._name = name or self._task_data['task_env']['TASKNAME']
+        else:
+            self.parsed = None
+            self.beaker_id = None
+            self._task_data = None
+        self.writers = PersistentBeakerContainer(self, BeakerWriter)
+        self.results = BeakerContainer(self, BeakerResult)
+        self.files = BeakerContainer(self, BeakerFile)
+
+    def close(self):
+        started = self.has_started()
+        finished = self.has_finished()
+        self.writers.close()
+        self.writers = None
+        self.results.close()
+        self.results = None
+        self.files.close()
+        self.files = None
+        self.parsed = None
+        PersistentBeakerObject.close(self)
+        self.has_started = lambda: started
+        self.has_finished = lambda: finished
+
+    def name(self):
+        if not getattr(self, '_name', ''):
+            self._name = 'task_%s' % (self.beaker_id,)
+        return self._name
+
+    def digest_method(self):
+        return self.backend().digest_method
+
+    def start(self):
+        if not self.has_started():
+            self.set_started()
+            # FIXME: start local watchdog
+            self.proxy().repeatedRemote(repeatWithLog(repeatingproxy.repeatAlways), 'task_start', self.beaker_id, 0)
+
+    def abort(self, message):
+        self.set_finished()
+        self.send_result('fail', 'harness/run', 1, message)
+        self.stop('abort', message)
+
+    def flush(self):
+        self.flush_writers()
+
+    def send_result(self, result, handle, score=0, message=''):
+        return self.proxy().callRemote('task_result', self.beaker_id, result, handle, score, message)
+
+    def end(self, rc):
+        if rc is None:
+            score = 999
+        else:
+            score = int(rc)
+        if score != 0:
+            message = 'Task adaptor returned non zero exit code. This is likely a harness problem. rc=%s' % rc
+            self.send_result('warn', 'task/exit', score, message)
+        else:
+            message = 'OK'
+        self.stop('stop', message)
+
+    def parent_task(self):
+        return self
+
+    def has_started(self):
+        return self.stored_data.get('state', 0) >= 1
+
+    def has_finished(self):
+        return self.stored_data.get('state', 0) >= 2
+
+    def set_started(self):
+        self.stored_data['state'] = 1
+        self.write_metadata()
+
+    def set_finished(self):
+        self.stored_data['state'] = 2
+        self.write_metadata()
+
+    def flush_writers(self):
+        for writer in self.writers.get_cached():
+            writer.flush()
+
+    def writer(self, name):
+        return self.writers.get(name)
+
+    def new_result(self, id, args):
+        return self.results.make(id, args)
+
+    def result(self, id):
+        return self.results.get(id, None)
+
+    def new_file(self, id, args):
+        return self.files.make(id, metadata=dict(args))
+
+    def file(self, id):
+        return self.files.get(id, None)
+
+    def output(self, args):
+        self.writer('debug/task_output_%s' % args.get('out_handle', '')) \
+                        .write(str(args['data']))
+
+    def stop(self, type, msg):
+        # type: ('stop'|'abort')
+        self.flush()
+        d = self.proxy().callRemote('task_stop', self.beaker_id, type, msg)
+        self.set_finished() # move to close(?)
+        d.addCallback(self.handle_Stop).addErrback(self.backend().on_lc_failure)
+
+    def handle_Stop(self, result):
+        '''Handler for task_stop XML-RPC return.'''
+        log.info('Task %s done. Completely.', self.beaker_id)
+        backend = self.backend()
+        self.close()
+        log_flush(log)
+        backend.on_idle()
+
+
+class BeakerResult(BeakerObject, PersistentItem):
+
+    PENDING_RESULT = '?'
+    METADATA = 'result'
+    _VERBOSE = ('set_id', 'attach')
+    UPLOAD_METHOD = 'result_upload_file'
+
+    def __init__(self, id, parent, name=''):
+        BeakerObject.__init__(self, id, parent)
+        self.beaker_id = self.runtime().type_get('results_by_uuid', id, self.PENDING_RESULT)
+        # SAVE THE NAME!
+        self._name = name
+
+    def name(self):
+        return self._name
+
+    def make_object(cls, id, parent, args):
+        result = cls(id, parent)
+        type = result.result_type(args.get('rc', None))
+        handle = args.get('handle', '%s/%s' % \
+                (parent.name(), id))
+        statistics = args.get('statistics') or {}
+        score = statistics.get('score', 0)
+        message = args.get('message', '') or parent.backend().mk_msg(args=args)
+        log_msg = '%s:%s: %s score=%s\n' % (type[1], handle, message, score)
+        parent.writer('debug/task_log').write(log_msg)
+        parent.send_result(type[0], handle, score, message).addCallback(result.handle_Result)
+        return result
+    make_object = classmethod(make_object)
+
+    def read_object(cls, id, parent, args):
+        result = cls(id, parent)
+        if result.beaker_id == self.PENDING_RESULT:
+            raise KeyError("The result '%s' did not get through." % id)
+    read_object = classmethod(read_object)
+
+    def write_object(self):
+        pass
+
+    def handle_Result(self, result_id):
+        '''Attach data to a result. Find result by UUID.'''
+        log.debug("%s.RETURN: %s (original event_id %s)",
+                'task_result', result_id, self.id)
+        self.set_id(result_id)
+
+    def set_id(self, id):
+        self.beaker_id = id
+        self.runtime().type_set('results_by_uuid', self.id, id)
+        if not self._name:
+            self._name = "result_%s" % self.beaker_id
+
+    def attach(self, file, attach_as=None):
+        # pass
+        result_id = self.beaker_id
+        if result_id == self.PENDING_RESULT:
+            self.log_error("Waiting for result_id from LC for given id (%s)." % self.id)
+            return
+        if file is None:
+            self.log_error("File with given id does not exist.")
+            return
+        file._set_parent(self)
+        if attach_as:
+            file.meta({'be:upload_as': attach_as})
+        log.debug("relation result_file processed. finfo updated: %r", file)
+
+    RESULT_TYPE = {
+            RC.PASS:("pass_", "Pass"),
+            RC.WARNING:("warn", "Warning"),
+            RC.FAIL:("fail", "Fail"),
+            RC.CRITICAL:("panic", "Panic - Critical"),
+            RC.FATAL:("panic", "Panic - Fatal"),
+            }
+
+    def result_type(rc):
+        return BeakerResult.RESULT_TYPE.get(rc,
+                ("warn", "Warning: Unknown Code (%s)" % rc))
+    result_type = staticmethod(result_type)
+
+
+class BeakerFile(PersistentBeakerObject):
+
+    METADATA = "file_info"
+    _VERBOSE = ('__init__', 'meta', 'write', 'filename')
+
+    def __init__(self, fid, parent, metadata=None):
+        PersistentBeakerObject.__init__(self, fid, parent)
+        self.meta(metadata)
+
+    def make_default(cls, fid, parent):
+        return BeakerFakeFile(fid, parent)
+    make_default = classmethod(make_default)
+
+    def meta(self, metadata):
+        if metadata:
+            self.meta_data.update(metadata)
+            self.write_metadata()
+
+    def get_meta(self, item, default):
+        answ = self.meta_data.get(item, None)
+        if answ is None:
+            answ = default
+        return answ
+
+    def read_object(cls, id, parent):
+        pass
+    read_object = classmethod(read_object)
+
+    def write_object(self):
+        pass
+
+    def recode(data, in_codec, out_codec, in_digest, out_digest_method):
+        '''
+        return: (cdata_len, out_data, out_digest)
+        '''
+        cdata = event.decode(in_codec, data)
+        if cdata is None:
+            raise RuntimeError("No data found.")
+        dm, digest = digests.make_digest(in_digest) or (None, None)
+        # FIXME: Optionally check digest
+        if dm != out_digest_method:
+            digest = digests.DigestConstructor(out_digest_method)(cdata).hexdigest()
+        if in_codec != out_codec:
+            data = event.encode(out_codec, cdata)
+        return (len(cdata), data, digest)
+    recode = staticmethod(recode)
+
+    def filename(self):
+        pathname = (self.get_meta('be:upload_as', '')
+                or self.get_meta('name', '')
+                or "file_%s" % self.id)
+        path, filename = os.path.split(pathname)
+        return (path or "/", filename)
+
+    def name(self):
+        return "file:%s/%s" % self.filename()
+
+    def writer(self):
+        writer = getattr(self, '_be_writer', None)
+        if writer is None:
+            if self.stored_data.has_key('be:uploading_as'):
+                method, id, path, filename = self.stored_data['be:uploading_as']
+            else:
+                method = self.parent.UPLOAD_METHOD
+                id = self.parent.beaker_id
+                path, filename = self.filename()
+                self.stored_data['be:uploading_as'] = (method, id, path, filename)
+            rpc = self.proxy().callRemote
+            log.debug("writer for method=%(method)s, id=%(id)s, path=%(path)s, filename=%(filename)s", locals())
+            def writer(size, digest, offset, data):
+                return rpc(method, id, path, filename, size, digest, str(offset), data)
+            self._be_writer = writer
+        return writer
+
+    def check_offset(self, offset=None):
+        seqoff = self.stored_data.get('offset', 0)
+        if offset is None:
+            offset = seqoff
+        elif offset != seqoff:
+            if offset == 0:
+                # task might want to re-upload file from offset 0.
+                log.info('Rewriting file %s.' % self.id)
+            else:
+                log.warning("Given offset (%s) does not match calculated (%s).",
+                        offset, seqoff)
+        return offset
+
+    def write(self, args):
+        offset = self.check_offset(args.get('offset', None))
+        codec = args.get('codec', None)
+        if codec is None:
+            codec = self.get_meta('codec', None)
+        size, data, digest = self.recode(args.get('data'), codec, "base64", args.get('digest', None), self.backend().digest_method)
+        self.writer()(size, digest, offset, data).addCallback(self.written, new_offset=offset+size)
+
+    def written(self, response, new_offset=None):
+        self.stored_data['offset'] = new_offset
+
+
+def BeakerFakeFile(fid, parent):
+    return BeakerFile(fid, parent, dict(name="FakeFile-%s" % fid))
+
+
+class BeakerRecipe(BeakerTask):
+
+    _VERBOSE = ['_next_task', 'next_task', 'handle_task_info', 'nothing_to_do',
+            'task', 'new_task', 'save_task',] + BeakerTask._VERBOSE
 
     CACHED_STATUS = False
+    METADATA = "recipe"
+    UPLOAD_METHOD = 'recipe_upload_file'
 
-    GET_RECIPE = 'get_recipe'
-    TASK_START = 'task_start'
-    TASK_STOP = 'task_stop'
-    TASK_RESULT = 'task_result'
+    def __init__(self, backend, recipe_xml):
+        if not recipe_xml:
+            raise self.nothing_to_do(backend, "No recipe for %s.")
+        recipe_parser = RecipeParser.make(recipe_xml, backend.hostname)
+        if not recipe_parser:
+            raise self.nothing_to_do(backend, "No recipe for %s." % backend.hostname)
+        rs = xml_attr(recipe_parser.recipe_node, 'status')
+        if rs not in ['Running', 'Waiting']:
+            raise self.nothing_to_do(backend, "The recipe has finished.")
+        BeakerTask.__init__(self, 'the_recipe', backend)
+        self.tasks = BeakerContainer(self, BeakerTask)
+        self.recipe_xml = recipe_xml
+        self.recipe_parser = recipe_parser
+        self.beaker_id = recipe_parser.beaker_id
+        # NOTE: BeakerRecipe.recipe_tasks is an iterator not a list!
+        self.recipe_tasks = self.recipe_parser.tasks()
+        self.__tasks_by_id = runtimes.TypeDict(backend.runtime, 'tasks_by_id')
 
-    PENDING_RESULT = "?"
+    def close(self):
+        self.tasks.close()
+        self.tasks = None
+        self.recipe_xml = None
+        self.recipe_parser = None
+        BeakerTask.close(self)
 
-    _VERBOSE = ['on_idle', 'on_lc_failure', 'set_controller',
-            'handle_new_task', 'save_command', 'get_command', 'get_writer',
-            'close_writers', 'pre_proc', 'proc_evt_output',
+    def name(self):
+        return 'the_recipe'
+
+    def _next_task(self):
+        for task in self.recipe_tasks:
+            ts = xml_attr(task.task_node, 'status')
+            bid = task.beaker_id
+            if ts not in ['Waiting', 'Running']:
+                log.debug("task id: %r status: %r", bid, ts)
+                continue
+            # get task by beaker_id!
+            (_, id) = self.__tasks_by_id.get(bid, (None, None))
+            if id:
+                t = self.tasks._get(id, (), {'parsed': task})
+            else:
+                t = None
+            if t and t.has_finished():
+                log.debug("task id: %r finished.", bid)
+                continue
+            return task
+        raise self.nothing_to_do(self.backend(), "No more tasks in recipe.")
+
+    def next_task(self, d=None):
+        '''
+        Return next task to run.
+
+        NOTE: May return deferred.
+        '''
+        assert self.recipe_parser
+        task = self._next_task()
+        if getattr(self, 'cached_status', self.CACHED_STATUS):
+            return self.new_task(task)
+        if not d:
+            d = defer.Deferred().addCallback(self.new_task)
+        self.proxy().callRemote("task_info", "T:%s" % task.beaker_id) \
+                .addCallback(self.handle_task_info, task, d) \
+                .addErrback(d.errback)
+        return d
+
+    def handle_task_info(self, task_info, task, d):
+        if task_info and task_info.get('is_finished', False):
+            self.next_task(d)
+        else:
+            d.callback(task)
+
+    def nothing_to_do(self, backend, msg=None):
+        backend.store_recipe(None)
+        self.recipe_xml = None
+        self.recipe_tasks = None
+        if not msg:
+            msg = "Nothing to do..."
+        log.info(msg)
+        return NothingToDoException(msg)
+
+    def task(self, id):
+        return self.tasks[id]
+
+    def new_task(self, task):
+        task_data = task.task_data()
+        log.debug("new_task(task=%s, task_data=%s)", task, task_data)
+        if task_data is None:
+            log.info("* Recipe done. Nothing to do...")
+            reactor.callLater(60, self.backend().on_idle)
+            return
+        task_id = task_data['task_env']['TASKID']
+        task_data['task_env']['LAB_CONTROLLER'] = config.get_conf('beah-backend').get('DEFAULT', 'COBBLER_SERVER')
+        run_cmd, _ = self.__tasks_by_id.get(task_id, (None, None))
+        if not run_cmd:
+            task_name = task_data['task_env']['TASKNAME'] or None
+            run_cmd = command.run(task_data['executable'],
+                    name=task_name,
+                    env=task_data['task_env'],
+                    args=task_data['args'])
+            self.save_task(run_cmd, task_id, task)
+        else:
+            tuuid = run_cmd.id()
+            self.tasks._get(tuuid, (), {'parsed': task})
+        self.backend().send_cmd(run_cmd)
+
+    def save_task(self, run_cmd, tid, task):
+        tuuid = run_cmd.id()
+        self.tasks.make(tuuid, parsed=task)
+        self.__tasks_by_id[tid] = (run_cmd, tuuid)
+
+    def send_result(self, result, handle, score=0, message=''):
+        result=('recipe_result', self.beaker_id, result, handle, score, message)
+        self.backend().on_error("Can not attach a result to recipe. Result=%s" % result)
+
+
+class BeakerLCBackend(SerializingBackend):
+
+    _VERBOSE = ['set_controller', '_send_cmd',
+            'proc_evt', 'pre_proc', 'proc_evt_output',
             'proc_evt_lose_item', 'proc_evt_log', 'proc_evt_echo',
             'proc_evt_start', 'proc_evt_end', 'proc_evt_result',
             'proc_evt_relation', 'proc_evt_file', 'proc_evt_file_meta',
-            'proc_evt_file_write', 'handle_Stop', 'get_file_info',
-            'set_file_info', 'get_result_id', 'handle_Result', 'set_task_info',
-            'get_task_info']
+            'proc_evt_file_write',
+            ]
+    _VERBOSE += ['_queue_evt_int', 'set_idle', 'on_idle', 'on_lc_failure',
+            '_next_evt', '_pop_evt', 'idle',
+            ]
 
     def __init__(self):
         self.conf = config.get_conf('beah-backend')
@@ -522,19 +1158,17 @@ class BeakerLCBackend(SerializingBackend):
         self.digest_method = self.conf.get('DEFAULT', 'DIGEST')
         self.waiting_for_lc = False
         self.runtime = runtimes.ShelveRuntime(self.conf.get('DEFAULT', 'RUNTIME_FILE_NAME'))
-        self.__variables = runtimes.TypeDict(self.runtime, 'variables')
+        #save_runtime = self.runtime.sync
+        #def quit():
+        #    save_runtime()
+        self.runtime.sync = lambda type: None
+        id1 = reactor.addSystemEventTrigger('before', 'shutdown', self.close)
         self.__commands = {}
-        self.__results_by_uuid = runtimes.TypeDict(self.runtime, 'results_by_uuid')
-        self.__file_info = {}
-        self.__writers = {}
-        self.__offsets = {}
-        self.__writer_args = {}
-        self.__tasks_by_id = runtimes.TypeDict(self.runtime, 'tasks_by_id')
-        self.__tasks_by_uuid = runtimes.TypeDict(self.runtime, 'tasks_by_uuid')
-        self.recipe_xml = None
-        self.__task_info = {}
+        self.recipe = None
         self.__journal_file = None
         self.__len_queue = []
+        self.__command_callbacks = {}
+        self.__cmd_queue = []
         offs = self.__journal_offs = self.runtime.type_get('', 'journal_offs', 0)
         SerializingBackend.__init__(self)
         f = self.get_journal()
@@ -546,10 +1180,30 @@ class BeakerLCBackend(SerializingBackend):
             try:
                 evt, flags = json.loads(ln)
                 evt = event.Event(evt)
-                SerializingBackend._queue_evt(self, evt, **flags)
-                self.__len_queue.append(len(ln))
+                self._queue_evt_int(evt, flags, len(ln))
             except:
                 self.on_exception("Can not parse a line from journal.", line=ln)
+        url = self.conf.get('DEFAULT', 'LAB_CONTROLLER')
+        self.proxy = repeatingproxy.RepeatingProxy(url, allowNone=True)
+        try:
+            rpc_timeout = float(self.conf.get('DEFAULT', 'RPC_TIMEOUT'))
+            self.proxy.set_timeout(repeatingproxy.IncreasingTimeout(rpc_timeout, max=300))
+        except:
+            self.proxy.set_timeout(None)
+        self.proxy.serializing = True
+        self.proxy.on_idle = self.set_idle
+        if is_class_verbose(self):
+            make_logging_proxy(self.proxy)
+            self.proxy.logging_print = log.info
+        self.on_idle()
+
+    def backend(self):
+        '''Used by recipe to allow using Backend as its parent'''
+        return self
+
+    def log_error(self, message):
+        '''Used by recipe to allow using Backend as its parent'''
+        self.on_error(message)
 
     def get_journal(self):
         if self.__journal_file is None:
@@ -557,111 +1211,20 @@ class BeakerLCBackend(SerializingBackend):
             self.__journal_file = open_(jname, 'ab+')
         return self.__journal_file
 
+    def _queue_evt_int(self, evt, flags, line_len):
+        SerializingBackend._queue_evt(self, evt, **flags)
+        self.__len_queue.append(line_len)
+
     def _queue_evt(self, evt, **flags):
         data = jsonln((evt, flags))
-        self.__len_queue.append(len(data))
         self.__journal_file.write(data)
         self.__journal_file.flush()
-        SerializingBackend._queue_evt(self, evt, **flags)
+        self._queue_evt_int(evt, flags, len(data))
 
     def _pop_evt(self):
         self.__journal_offs += self.__len_queue.pop(0)
         self.runtime.type_set('', 'journal_offs', self.__journal_offs)
         return SerializingBackend._pop_evt(self)
-
-    def on_lc_failure(self, result):
-        self.waiting_for_lc = False
-        if not result.check(NothingToDoException):
-            log.error(traceback.format_tb(result.getTracebackObject()))
-        reactor.callLater(120, self.on_idle)
-        return None
-
-    def on_idle(self):
-        if self.waiting_for_lc:
-            self.on_error("on_idle called with waiting_for_lc already set.")
-            return
-        if self.recipe_xml:
-            d = defer.maybeDeferred(self.next_task)
-        else:
-            recipe = self.__variables.get('RECIPE', None)
-            if recipe:
-                d = defer.succeed(recipe)
-            else:
-                self.waiting_for_lc = True
-                d = self.proxy.callRemote(self.GET_RECIPE, self.hostname) \
-                        .addCallback(self.store_recipe)
-            d.addCallback(self.handle_new_recipe)
-        d.addCallback(self.handle_new_task)
-        d.addErrback(self.on_lc_failure)
-
-    def store_recipe(self, recipe_xml):
-        self.__variables['RECIPE'] = recipe_xml
-        return recipe_xml
-
-    def handle_new_recipe(self, recipe_xml):
-        """
-        Must return next task to run
-        """
-        self.waiting_for_lc = False
-        log.debug("handle_new_recipe(%s)", recipe_xml)
-        self.recipe_xml = recipe_xml
-        self.recipe = BeakerRecipe.make(recipe_xml, self.hostname)
-        if not self.recipe:
-            raise self.nothing_to_do("No recipe for %s." % self.hostname)
-        rs = xml_attr(self.recipe.recipe_node, 'status')
-        if rs not in ['Running', 'Waiting']:
-            raise self.nothing_to_do("The recipe has finished.")
-        # This IS an iterator!
-        self.tasks = self.recipe.tasks()
-        return self.next_task()
-
-    def nothing_to_do(self, msg=None):
-        self.store_recipe(None)
-        self.recipe_xml = None
-        self.task = None
-        self.task_data = None
-        self.tasks = None
-        if not msg:
-            msg = "Nothing to do..."
-        log.info(msg)
-        return NothingToDoException(msg)
-
-    def _next_task(self):
-        for task in self.tasks:
-            ts = xml_attr(task.task_node, 'status')
-            if ts not in ['Waiting', 'Running']:
-                log.debug("task id: %r status: %r", task.beaker_id, ts)
-                continue
-            if self.task_has_finished(task.beaker_id):
-                log.debug("task id: %r finished.", task.beaker_id)
-                continue
-            return task
-        raise self.nothing_to_do("No more tasks in recipe.")
-
-    def next_task(self, d=None):
-        """
-        Return next task to run.
-        """
-        assert self.recipe
-        task = self._next_task()
-        if getattr(self, 'cached_status', self.CACHED_STATUS):
-            self.task_data = task.task_data()
-            self.task = task
-            return self.task_data
-        if not d:
-            d = defer.Deferred()
-        self.proxy.callRemote("task_info", "T:%s" % task.beaker_id) \
-                .addCallback(self.handle_task_info, task, d) \
-                .addErrback(d.errback)
-        return d
-
-    def handle_task_info(self, task_info, task, d):
-        if task_info and task_info.get('is_finished', False):
-            self.next_task(d)
-        else:
-            self.task_data = task.task_data()
-            self.task = task
-            d.callback(self.task_data)
 
     def idle(self):
         return self.proxy.is_idle()
@@ -669,62 +1232,249 @@ class BeakerLCBackend(SerializingBackend):
     def set_controller(self, controller=None):
         SerializingBackend.set_controller(self, controller)
         if controller:
-            url = self.conf.get('DEFAULT', 'LAB_CONTROLLER')
-            self.proxy = repeatingproxy.RepeatingProxy(url, allowNone=True)
-            try:
-                rpc_timeout = float(self.conf.get('DEFAULT', 'RPC_TIMEOUT'))
-                self.proxy.set_timeout(repeatingproxy.IncreasingTimeout(rpc_timeout, max=300))
-            except:
-                self.proxy.set_timeout(None)
-            self.proxy.serializing = True
-            self.proxy.on_idle = self.set_idle
-            if is_class_verbose(self):
-                make_logging_proxy(self.proxy)
-                self.proxy.logging_print = log.info
-            self.on_idle()
+            log.info("Connected to controller.")
+            while self.__cmd_queue:
+                self._send_cmd(self.__cmd_queue.pop())
+        else:
+            log.info("Connection to controller lost.")
 
-    def handle_new_task(self, task_data):
+    def close(self):
+        self.runtime.close()
+        log.info("Runtime closed.")
 
-        log.debug("handle_new_task(%s)", task_data)
+    ############################################################################
+    # RECIPE HANDLING
+    ############################################################################
 
-        log.debug("handle_new_task: task_data = %r", self.task_data)
+    def get_evt_task(self, evt):
+        if not self.recipe:
+            return None
+        task = getattr(evt, 'task', None)
+        if task is not None:
+            return task
+        evev = evt.event()
+        if evev in ('start', 'end'):
+            tid = evt.arg('task_id')
+        elif evev == 'echo':
+            tid = evt.arg('cmd_id')
+        else:
+            tid = evt.origin().get('id', None)
+        if tid is None:
+            return None
+        task = self.recipe.tasks.get(tid, None)
+        if task is not None:
+            evt.task = task
+        return task
 
-        if self.task_data is None:
-            log.info("* Recipe done. Nothing to do...")
-            reactor.callLater(60, self.on_idle)
+    def _send_cmd(self, cmd):
+        log.info("Command %s sent.", cmd)
+        self.controller.proc_cmd(self, cmd)
+
+    def send_cmd(self, cmd):
+        if self.controller:
+            log.info("Command %s sent.", cmd)
+            self._send_cmd(cmd)
+        else:
+            log.info("No connection to Controller. %s is queued.", cmd)
+            self.__cmd_queue.append(cmd)
+        d = defer.Deferred()
+        self.__command_callbacks[cmd.id()] = d
+        return d
+
+    def __on_error(self, level, msg, tb, *args, **kwargs):
+        if args: msg += '; *args=%r' % (args,)
+        if kwargs: msg += '; **kwargs=%r' % (kwargs,)
+        log.error("--- %s: %s at %s", level, msg, tb)
+
+    def on_exception(self, msg, *args, **kwargs):
+        self.__on_error("EXCEPTION", msg, format_exc(),
+                *args, **kwargs)
+
+    def on_error(self, msg, *args, **kwargs):
+        self.__on_error("ERROR", msg, traceback.format_stack(), *args, **kwargs)
+
+    def on_idle(self):
+        if self.waiting_for_lc:
+            self.on_error("on_idle called with waiting_for_lc already set.")
             return
+        if self.recipe:
+            d = defer.maybeDeferred(self.recipe.next_task)
+        else:
+            d = self.get_recipe().addCallback(self.handle_new_recipe)
+        d.addErrback(self.on_lc_failure)
 
-        task_id = self.task_data['task_env']['TASKID']
-        self.task_data['task_env']['LAB_CONTROLLER'] = config.get_conf('beah-backend').get('DEFAULT', 'COBBLER_SERVER')
-        run_cmd, _ = self.__tasks_by_id.get(task_id, (None, None))
-        new_cmd = not run_cmd
-        if new_cmd:
-            task_name = self.task_data['task_env']['TASKNAME'] or None
-            run_cmd = command.run(self.task_data['executable'],
-                    name=task_name,
-                    env=self.task_data['task_env'],
-                    args=self.task_data['args'])
-        self.controller.proc_cmd(self, run_cmd)
-        self.save_command(run_cmd)
-        if new_cmd:
-            self.save_task(run_cmd, task_id)
+    def get_recipe(self):
+        recipe = self.runtime.type_get('variables', 'RECIPE', None)
+        if recipe:
+            d = defer.succeed(recipe)
+        else:
+            self.waiting_for_lc = True
+            d = self.proxy.callRemote('get_recipe', self.hostname) \
+                    .addCallback(self.store_recipe)
+        return d.addCallback(self.handle_recipe_xml)
 
-        # Persistent env (handled by Controller?) - env to run task under,
-        # task can change it, and when restarted will continue with same
-        # env(?) Task is able to handle this itself. Provide a library...
+    def store_recipe(self, recipe_xml):
+        self.runtime.type_set('variables', 'RECIPE', recipe_xml)
+        return recipe_xml
 
-    RESULT_TYPE = {
-            RC.PASS:("pass_", "Pass"),
-            RC.WARNING:("warn", "Warning"),
-            RC.FAIL:("fail", "Fail"),
-            RC.CRITICAL:("panic", "Panic - Critical"),
-            RC.FATAL:("panic", "Panic - Fatal"),
-            }
+    def handle_recipe_xml(self, recipe_xml):
+        log.debug("handle_recipe_xml(%s)", recipe_xml)
+        return BeakerRecipe(self, recipe_xml)
 
-    def result_type(rc):
-        return BeakerLCBackend.RESULT_TYPE.get(rc,
-                ("warn", "Warning: Unknown Code (%s)" % rc))
-    result_type = staticmethod(result_type)
+    def handle_new_recipe(self, recipe):
+        self.waiting_for_lc = False
+        # assert self.recipe is None
+        self.recipe = recipe
+        return self.recipe.next_task()
+
+    def on_lc_failure(self, result):
+        self.waiting_for_lc = False
+        if result.check(NothingToDoException):
+            if self.recipe is not None:
+                self.recipe.close()
+                self.recipe = None
+        else:
+            type, value, tb = sys.exc_info()
+            if type:
+                log.error(traceback.format_exception(type, value, tb))
+            else:
+                log.error(traceback.format_tb(result.getTracebackObject()))
+        reactor.callLater(120, self.on_idle)
+        return None
+
+    ############################################################################
+    # EVENT PROCESSING:
+    ############################################################################
+
+    def pre_proc(self, evt):
+        task = self.get_evt_task(evt)
+        if not task or task.has_finished():
+            # Do not submit to finished tasks!
+            return True
+        task.writer('debug/.task_beah_raw').write(jsonln(evt.printable()))
+        return False
+
+    def proc_evt_output(self, evt):
+        evt.task.output(evt.args())
+
+    def proc_evt_lose_item(self, evt):
+        evt.task.writer('debug/task_beah_unexpected').write(str(evt.arg('data')) + "\n")
+
+    def proc_evt_log(self, evt):
+        message = evt.arg('message', '')
+        reason = evt.arg('reason', '')
+        join = ''
+        if reason:
+            reason = 'reason=%s' % reason
+            if message:
+                message = "%s; %s" % (message, reason)
+            else:
+                message = reason
+        message = "LOG:%s(%s): %s\n" % (evt.arg('log_handle', ''),
+                self.log_type(evt.arg('log_level')), message)
+        evt.task.writer('debug/task_log').write(message)
+
+    def proc_evt_echo(self, evt):
+        # answer to run command if task exists:
+        rc = evt.arg('rc')
+        if rc not in (ECHO.OK, ECHO.DUPLICATE) and not evt.task.has_finished():
+            evt.task.abort("Harness could not run the task: %s rc=%s" %
+                (evt.arg('message', 'no info'), rc))
+
+    def proc_evt_start(self, evt):
+        evt.task.start()
+
+    def proc_evt_end(self, evt):
+        evt.task.end(evt.arg("rc", None))
+
+    def proc_evt(self, evt, **flags):
+        evev = evt.event()
+        if evev == 'echo':
+            cid = evt.arg('cmd_id', None)
+            cb = self.__command_callbacks.get(cid, None)
+            if cb:
+                del self.__command_callbacks[cid]
+                if evt.arg('rc') == ECHO.OK:
+                    cb.callback(evt.args)
+                else:
+                    cb.errback(evt.args)
+        # store the task:
+        if self.get_evt_task(evt) is None:
+            return
+        # some events need asynchronous processing, so they do not wait in
+        # queue.
+        if evev == 'extend_watchdog':
+            # extend_watchdog is send immediately, to prevent EWD killing us in
+            # case of network/LC problems.
+            tio = evt.arg('timeout')
+            id = evt.task.beaker_id
+            log.info('Extending Watchdog for task %s by %s..', id, tio)
+            self.proxy.callRemote('extend_watchdog', id, tio)
+            #return
+        elif evev == 'end':
+            # task is done: override EWD to allow for data submission, even in
+            # case of network/LC problems:
+            id = evt.task.beaker_id
+            log.info('Task %s done. Submitting logs...', id)
+            self.proxy.callRemote('extend_watchdog', id, 4*3600)
+            # end will be processed synchronously too to mark the task finished
+        SerializingBackend.proc_evt(self, evt, **flags)
+
+    def proc_evt_abort(self, evt):
+        type = evt.arg('type', '')
+        if not type:
+            log.error("No abort type specified.")
+            raise exceptions.RuntimeError("No abort type specified.")
+        task = evt.task
+        self.task.flush()
+        id = task.id
+        target = evt.arg('target', None)
+        d = None
+        msg = evt.arg('msg', '')
+        if msg:
+            msg = " aborted by task %s: %s" % (id, msg)
+        else:
+            msg = " aborted by task %s" % (id,)
+        if type == 'recipeset':
+            target = self.find_recipeset_id(target)
+            if target is not None:
+                d = self.proxy.callRemote('recipeset_stop', target, 'abort', "RecipeSet"+msg)
+        elif type == 'job':
+            target = self.find_job_id(target)
+            if target is not None:
+                d = self.proxy.callRemote('job_stop', target, 'abort', "Job"+msg)
+        elif type == 'recipe':
+            target = self.find_recipe_id(target)
+            if target is not None:
+                d = self.proxy.callRemote('recipe_stop', target, 'abort', "Recipe"+msg)
+        elif type == 'task':
+            target = self.find_task_id(target)
+            if target is not None:
+                if target != task.beaker_id:
+                    log.warning("Can abort only currently running task.")
+                    return
+                if task.has_finished():
+                    return
+                task.stop('abort', "Task"+msg)
+
+    def proc_evt_result(self, evt):
+        r = evt.task.new_result(evt.id(), evt.args())
+
+    def proc_evt_relation(self, evt):
+        if evt.arg('handle') == 'result_file':
+            result = evt.task.result(evt.arg('id1'))
+            result.attach(evt.task.file(evt.arg('id2')), attach_as=evt.arg('title2'))
+
+    def proc_evt_file(self, evt):
+        evt.task.new_file(evt.id(), evt.args())
+
+    def proc_evt_file_meta(self, evt):
+        evt.task.file(evt.arg('file_id')).meta(evt.args())
+
+    def proc_evt_file_write(self, evt):
+        evt.task.file(evt.arg('file_id')).write(evt.args())
+
+    # AUXILIARY:
 
     LOG_TYPE = {
             LOG_LEVEL.DEBUG3: "DEBUG3",
@@ -745,189 +1495,6 @@ class BeakerLCBackend(SerializingBackend):
     def mk_msg(self, **kwargs):
         return json.dumps(kwargs)
 
-    def save_task(self, run_cmd, tid):
-        tuuid = run_cmd.id()
-        self.__tasks_by_uuid[tuuid] = (run_cmd, tid)
-        self.__tasks_by_id[tid] = (run_cmd, tuuid)
-
-    def get_evt_task_id(self, evt):
-        tuuid = self.get_evt_task_uuid(evt)
-        if tuuid is None:
-            return None
-        return self.__tasks_by_uuid.get(tuuid, (None, None))[1]
-
-    def get_evt_task_uuid(self, evt):
-        evev = evt.event()
-        if evev in ('start', 'end'):
-            return evt.arg('task_id')
-        if evev == 'echo':
-            cid = evt.arg('cmd_id')
-            cmd = self.get_command(cid)
-            if (cmd is not None and cmd.command()=='run'):
-                return cid
-            else:
-                return None
-        return evt.origin().get('id',None)
-
-    def save_command(self, cmd):
-        self.__commands[cmd.id()] = cmd
-
-    def get_command(self, cmd_id):
-        return self.__commands.get(cmd_id, None)
-
-    def get_writer(self, id, name, args=(), kwargs={}):
-        writer = self.__writers.setdefault(id, {}).get(name, None)
-        if writer is None:
-            offss = self.__offsets.get(id, None)
-            if offss is None:
-                offss = self.__offsets[id] = runtimes.TypeDict(self.runtime, 'offsets/%s' % id)
-            offs = offss.get(name, 0)
-            wrargs = self.__writer_args.get(id, None)
-            if wrargs is None:
-                wrargs = self.__writer_args[id] = runtimes.TypeDict(self.runtime, 'writer_args/%s' % id)
-            wrargs[name] = (args, kwargs)
-            jname = self.conf.get('DEFAULT', 'VAR_ROOT') + "/journals/%s/%s" % (id, name)
-            journal = open_(jname, "ab+")
-            writer = BeakerWriter(journal, offs, id=id,
-                    filename=os.path.basename(name),
-                    path=os.path.dirname(name), proxy=self.proxy,
-                    digest_method=self.digest_method, *args, **kwargs)
-            writer_set_offset = writer.set_offset
-            def wroff(offs):
-                offss[name] = offs
-                writer_set_offset(offs)
-            writer.set_offset = wroff
-            self.__writers[id][name] = writer
-        return writer
-
-    def flush_writers(self, id):
-        writers = self.__writers.get(id, {})
-        wrargs = self.__writer_args.get(id, {})
-        for name in list(writers.keys()):
-            if name not in wrargs.keys():
-                log.warning("flush_writers: writer(%r, %r) without args record", id, name)
-            writers[name].flush()
-
-    def close_writers(self, id):
-        wrargs = self.__writer_args.get(id, None)
-        if wrargs is not None:
-            writers = self.__writers.get(id, {})
-            for name in list(wrargs.keys()):
-                args = wrargs[name]
-                writer = self.get_writer(id, name, args[0], args[1])
-                if not writer:
-                    self.on_error("Can not open a writer(%r, %r)" % (id, name))
-                else:
-                    writer.close()
-                    del writers[name]
-                del wrargs[name]
-            del self.__writer_args[id]
-        writers = self.__writers.get(id, None)
-        if writers is not None:
-            for name in list(writers.keys()):
-                log.warning("close_writers: writer(%r, %r) without args record", id, name)
-                writers[name].close()
-                del writers[name]
-            del self.__writers[id]
-        offss = self.__offsets.get(id, None)
-        if offss is not None:
-            for name in list(offss.keys()):
-                del offss[name]
-            del self.__offsets[id]
-
-    def pre_proc(self, evt):
-        id = evt.task_id = self.get_evt_task_id(evt)
-        if id is None or self.task_has_finished(id):
-            # Do not submit to finished tasks!
-            return True
-        self.get_writer(id, 'debug/.task_beah_raw').write(jsonln(evt.printable()))
-        return False
-
-    def proc_evt_output(self, evt):
-        self.get_writer(evt.task_id, 'debug/task_output_%s' % evt.arg('out_handle')) \
-                        .write(str(evt.arg('data')))
-
-    def proc_evt_lose_item(self, evt):
-        f = self.get_writer(evt.task_id, 'debug/task_beah_unexpected')
-        f.write(str(evt.arg('data')) + "\n")
-
-    def proc_evt_log(self, evt):
-        message = evt.arg('message', '')
-        reason = evt.arg('reason', '')
-        join = ''
-        if reason:
-            reason = 'reason=%s' % reason
-            if message:
-                message = "%s; %s" % (message, reason)
-            else:
-                message = reason
-        message = "LOG:%s(%s): %s\n" % (evt.arg('log_handle', ''),
-                self.log_type(evt.arg('log_level')), message)
-        self.get_writer(evt.task_id, 'debug/task_log').write(message)
-
-    def proc_evt_echo(self, evt):
-        cmd = self.get_command(evt.arg('cmd_id'))
-        if (cmd is not None and cmd.command()=='run'):
-            rc = evt.arg('rc')
-            id = evt.task_id
-            if rc not in (ECHO.OK, ECHO.DUPLICATE) and not self.task_has_finished(id):
-                self.task_set_finished(id)
-                message = ("Harness could not run the task: %s rc=%s"
-                        % (evt.arg('message', 'no info'), rc))
-                self.proxy.callRemote(self.TASK_RESULT, id, "fail",
-                        "harness/run", 1, message)
-                self.proxy.callRemote(self.TASK_STOP, id, "abort", message) \
-                                    .addCallback(self.handle_Stop) \
-                                    .addErrback(self.on_lc_failure)
-
-    def proc_evt_start(self, evt):
-        id = evt.task_id
-        if not self.task_has_started(id):
-            self.task_set_started(id)
-            self.proxy.repeatedRemote(repeatWithLog(repeatingproxy.repeatAlways), self.TASK_START, id, 0)
-            # FIXME: start local watchdog
-
-    def proc_evt_end(self, evt):
-        id = evt.task_id
-        self.close_writers(id)
-        if self.task_has_finished(id):
-            return
-        self.task_set_finished(id)
-        rc = evt.arg("rc", None)
-        if rc is None:
-            score = 999
-        else:
-            score = int(rc)
-        if score != 0:
-            message = "Task adaptor returned non zero exit code. This is likely a harness problem. rc=%s" % rc
-            self.proxy.callRemote(self.TASK_RESULT, id, "warn",
-                    "task/exit", score, message)
-        else:
-            message = "OK"
-        self.proxy.callRemote(self.TASK_STOP, id, "stop", message) \
-                        .addCallback(self.handle_Stop) \
-                        .addErrback(self.on_lc_failure)
-
-    def proc_evt(self, evt, **flags):
-        # some events need asynchronous processing, so they do not wait in
-        # queue.
-        if evt.event() == 'extend_watchdog':
-            # extend_watchdog is send immediately, to prevent EWD killing us in
-            # case of network/LC problems.
-            tio = evt.arg('timeout')
-            id = self.get_evt_task_id(evt)
-            log.info('Extending Watchdog for task %s by %s..', id, tio)
-            self.proxy.callRemote('extend_watchdog', id, tio)
-            #return
-        elif evt.event() == 'end':
-            # task is done: override EWD to allow for data submission, even in
-            # case of network/LC problems:
-            id = self.get_evt_task_id(evt)
-            log.info('Task %s done. Submitting logs...', id)
-            self.proxy.callRemote('extend_watchdog', id, 4*3600)
-            # end will be processed synchronously too to mark the task finished
-        SerializingBackend.proc_evt(self, evt, **flags)
-
     def find_job_id(self, id):
         return id
 
@@ -940,243 +1507,16 @@ class BeakerLCBackend(SerializingBackend):
     def find_task_id(self, id):
         return id
 
-    def proc_evt_abort(self, evt):
-        type = evt.arg('type', '')
-        if not type:
-            log.error("No abort type specified.")
-            raise exceptions.RuntimeError("No abort type specified.")
-        id = evt.task_id
-        self.flush_writers(id)
-        target = evt.arg('target', None)
-        d = None
-        msg = evt.arg('msg', '')
-        if msg:
-            msg = " aborted by task %s: %s" % (evt.task_id, msg)
-        else:
-            msg = " aborted by task %s" % (evt.task_id,)
-        if type == 'recipeset':
-            target = self.find_recipeset_id(target)
-            if target is not None:
-                d = self.proxy.callRemote('recipeset_stop', target, 'abort', "RecipeSet"+msg)
-        elif type == 'job':
-            target = self.find_job_id(target)
-            if target is not None:
-                d = self.proxy.callRemote('job_stop', target, 'abort', "Job"+msg)
-        elif type == 'recipe':
-            target = self.find_recipe_id(target)
-            if target is not None:
-                d = self.proxy.callRemote('recipe_stop', target, 'abort', "Recipe"+msg)
-        elif type == 'task':
-            target = self.find_task_id(target)
-            if target is not None:
-                if target == id and not self.task_has_finished(id):
-                    d = self.proxy.callRemote('task_stop', target, 'abort', "Task"+msg)
-                    self.close_writers(id)
-                    self.task_set_finished(id)
-                    d.addCallback(self.handle_Stop).addErrback(self.on_lc_failure)
-                else:
-                    log.warning("Can abort only currently running task.")
-
-    def proc_evt_result(self, evt):
-        try:
-            type = self.result_type(evt.arg("rc", None))
-            handle = evt.arg("handle", "%s/%s" % \
-                    (self.task_data['task_env']['TASKNAME'], evt.id()))
-            score = evt.arg("statistics", {}).get("score", 0)
-            message = evt.arg('message', '') or self.mk_msg(event=evt)
-            log_msg = "%s:%s: %s score=%s\n" % (type[1], handle, message, score)
-            self.get_writer(evt.task_id, 'debug/task_log').write(log_msg)
-            self.proxy.callRemote(self.TASK_RESULT, evt.task_id,
-                    type[0], handle, score, message) \
-                            .addCallback(self.handle_Result, event_id=evt.id())
-            self.__results_by_uuid[evt.id()] = self.PENDING_RESULT
-        except:
-            s = format_exc()
-            log.error("Exception in proc_evt_result: %s", s)
-            print s
-            raise
-
-    def __on_error(self, level, msg, tb, *args, **kwargs):
-        if args: msg += '; *args=%r' % (args,)
-        if kwargs: msg += '; **kwargs=%r' % (kwargs,)
-        log.error("--- %s: %s at %s", level, msg, tb)
-
-    def on_exception(self, msg, *args, **kwargs):
-        self.__on_error("EXCEPTION", msg, format_exc(),
-                *args, **kwargs)
-
-    def on_error(self, msg, *args, **kwargs):
-        self.__on_error("ERROR", msg, traceback.format_stack(), *args, **kwargs)
-
-    def proc_evt_relation(self, evt):
-        if evt.arg('handle') == 'result_file':
-            rid = evt.arg('id1')
-            result_id = self.get_result_id(rid)
-            if result_id is None:
-                self.on_error("Result with given id (%s) does not exist." % rid)
-                return
-            if result_id == self.PENDING_RESULT:
-                self.on_error("Waiting for result_id from LC for given id (%s)." % rid)
-                return
-            fid = evt.arg('id2')
-            finfo = self.get_file_info(fid)
-            if finfo is None:
-                self.on_error("File with given id (%s) does not exist." % fid)
-                return
-            finfo['be:upload_as'] = ('result_file', result_id, evt.arg('title2'))
-            log.debug("relation result_file processed. finfo updated: %r", finfo)
-
-    def proc_evt_file(self, evt):
-        fid = evt.id()
-        if self.get_file_info(fid) is not None:
-            self.on_error("File with given id (%s) already exists." % fid)
-            return
-        # FIXME: Check what's submitted:
-        self.set_file_info(fid, evt.args())
-
-    def proc_evt_file_meta(self, evt):
-        fid = evt.arg('file_id')
-        # FIXME: Check what's submitted:
-        self.set_file_info(fid, evt.args())
-
-    def proc_evt_file_write(self, evt):
-        fid = evt.arg('file_id')
-        finfo = self.get_file_info(fid)
-        if finfo is None:
-            self.on_error("File with given id (%s) does not exist." % fid)
-            return
-        # NOTE: be careful here. finfo is not ordinary dict! It never rewrites
-        # existing items with None's.
-        finfo['codec'] = evt.arg('codec', None)
-        codec = finfo.get('codec', None)
-        offset = evt.arg('offset', None)
-        seqoff = finfo.get('offset', 0)
-        if offset is None:
-            offset = seqoff
-        elif offset != seqoff:
-            if offset == 0:
-                # task might want to re-upload file from offset 0.
-                log.info('Rewriting file %s.' % fid)
-            else:
-                log.warning("Given offset (%s) does not match calculated (%s).",
-                        offset, seqoff)
-        data = evt.arg('data')
-        try:
-            cdata = event.decode(codec, data)
-        except:
-            self.on_exception("Unable to decode data.")
-            return
-        if cdata is None:
-            self.on_error("No data found.")
-            return
-        size = len(cdata)
-        self.set_file_info(fid, offset=offset+size)
-        dm, digest = digests.make_digest(evt.arg('digest', None)) or (None, None)
-        if dm != self.digest_method:
-            digest = digests.DigestConstructor(self.digest_method)(cdata).hexdigest()
-        if codec != "base64":
-            data = event.encode("base64", cdata)
-        if finfo.has_key('be:uploading_as'):
-            method, id, path, filename = finfo['be:uploading_as']
-        else:
-            filename = finfo.get('name',
-                    self.task_data['task_env']['TASKNAME'] + '/' + fid)
-            method = 'task_upload_file'
-            id = evt.task_id
-            if finfo.has_key('be:upload_as'):
-                upload_as = finfo['be:upload_as']
-                if upload_as[0] == 'result_file':
-                    if upload_as[2]:
-                        filename = upload_as[2]
-                    id = upload_as[1]
-                    method = 'result_upload_file'
-            # I would prefer following, but rsplit is not in python2.3:
-            #   (path, filename) = ('/' + filename).rsplit('/', 1)
-            filename = '/' + filename
-            sep_ix = filename.rfind('/')
-            (path, filename) = (filename[:sep_ix], filename[sep_ix+1:])
-            path = path[1:] or '/'
-            finfo['be:uploading_as'] = (method, id, path, filename)
-
-        self.proxy.callRemote(method, id, path, filename,
-                str(size), digest, str(offset), data)
-
-    def handle_Stop(self, result):
-        """Handler for task_stop XML-RPC return."""
-        id = self.task_data['task_env']['TASKID']
-        log.info('Task %s done. Completely.', id)
-        log_flush(log)
-        self.on_idle()
-
-    def get_task_info(self, id):
-        """Get data associated with task. Find task by UUID."""
-        tinfo = self.__task_info.get(id, None)
-        if tinfo:
-            return tinfo
-        tinfo = runtimes.TypeAddict(self.runtime, 'task_info/%s' % id)
-        if tinfo.has_key('__id'):
-            self.__task_info[id] = tinfo
-            return tinfo
-        return None
-
-    def set_task_info(self, id, *args, **kwargs):
-        """Attach data to task. Find task by UUID."""
-        tinfo = runtimes.TypeAddict(self.runtime, 'task_info/%s' % id)
-        tinfo.update(*args, **kwargs)
-        tinfo['__id'] = id
-        self.__task_info[id] = tinfo
-
-    def task_has_started(self, id):
-        tinfo = self.get_task_info(id)
-        return tinfo and tinfo.get('state', 0) >= 1
-
-    def task_has_finished(self, id):
-        tinfo = self.get_task_info(id)
-        return tinfo and tinfo.get('state', 0) >= 2
-
-    def task_set_started(self, id):
-        self.set_task_info(id, state=1)
-
-    def task_set_finished(self, id):
-        self.set_task_info(id, state=2)
-
-    def get_file_info(self, id):
-        """Get data associated with file. Find file by UUID."""
-        finfo = self.__file_info.get(id, None)
-        if finfo:
-            return finfo
-        finfo = runtimes.TypeAddict(self.runtime, 'file_info/%s' % id)
-        if finfo.has_key('__id'):
-            self.__file_info[id] = finfo
-            return finfo
-        return None
-
-    def set_file_info(self, id, *args, **kwargs):
-        """Attach data to file. Find file by UUID."""
-        finfo = runtimes.TypeAddict(self.runtime, 'file_info/%s' % id)
-        finfo.update(*args, **kwargs)
-        finfo['__id'] = id
-        self.__file_info[id] = finfo
-
-    def get_result_id(self, event_id):
-        """Get data associated with result. Find result by UUID."""
-        return self.__results_by_uuid.get(event_id, None)
-
-    def handle_Result(self, result_id, event_id=None):
-        """Attach data to a result. Find result by UUID."""
-        log.debug("%s.RETURN: %s (original event_id %s)",
-                self.TASK_RESULT, result_id, event_id)
-        self.__results_by_uuid[event_id] = result_id
-
-    def close(self):
-        # FIXME: send a bye to server? (Should this be considerred an abort?)
-        reactor.callLater(1, reactor.stop)
 
 def start_beaker_backend():
     if config.parse_bool(config.get_conf('beah-backend').get('DEFAULT', 'DEVEL')):
         print_this = log_this(lambda s: log.debug(s), log_on=True)
         make_class_verbose(BeakerLCBackend, print_this)
         make_class_verbose(BeakerWriter, print_this)
+        make_class_verbose(BeakerRecipe, print_this)
+        make_class_verbose(BeakerTask, print_this)
+        make_class_verbose(BeakerResult, print_this)
+        make_class_verbose(BeakerFile, print_this)
         make_class_verbose(repeatingproxy.RepeatingProxy, print_this)
     backend = BeakerLCBackend()
     # Start a default TCP client:
@@ -1235,11 +1575,43 @@ def configure():
     config.backend_conf(env_var='BEAH_BEAKER_CONF', filename='beah_beaker.conf',
             defaults=defaults(), overrides=config.backend_opts(option_adder=beakerlc_opts))
 
+
+def breakpoint():
+    pass
+def runcall(callable, *args, **kwargs):
+    callable(*args, **kwargs)
+dbg = os.getenv("BEAH_BEAKER_DEBUGGER")
+if dbg == "pdb":
+    import pdb
+    def runcall(callable, *args, **kwargs):
+        return pdb.runcall(callable, *args, **kwargs)
+    def breakpoint():
+        return pdb.set_trace()
+elif dbg == "profile":
+    try:
+        import cProfile as profile
+    except ImportError:
+        import profile
+    def runcall(callable, *args, **kwargs):
+        profiler = profile.Profile()
+        try:
+            profiler.runcall(callable, *args, **kwargs)
+        finally:
+            profiler.dump_stats('/tmp/beah-beaker-backend.profile')
+            profiler.print_stats()
+            #profiler.sort_stats( 'calls', 'cumulative' )
+            #profiler.print_stats()
+
+#elif dbg in ("rpdb2", "winpdb"):
+#    import rpdb2
+#    rpdb2.start_embedded_debugger('w7F!stH!5')
+
+
 def main():
     configure()
     log_handler()
     start_beaker_backend()
-    reactor.run()
+    runcall(reactor.run)
 
 def test_configure():
     configure()
