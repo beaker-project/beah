@@ -66,6 +66,7 @@ class SerializingBackend(ExtBackend):
 
     def __init__(self):
         self.__idle = True
+        self.__pop = False
         self.__evt_queue = []
         ExtBackend.__init__(self)
 
@@ -107,12 +108,18 @@ class SerializingBackend(ExtBackend):
         self._next_evt()
 
     def _next_evt(self):
+        if self.idle() and self.__pop:
+            self._pop_evt()
+            self.__pop = False
         while self.__evt_queue and self.idle():
             evt, flags = self._get_evt()
             try:
                 ExtBackend.proc_evt(self, evt, **flags)
             finally:
-                self._pop_evt()
+                if self.idle():
+                    self._pop_evt()
+                else:
+                    self.__pop = True
 
 import pprint
 class PprintBackend(ExtBackend):
