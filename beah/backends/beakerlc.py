@@ -705,11 +705,154 @@ class BeakerWriter(writers.JournallingWriter, BeakerObject, Item):
     make_default = classmethod(make_default)
 
 
+class BeakerLinkCounter(object):
+
+    def __init__(self, owner):
+        """
+        Class to check number of files uploaded to server.
+
+        check_link is the main entry point.
+
+        """
+        if owner.link_limits[0] <= 0 and owner.link_limits[1] <= 0:
+            self.check_link = owner.parent.check_link
+        else:
+            self.owner = owner
+            self.limits = owner.link_limits
+            self.link_warn = owner.stored_data.get('link_limit', 0)
+
+    def _check_link(self):
+        sd = self.owner.stored_data
+        amt = sd.get('link_total', 0) + 1
+        sd['link_total'] = amt
+        limit =self.limits[1]
+        if limit > 0 and amt > limit:
+            if self.link_warn < 2:
+                self.owner.parent_task().send_result('warn', 'link_limit', amt,
+                        "%s has reached link limit!" % self.owner.name())
+                self.link_warn = 2
+                sd['link_limit'] = 2
+            return False
+        limit = self.limits[0]
+        if limit > 0 and amt > limit and self.link_warn < 1:
+            self.owner.parent_task().send_result('warn', 'link_limit/soft', amt,
+                    "%s has reached soft link limit!" % self.owner.name())
+            self.link_warn = 1
+            sd['link_limit'] = 1
+        return True
+
+    def check_link(self):
+        if self.link_warn > 1:
+            return False
+        return self._check_link() and self.owner.parent.check_link()
+
+
+class BeakerUploadCounter(object):
+
+    def __init__(self, owner):
+        """
+        Class to check amount of data uploaded to server.
+
+        check_upload is the main entry point.
+
+        """
+        check = False
+        if owner.upload_limits[0] <= 0 and owner.upload_limits[1] <= 0:
+            self.check_upload_amount = lambda size: True
+        else:
+            check = True
+            self.upload_limits = owner.upload_limits
+            self.upload_warn = owner.stored_data.get('upload_warn', 0)
+
+        if owner.size_limits[0] <= 0 and owner.size_limits[1] <= 0:
+            self.check_file_size = lambda delta: True
+        else:
+            check = True
+            self.size_limits = owner.size_limits
+            self.size_warn = owner.stored_data.get('size_warn', 0)
+
+        if not check:
+            self.check_upload = owner.parent.check_upload
+        else:
+            self.owner = owner
+            self.upload_alive = self.size_warn < 2 and self.upload_warn < 2
+
+    def check_upload_amount(self, size):
+        sd = self.owner.stored_data
+        amt = sd.get('upload_total', 0) + size
+        sd['upload_total'] = amt
+        limit = self.upload_limits[1]
+        if limit > 0 and amt > limit:
+            if not self.upload_warn:
+                self.owner.parent_task().send_result('warn', 'upload_limit', size, "%s has reached upload limit!" % self.owner.name())
+                self.upload_warn = 2
+                sd['upload_warn'] = 2
+            return False
+        limit = self.upload_limits[0]
+        if limit > 0 and amt > limit and not self.upload_warn:
+            self.owner.parent_task().send_result('warn', 'upload_limit/soft', size, "%s has reached soft upload limit!" % self.owner.name())
+            self.upload_warn = 1
+            sd['upload_warn'] = 1
+        return True
+
+    def _check_file_size(self, size_total):
+        limit = self.size_limits[1]
+        if limit > 0 and size_total > limit:
+            if not self.size_warn < 2:
+                self.owner.parent_task().send_result('warn', 'size_limit', size_total, "%s has reached size limit!" % self.owner.name())
+                self.size_warn = 2
+                self.owner.stored_data['size_warn'] = 2
+            return False
+        limit = self.size_limits[0]
+        if limit > 0 and size_total > limit and self.size_warn < 1:
+            self.owner.parent_task().send_result('warn', 'size_limit/soft', size_total, "%s has reached soft size limit!" % self.owner.name())
+            self.size_warn = 1
+            self.owner.stored_data['size_warn'] = 1
+        return True
+
+    def check_file_size(self, delta):
+        sd = self.owner.stored_data
+        amt = sd.get('size_total', 0) + delta
+        sd['size_total'] = amt
+        return self._check_file_size(amt)
+
+    def _check_upload(self, delta, size):
+        """Check this instance."""
+        return self.check_upload_amount(size) and self.check_file_size(delta)
+
+    def check_upload(self, delta, size):
+        if not self.upload_alive:
+            return False
+        self.upload_alive = (self._check_upload(delta, size) and
+                self.owner.parent.check_upload(delta, size))
+        return self.upload_alive
+
+
+class NullFile(object):
+
+    def _set_parent(self, parent):
+        pass
+
+    def meta(self, metadata):
+        pass
+
+    def write(self, args):
+        pass
+
+
 class BeakerTask(PersistentBeakerObject):
 
     _VERBOSE = ['__init__', 'start', 'end', 'abort', 'new_result', 'new_file', 'output', 'stop', 'writer']
     METADATA = 'task_info'
     UPLOAD_METHOD = 'task_upload_file'
+    UPLOAD_LIMIT = 'TASK_UPLOAD_LIMIT'
+    UPLOAD_LIMIT_SOFT = 'TASK_UPLOAD_LIMIT_SOFT'
+    SIZE_LIMIT = 'TASK_SIZE_LIMIT'
+    SIZE_LIMIT_SOFT = 'TASK_SIZE_LIMIT_SOFT'
+    LINK_LIMIT = 'TASK_LINK_LIMIT'
+    LINK_LIMIT_SOFT = 'TASK_LINK_LIMIT_SOFT'
+
+    null_file = NullFile()
 
     def __init__(self, id, parent, name='', parsed=None):
         PersistentBeakerObject.__init__(self, id, parent)
@@ -726,6 +869,15 @@ class BeakerTask(PersistentBeakerObject):
         self.writers = PersistentBeakerContainer(self, BeakerWriter)
         self.results = BeakerContainer(self, BeakerResult)
         self.files = BeakerContainer(self, BeakerFile)
+        confget = self.backend().conf.get
+        self.upload_limits = [int(confget('DEFAULT', self.UPLOAD_LIMIT_SOFT, '-1')),
+                int(confget('DEFAULT', self.UPLOAD_LIMIT, '-1'))]
+        self.size_limits = [int(confget('DEFAULT', self.SIZE_LIMIT_SOFT, '-1')),
+                int(confget('DEFAULT', self.SIZE_LIMIT, '-1'))]
+        self.check_upload = BeakerUploadCounter(self).check_upload
+        self.link_limits = [int(confget('DEFAULT', self.LINK_LIMIT_SOFT, '-1')),
+                int(confget('DEFAULT', self.LINK_LIMIT, '-1'))]
+        self.check_link = BeakerLinkCounter(self).check_link
 
     def close(self):
         started = self.has_started()
@@ -736,6 +888,7 @@ class BeakerTask(PersistentBeakerObject):
         self.results = None
         self.files.close()
         self.files = None
+        self.check_link = None
         self.parsed = None
         PersistentBeakerObject.close(self)
         self.has_started = lambda: started
@@ -809,10 +962,12 @@ class BeakerTask(PersistentBeakerObject):
         return self.results.get(id, None)
 
     def new_file(self, id, args):
+        if not self.check_link():
+            return self.files.set(id, self.null_file)
         return self.files.make(id, metadata=dict(args))
 
     def file(self, id):
-        return self.files.get(id, None)
+        return self.files.get(id, self.null_file)
 
     def output(self, args):
         self.writer('debug/task_output_%s' % args.get('out_handle', '')) \
@@ -912,15 +1067,29 @@ class BeakerResult(BeakerObject, PersistentItem):
                 ("warn", "Warning: Unknown Code (%s)" % rc))
     result_type = staticmethod(result_type)
 
+    def check_upload(self, delta, size):
+        return self.parent.check_upload(delta, size)
+
 
 class BeakerFile(PersistentBeakerObject):
 
     METADATA = "file_info"
     _VERBOSE = ('__init__', 'meta', 'write', 'filename')
 
+    UPLOAD_LIMIT = 'FILE_UPLOAD_LIMIT'
+    UPLOAD_LIMIT_SOFT = 'FILE_UPLOAD_LIMIT_SOFT'
+    SIZE_LIMIT = 'FILE_SIZE_LIMIT'
+    SIZE_LIMIT_SOFT = 'FILE_SIZE_LIMIT_SOFT'
+
     def __init__(self, fid, parent, metadata=None):
         PersistentBeakerObject.__init__(self, fid, parent)
         self.meta(metadata)
+        confget = self.backend().conf.get
+        self.upload_limits = [int(confget('DEFAULT', self.UPLOAD_LIMIT_SOFT, '-1')),
+                int(confget('DEFAULT', self.UPLOAD_LIMIT, '-1'))]
+        self.size_limits = [int(confget('DEFAULT', self.SIZE_LIMIT_SOFT, '-1')),
+                int(confget('DEFAULT', self.SIZE_LIMIT, '-1'))]
+        self.check_upload = BeakerUploadCounter(self).check_upload
 
     def make_default(cls, fid, parent):
         return BeakerFakeFile(fid, parent)
@@ -987,7 +1156,11 @@ class BeakerFile(PersistentBeakerObject):
             self._be_writer = writer
         return writer
 
-    def check_offset(self, offset=None):
+    def check_offset(self, offset):
+        """
+        Check the offset and return pair (offset to use, original offset).
+
+        """
         seqoff = self.stored_data.get('offset', 0)
         if offset is None:
             offset = seqoff
@@ -998,14 +1171,16 @@ class BeakerFile(PersistentBeakerObject):
             else:
                 log.warning("Given offset (%s) does not match calculated (%s).",
                         offset, seqoff)
-        return offset
+        return (offset, seqoff)
 
     def write(self, args):
-        offset = self.check_offset(args.get('offset', None))
+        (offset, seqoff) = self.check_offset(args.get('offset', None))
         codec = args.get('codec', None)
         if codec is None:
             codec = self.get_meta('codec', None)
         size, data, digest = self.recode(args.get('data'), codec, "base64", args.get('digest', None), self.backend().digest_method)
+        if not self.check_upload(offset+size-seqoff, size):
+            return
         self.writer()(size, digest, offset, data).addCallback(self.written, new_offset=offset+size)
 
     def written(self, response, new_offset=None):
@@ -1024,6 +1199,12 @@ class BeakerRecipe(BeakerTask):
     CACHED_STATUS = False
     METADATA = "recipe"
     UPLOAD_METHOD = 'recipe_upload_file'
+    UPLOAD_LIMIT = 'RECIPE_UPLOAD_LIMIT'
+    UPLOAD_LIMIT_SOFT = 'RECIPE_UPLOAD_LIMIT_SOFT'
+    SIZE_LIMIT = 'RECIPE_SIZE_LIMIT'
+    SIZE_LIMIT_SOFT = 'RECIPE_SIZE_LIMIT_SOFT'
+    LINK_LIMIT = 'RECIPE_LINK_LIMIT'
+    LINK_LIMIT_SOFT = 'RECIPE_LINK_LIMIT_SOFT'
 
     def __init__(self, backend, recipe_xml):
         if not recipe_xml:
@@ -1196,6 +1377,12 @@ class BeakerLCBackend(SerializingBackend):
             make_logging_proxy(self.proxy)
             self.proxy.logging_print = log.info
         self.on_idle()
+
+    def check_link(self):
+        return True
+
+    def check_upload(self, size, delta):
+        return True
 
     def backend(self):
         '''Used by recipe to allow using Backend as its parent'''
@@ -1568,6 +1755,22 @@ def defaults():
             'HOSTNAME':os.getenv('HOSTNAME'),
             'DIGEST':'no-digest',
             'RPC_TIMEOUT':'60',
+            'RECIPE_UPLOAD_LIMIT':'0',
+            'RECIPE_UPLOAD_LIMIT_SOFT':'0',
+            'RECIPE_SIZE_LIMIT':'0',
+            'RECIPE_SIZE_LIMIT_SOFT':'0',
+            'RECIPE_LINK_LIMIT':'0',
+            'RECIPE_LINK_LIMIT_SOFT':'0',
+            'TASK_UPLOAD_LIMIT':'0',
+            'TASK_UPLOAD_LIMIT_SOFT':'0',
+            'TASK_SIZE_LIMIT':'0',
+            'TASK_SIZE_LIMIT_SOFT':'0',
+            'TASK_LINK_LIMIT':'0',
+            'TASK_LINK_LIMIT_SOFT':'0',
+            'FILE_UPLOAD_LIMIT':'0',
+            'FILE_UPLOAD_LIMIT_SOFT':'0',
+            'FILE_SIZE_LIMIT':'0',
+            'FILE_SIZE_LIMIT_SOFT':'0',
             })
     return d
 
