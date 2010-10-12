@@ -661,7 +661,7 @@ class PersistentBeakerObject(BeakerObject, PersistentItem):
     def read_object(cls, id, parent, *args, **kwargs):
         if parent.runtime().type_has_key('%s/%s' % (cls.METADATA, id), 'meta'):
             return cls(id, parent, *args, **kwargs)
-        raise NotImplementedError
+        raise KeyError
     read_object = classmethod(read_object)
 
     def write_metadata(self):
@@ -837,6 +837,9 @@ class NullFile(object):
         pass
 
     def write(self, args):
+        pass
+
+    def close(self):
         pass
 
 
@@ -1317,7 +1320,8 @@ class BeakerRecipe(BeakerTask):
 
     def send_result(self, result, handle, score=0, message=''):
         result=('recipe_result', self.beaker_id, result, handle, score, message)
-        self.backend().on_error("Can not attach a result to recipe. Result=%s" % result)
+        msg = "Can not attach a result to recipe. Result=%s" % (result,)
+        log.error(msg)
 
 
 class BeakerLCBackend(SerializingBackend):

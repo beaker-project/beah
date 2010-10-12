@@ -146,9 +146,9 @@ def get_recipe_(fqdn=None, id=None, task_id=None):
     log.info("get_recipe_(fqdn=%s, id=%s, task_id=%s)", fqdn, id, task_id)
     if fqdn is not None:
         id = build_recipe(fqdn)
-    if not task_recipe:
+    elif not task_recipe:
         id = build_recipe('')
-    if task_id is not None:
+    elif task_id is not None:
         task_id = int(task_id)
         if task_recipe.has_key(task_id):
             id = task_recipe[task_id]
@@ -553,6 +553,7 @@ serveAnyRequest(LCHandler, 'catch_xmlrpc', xmlrpc.XMLRPC)
 ################################################################################
 def build_recipe(fqdn):
     global conf
+    log.debug("build_recipe(%r)", fqdn)
     if fqdn is None:
         return None
     if not fqdn:
