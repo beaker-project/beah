@@ -720,12 +720,13 @@ class BeakerLinkCounter(object):
             self.owner = owner
             self.limits = owner.link_limits
             self.link_warn = owner.stored_data.get('link_limit', 0)
+            self.alive = self.link_warn < 2
 
     def _check_link(self):
         sd = self.owner.stored_data
         amt = sd.get('link_total', 0) + 1
         sd['link_total'] = amt
-        limit =self.limits[1]
+        limit = self.limits[1]
         if limit > 0 and amt > limit:
             if self.link_warn < 2:
                 self.owner.parent_task().send_result('warn', 'link_limit', amt,
@@ -742,9 +743,10 @@ class BeakerLinkCounter(object):
         return True
 
     def check_link(self):
-        if self.link_warn > 1:
+        if not self.alive:
             return False
-        return self._check_link() and self.owner.parent.check_link()
+        self.alive = self._check_link() and self.owner.parent.check_link()
+        return self.alive
 
 
 class BeakerUploadCounter(object):
@@ -756,6 +758,7 @@ class BeakerUploadCounter(object):
         check_upload is the main entry point.
 
         """
+        alive = True
         check = False
         if owner.upload_limits[0] <= 0 and owner.upload_limits[1] <= 0:
             self.check_upload_amount = lambda size: True
@@ -763,6 +766,7 @@ class BeakerUploadCounter(object):
             check = True
             self.upload_limits = owner.upload_limits
             self.upload_warn = owner.stored_data.get('upload_warn', 0)
+            alive = alive and self.upload_warn < 2
 
         if owner.size_limits[0] <= 0 and owner.size_limits[1] <= 0:
             self.check_file_size = lambda delta: True
@@ -770,12 +774,13 @@ class BeakerUploadCounter(object):
             check = True
             self.size_limits = owner.size_limits
             self.size_warn = owner.stored_data.get('size_warn', 0)
+            alive = alive and self.size_warn < 2
 
         if not check:
             self.check_upload = owner.parent.check_upload
         else:
             self.owner = owner
-            self.upload_alive = self.size_warn < 2 and self.upload_warn < 2
+            self.upload_alive = alive
 
     def check_upload_amount(self, size):
         sd = self.owner.stored_data
@@ -783,14 +788,14 @@ class BeakerUploadCounter(object):
         sd['upload_total'] = amt
         limit = self.upload_limits[1]
         if limit > 0 and amt > limit:
-            if not self.upload_warn:
-                self.owner.parent_task().send_result('warn', 'upload_limit', size, "%s has reached upload limit!" % self.owner.name())
+            if self.upload_warn < 2:
+                self.owner.parent_task().send_result('warn', 'upload_limit', amt, "%s has reached upload limit!" % self.owner.name())
                 self.upload_warn = 2
                 sd['upload_warn'] = 2
             return False
         limit = self.upload_limits[0]
-        if limit > 0 and amt > limit and not self.upload_warn:
-            self.owner.parent_task().send_result('warn', 'upload_limit/soft', size, "%s has reached soft upload limit!" % self.owner.name())
+        if limit > 0 and amt > limit and self.upload_warn < 1:
+            self.owner.parent_task().send_result('warn', 'upload_limit/soft', amt, "%s has reached soft upload limit!" % self.owner.name())
             self.upload_warn = 1
             sd['upload_warn'] = 1
         return True
@@ -798,7 +803,7 @@ class BeakerUploadCounter(object):
     def _check_file_size(self, size_total):
         limit = self.size_limits[1]
         if limit > 0 and size_total > limit:
-            if not self.size_warn < 2:
+            if self.size_warn < 2:
                 self.owner.parent_task().send_result('warn', 'size_limit', size_total, "%s has reached size limit!" % self.owner.name())
                 self.size_warn = 2
                 self.owner.stored_data['size_warn'] = 2
