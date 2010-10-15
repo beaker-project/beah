@@ -294,7 +294,7 @@ function lm_logs()
 function lm_results()
 {
   local uploads=/var/beah/beah_fakelc/fakelc-uploads
-  vim -o $uploads/ $uploads/task_*/debug/task_log
+  vim -o $uploads/ $uploads/task_*/debug/task_log $uploads/../results.txt
 }
 
 function lm_rm_logs()
@@ -354,8 +354,8 @@ function lm_view_logs()
 
 function lm_mon()
 {
-  local file1=/tmp/lm_mon_file1 file2=/tmp/lm_mon_file2
-  rm -f $file1 $file2 &>/dev/null
+  local file1=$(mktemp) file2=$(mktemp)
+  # rm -f $file1 $file2 &>/dev/null
   lm_ps &> $file2
   cat $file2
   while true; do

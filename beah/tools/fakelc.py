@@ -213,7 +213,162 @@ class TaskStarter(object):
 task_starter = TaskStarter(0)
 
 
+class Element(object):
+    def __init__(self, type, id=None, parent=None, name=None, classes=None, **kwargs):
+        self.type = type
+        self._id = id
+        self._name = name
+        self._parent = parent
+        self.kwargs = kwargs
+        self._classes = classes
+
+    def ID(self):
+        if self._id:
+            return "%s-%s" % (self.type, self._id)
+        else:
+            return None
+
+    def id(self):
+        return "%s:%s" % (self.type, self._id or self._name or "???")
+
+    def header(self):
+        name = self._name
+        id = self._id
+        if id and name:
+            return "%s:%s | %s" % (self.type, id, name)
+        else:
+            return self.id()
+
+    def link(self):
+        return """<A CLASS="%s" HREF="#%s">%s</A>""" % (self.type, self.ID(), self.id())
+
+    def anchor(self):
+        if self._id:
+            return """ ID="%s" """ % self.ID()
+        else:
+            return ""
+
+    def classes(self):
+        clss = (self.type,) + (self._classes or ())
+        return " ".join(clss)
+
+    def format_args(self):
+        a = ["""    <DIV CLASS="PAIR">
+                        <SPAN CLASS="KEY">%s</SPAN>=<SPAN CLASS="VALUE">%s</SPAN>
+                    </DIV>
+                """ % (k, self.kwargs[k]) for k in sorted(self.kwargs.keys())]
+        if a:
+            return """
+                %s""" % "".join(a)
+        else:
+            return ""
+
+    def format_body(self):
+        return self.format_args()
+
+    def __str__(self):
+        if self._parent:
+            parent = self._parent.link()
+        else:
+            parent = ""
+        return """
+            <TR %s CLASS="%s">
+                <TD CLASS="name">%s</TD>
+                <TD CLASS="parent">%s</TD>
+                <TD CLASS="body">%s</TD>
+            </TR>""" % (self.anchor(), self.classes(), self.header(), parent, self.format_body())
+
+
+def Job(id):
+    return Element("job", id=id)
+
+
+def RecipeSet(id):
+    return Element("recipeset", id=id)
+
+
+def Recipe(id):
+    return Element("recipe", id=id)
+
+
+def Task(id, **kwargs):
+    return Element("task", id=id, **kwargs)
+
+
+def Result(id, task=None):
+    return Element("result", id=id, parent=task)
+
+
+class File(Element):
+
+    def __init__(self, parent, name='', path='', fullpath=''):
+        pathname = os.path.join(path, name)
+        self.fullpathname = os.path.join(fullpath, name)
+        super(File, self).__init__("file", parent=parent, name=pathname)
+
+    def header(self):
+        return """<A HREF="%s">%s</A>""" % (self.fullpathname, super(File, self).header())
+
+    def link(self):
+        return """<A HREF="%s">%s</A>""" % (self.fullpathname, self.id())
+
+
+class Results(object):
+
+    def __init__(self, var_path, upload_path):
+        result_filename = os.path.join(var_path, "results.txt")
+        misc.pre_open(result_filename)
+        self.f = open(result_filename, "a+")
+        self.upload_path = upload_path
+
+    def close(self):
+        if self.f:
+            self.f.close()
+            self.f = None
+
+    def write(self, obj):
+        self.f.write(str(obj)+"\n")
+
+    def start(self, id, kill_time):
+        self.write(Task(id, kill_time=kill_time, method="start"))
+
+    def stop(self, id, type_, msg):
+        self.write(Element("stop", parent=Task(id), classes=(type_,), stop_type=type_, message=msg))
+
+    def result(self, id, result_type, path, score, summary, result_id):
+        self.write(Element("result", id=result_id, parent=Task(id), name=path, classes=(result_type,), result_type=result_type, path=path, score=score, summary=summary))
+
+    def task_upload(self, id, path, name, size, offset, fullpath):
+        longpath = os.path.join(self.upload_path, fullpath)
+        file = File(name=name, path=path, parent=Task(id), fullpath=longpath)
+        self.write(file)
+        self.write(Element("task_upload", parent=file, size=size, offset=offset))
+
+    def result_upload(self, id, result_id, path, name, size, offset, fullpath):
+        longpath = os.path.join(self.upload_path, fullpath)
+        file = File(name=name, path=path, parent=Result(result_id, task=Task(id)), fullpath=longpath)
+        self.write(file)
+        self.write(Element("result_upload", parent=file, size=size, offset=offset))
+
+    def job_stop(self, id, stop_type, msg):
+        self.write(Element("job_stop", parent=Job(id), classes=(stop_type), stop_type=stop_type, message=msg))
+
+    def recipeset_stop(self, id, stop_type, msg):
+        self.write(Element("recipeset_stop", parent=RecipeSet(id), classes=(stop_type), stop_type=stop_type, message=msg))
+
+    def recipe_stop(self, id, stop_type, msg):
+        self.write(Element("recipe_stop", parent=Recipe(id), classes=(stop_type,), stop_type=stop_type, message=msg))
+
+    def extend_watchdog(self, id, kill_time):
+        self.write(Element("extend_watchdog", parent=Task(id), kill_time=kill_time))
+
+    #def ...(self, id, ...):
+    #    self.write(("", ))
+
+
 def do_task_start(fname, task_id, kill_time):
+    global results
+    results.start(task_id, kill_time)
     log.info("%s(task_id=%r, kill_time=%r)", fname, task_id, kill_time)
     # Fail on start, to check start repeating.
     task_starter.check()
@@ -234,6 +389,8 @@ def do_task_stop(fname, task_id, stop_type, msg):
 
     return 0 on success, error message otherwise
     """
+    global results
+    results.stop(task_id, stop_type, msg)
     log.info("%s(task_id=%r, stop_type=%r, msg=%r)", fname, task_id, stop_type,
             msg)
     rec_args = get_recipe_args(task_id=task_id)
@@ -251,6 +408,7 @@ def do_task_result(fname, task_id, result_type, path, score, summary):
 
     return 0 on success, error message otherwise
     """
+    global results
     try:
         log.info(
                 "%s(task_id=%r, result_type=%r, path=%r, score=%r, summary=%r)",
@@ -266,11 +424,13 @@ def do_task_result(fname, task_id, result_type, path, score, summary):
             rec_args[ix]=result_type
         result_id = "%s%s%.2d" % (task_id, time.strftime("%H%M%S"), randint(0, 99))
         add_result(task_id, result_id)
+        results.result(task_id, result_type, path, score, summary, result_id)
         log.info("%s.RETURN: %s", fname, result_id)
         misc.log_flush(log)
         return result_id
     except:
         log.error("%s", misc.format_exc())
+        results.result(task_id, result_type, path, score, summary, "ERROR")
         raise
 
 tasks_by_results = {}
@@ -423,17 +583,23 @@ def do_upload_file(path, name, size, digest, offset, data):
     uploader.uploadFile(path, name, size, digest, offset, data)
 
 def do_task_upload_file(fname, task_id, path, name, size, digest, offset, data):
+    global results
     log.info("%s(task_id=%r, path=%r, name=%r, size=%r, digest=%r, offset=%r, data='...')",
             fname, task_id, path, name, size, digest, offset)
-    do_upload_file("task_%s/%s" % (task_id, path), name, size, digest, offset,
+    fullpath = "task_%s/%s" % (task_id, path)
+    results.task_upload(task_id, path, name, size, offset, fullpath)
+    do_upload_file(fullpath, name, size, digest, offset,
             data)
     return 0
 
 def do_result_upload_file(fname, result_id, path, name, size, digest, offset, data):
+    global results
     log.info("%s(result_id=%r, path=%r, name=%r, size=%r, digest=%r, offset=%r, data='...')",
             fname, result_id, path, name, size, digest, offset)
     task_id = get_task_by_result(result_id)
-    do_upload_file("task_%s/result_%s/%s" % (task_id, result_id, path), name, size, digest, offset,
+    fullpath = "task_%s/result_%s/%s" % (task_id, result_id, path)
+    results.result_upload(task_id, result_id, path, name, size, offset, fullpath)
+    do_upload_file(fullpath, name, size, digest, offset,
             data)
     return 0
 
@@ -510,15 +676,21 @@ class LCHandler(xmlrpc.XMLRPC):
         return self.Return(do_task_stop("task_stop", task_id, stop_type, msg))
 
     def xmlrpc_recipeset_stop(self, recipeset_id, stop_type, msg=''):
+        global results
         log.info('recipeset_stop(%r, %r, %r)', recipeset_id, stop_type, msg)
+        results.recipeset_stop(recipeset_id, stop_type, msg)
         return self.Return(0)
 
     def xmlrpc_recipe_stop(self, recipe_id, stop_type, msg=''):
+        global results
         log.info('recipe_stop(%r, %r, %r)', recipe_id, stop_type, msg)
+        results.recipe_stop(recipe_id, stop_type, msg)
         return self.Return(0)
 
     def xmlrpc_job_stop(self, job_id, stop_type, msg=''):
+        global results
         log.info('job_stop(%r, %r, %r)', job_id, stop_type, msg)
+        results.job_stop(job_id, stop_type, msg)
         return self.Return(0)
 
     def xmlrpc_task_result(self, task_id, result_type, path, score, summary):
@@ -526,7 +698,9 @@ class LCHandler(xmlrpc.XMLRPC):
                 summary))
 
     def xmlrpc_extend_watchdog(self, task_id, kill_time):
+        global results
         log.info('extend_watchdog(%r, %r)', task_id, kill_time)
+        results.extend_watchdog(task_id, kill_time)
         return self.Return(0)
 
     def xmlrpc_task_upload_file(self, task_id, path, name, size, digest,
@@ -626,8 +800,9 @@ def schedule(machine, recipe_id, recipe, args, tasks):
 
 
 def close(log):
-    global runtime
+    global runtime, results
     runtime.close()
+    results.close()
     log.info("runtime closed.")
     misc.log_flush(log)
 
@@ -636,7 +811,7 @@ def main():
 ################################################################################
 # EXECUTE:
 ################################################################################
-    global conf, runtime, uploader
+    global conf, runtime, uploader, results
     conf = conf_main({}, sys.argv[1:])
     name = conf['name']
     var_path = os.path.join(conf['root'], VAR_PATH, name)
@@ -657,7 +832,9 @@ def main():
     s = server.Site(lc, None, 60*60*12)
     reactor.listenTCP(conf['port'], s, interface=conf['interface'])
     reactor.addSystemEventTrigger("before", "shutdown", close, log)
-    uploader = Uploader(os.path.join(var_path, "fakelc-uploads"))
+    upload_path = os.path.join(var_path, "fakelc-uploads")
+    results = Results(var_path, upload_path)
+    uploader = Uploader(upload_path)
     reactor.run()
 
 ################################################################################
