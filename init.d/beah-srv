@@ -2,7 +2,7 @@
 #
 # beah-srv:	Start the Beaker Harness server
 #
-# chkconfig:	345 99 99
+# chkconfig:	345 98 98
 # description:	The Beaker Harness server. Backend is required too...
 
 # Source function library.

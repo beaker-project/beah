@@ -257,6 +257,10 @@ function lm_install_beah()
     esac
     local _answ=$?
   popd
+  if which beah-root; then
+    rm -f ~/beah
+    ln -s $(beah-root) ~/beah
+  fi
   echo "lm_install_beah: return $_answ"
   return $_answ
 }
@@ -380,8 +384,8 @@ function lm_mon()
 
 function lm_ps()
 {
-  for pid in $(pgrep beah) $(pgrep rhts-test-runner.sh); do
-    pstree -lacpnu $pid
+  for pid in $(pgrep beah) $(pgrep -f rhts-compat) $(pgrep rhts-test-runner.sh); do
+    pstree -lacpnu $pid | grep -v 'sleep 1$'
   done
 }
 

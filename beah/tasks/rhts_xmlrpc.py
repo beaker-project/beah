@@ -33,6 +33,7 @@ import uuid
 import logging
 import random
 from beah.core import event, command
+import beah.misc
 from beah.misc import format_exc, runtimes, make_log_handler, str2log_level, digests, jsonenv
 from beah.wires.internals import twmisc
 from beah.core.constants import RC
@@ -473,15 +474,14 @@ class RHTSMain(object):
         log.debug("sending evt: %r", evt)
         self.__controller_output(json.dumps(evt))
 
-    TEST_RUNNER = 'rhts-test-runner.sh'
+    TEST_RUNNER = '/usr/bin/beah-rhts-runner.sh'
     SHELL = '/bin/bash'
     def server_started(self):
         # FIXME: Install rhts-test-runner.sh somewhere!
-        args = [self.SHELL, '-l', '-c', 'exec %s < /dev/null' % self.TEST_RUNNER]
+        args = [self.SHELL, '-l', '-c', 'exec %s' % self.TEST_RUNNER]
         self.process = reactor.callLater(2, reactor.spawnProcess, self.task,
                 args[0], args=args,
                 env=self.env, path=self.env.get('TESTPATH', '/tmp'))
-
 
     def controller_input(self, cmd):
         # FIXME: process commands on input

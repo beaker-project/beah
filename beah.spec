@@ -60,8 +60,10 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root)
 %{_sysconfdir}/%{name}*
-%{_sysconfdir}/init.d/%{name}*
+%attr(0755, root, root)%{_sysconfdir}/init.d/%{name}*
+%attr(0755, root, root)%{_sysconfdir}/init.d/rhts-compat
 %attr(0755, root, root)%{_bindir}/%{name}*
+%attr(0755, root, root)%{_bindir}/rhts-compat-runner.sh
 %attr(0755, root, root)%{_bindir}/beat_tap_filter
 %attr(0755, root, root)%{_bindir}/json-env
 %{python_sitelib}/%{name}-*

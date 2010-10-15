@@ -1,0 +1,144 @@
+#!/bin/sh
+# rhts:	Start the RHTS tests
+#
+# chkconfig: 345 99 99
+# description:  This service is used in rhts-compat mode.
+#
+# Tihs service should run after all other services are up, as it is running in
+# foreground to get access to console just like original RHTS system used.
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+#Do NOT start rhts if the kernel command line has the following string: norhts
+check4norhts() {
+  grep -q norhts < /proc/cmdline
+  if [ "$?" -eq 0 ] ; then
+    echo -n $"The kernel command line contains norhts. Therefore, RHTS will not be started."
+    exit 1
+  fi
+}
+
+prog="rhts-compat"
+BEAH_INSTALL_ROOT=/usr
+
+if [ -f /etc/sysconfig/$prog ]; then
+  . /etc/sysconfig/$prog
+fi
+
+# DO NOT CHANGE THESE VARIABLES WITHOUT GOOD REASON:
+
+#path="$BEAH_INSTALL_ROOT/bin/$prog"
+#[ -f $path ] || exit 0
+PIDFILE=$BEAH_ROOT/var/run/${prog}.pid
+LOCKFILE=$BEAH_ROOT/var/lock/subsys/$prog
+
+#DEF_ENV="-d /tmp/rhts-defaults"
+LAUNCHERS="$BEAH_ROOT/var/beah/rhts-compat/launchers"
+KILLER="/tmp/rhts-compat-end"
+
+# LAUNCHER_PATHNAME_TEMPLATE = "$LAUNCHERS/*.sh"
+
+function rhts_finish() {
+  rhts-test-update $RESULT_SERVER $TESTID finish
+  /bin/touch /var/cache/rhts/$TESTID/done
+}
+
+function rhts_error() {
+  source /usr/bin/rhts_environment.sh
+  report_result $TEST/compat Fail $1
+  rhts_finish
+}
+
+export -f rhts_finish rhts_error
+
+function rhts_compat_main() {
+  local file=
+  echo "To abort this run 'touch $KILLER'."
+  echo $$ > $PIDFILE
+  touch $LOCKFILE
+  if [[ -f $KILLER ]]; then
+    rm -f $KILLER
+  fi
+  while true; do
+    if [[ -f $KILLER ]]; then
+      rm -f $KILLER
+      break
+    fi
+    for file in $LAUNCHERS/*; do
+      $file
+      rm -f $file
+    done
+    sleep 60
+  done
+  rm -f $LOCKFILE
+  rm -f $PIDFILE
+}
+
+#rhts_compat_main
+
+start() {
+  echo -n $"Starting RHTS-Compatibility Service..."
+  rhts_compat_main
+  #check4norhts
+  #/usr/bin/nm-online >/dev/null 2>&1
+  #/mnt/tests/runtests.sh
+}
+
+stop() {
+  echo -n $"Stopping $prog: "
+  touch $KILLER
+
+   #/usr/bin/killall runtests.sh
+   #/usr/bin/killall rhts-test-runner.sh
+   # I should kill rhts_xmlrpc.py instead of this innocent process! Or not?
+
+   #if ! killproc $path; then
+   #  kill `cat $PIDFILE`
+   #else
+   #  true
+   #fi
+   #RETVAL=$?
+   #echo
+   #rm -f $LOCKFILE
+   #return $RETVAL
+}
+
+restart() {
+  true
+  #stop
+  #start
+}
+
+condrestart(){
+  [ -e $LOCKFILE ] && restart
+  return 0
+}
+
+# See how we were called.
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  status)
+    #status $prog
+    [ -e $LOCKFILE ]
+    RETVAL=$?
+    ;;
+  restart)
+    restart
+    ;;
+  condrestart)
+    condrestart
+    ;;
+  reload)
+    ;;
+  *)
+    echo $"Usage: $0 {start|stop|status|restart|condrestart|reload}"
+    ;;
+esac
+exit $RETVAL
+

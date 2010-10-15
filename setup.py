@@ -127,7 +127,12 @@ setup(
     #package_dir={'':'.'},
 
     # FIXME: move this to beah.bin(?)
-    scripts=['bin/beat_tap_filter'],
+    scripts=[
+        'bin/beat_tap_filter',
+        'bin/beah-rhts-runner.sh',
+        'bin/rhts-compat-runner.sh',
+        'bin/beah-reboot.sh',
+        ],
     #scripts+=['tests/*'],
     # FIXME: use `grep -R '#!.*python' examples` to find python scripts
     # - this would not work on the well known non-POSIX platform :-/
@@ -136,7 +141,7 @@ setup(
 
     data_files=[
         ('/etc', ['beah.conf', 'beah_beaker.conf']),
-        ('/etc/init.d', ['init.d/beah-srv', 'init.d/beah-fakelc', 'init.d/beah-beaker-backend', 'init.d/beah-fwd-backend']),
+        ('/etc/init.d', ['init.d/beah-srv', 'init.d/beah-fakelc', 'init.d/beah-beaker-backend', 'init.d/beah-fwd-backend', 'init.d/rhts-compat']),
         ] + more_data_files,
     #package_data={
     #    '': ['beah.conf', 'beah_beaker.conf'],
