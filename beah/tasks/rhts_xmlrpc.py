@@ -440,7 +440,7 @@ class RHTSMain(object):
     def on_exit(self, exitCode):
         # FIXME! handling!
         # should submit captured files (AVC_ERROR, OUTPUTFILE)
-        if exitCode in (0, -signal.SIGTERM):
+        if exitCode in (0, 128+signal.SIGTERM):
             result = RC.PASS
             message = 'rhts-test-runner.sh exited with rc=%s' % exitCode
         else:

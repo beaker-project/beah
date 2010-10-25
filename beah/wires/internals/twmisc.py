@@ -187,7 +187,7 @@ def twisted_logging(logger):
 def reason2rc(end_reason):
     sig = end_reason.value.signal
     if sig:
-        return -sig
+        return 128+sig
     else:
         return end_reason.value.exitCode
 
