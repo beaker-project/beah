@@ -20,7 +20,6 @@ check4norhts() {
 }
 
 prog="rhts-compat"
-BEAH_INSTALL_ROOT=/usr
 
 if [ -f /etc/sysconfig/$prog ]; then
   . /etc/sysconfig/$prog
@@ -28,16 +27,11 @@ fi
 
 # DO NOT CHANGE THESE VARIABLES WITHOUT GOOD REASON:
 
-#path="$BEAH_INSTALL_ROOT/bin/$prog"
-#[ -f $path ] || exit 0
 PIDFILE=$BEAH_ROOT/var/run/${prog}.pid
 LOCKFILE=$BEAH_ROOT/var/lock/subsys/$prog
 
-#DEF_ENV="-d /tmp/rhts-defaults"
 LAUNCHERS="$BEAH_ROOT/var/beah/rhts-compat/launchers"
 KILLER="/tmp/rhts-compat-end"
-
-# LAUNCHER_PATHNAME_TEMPLATE = "$LAUNCHERS/*.sh"
 
 function rhts_finish() {
   rhts-test-update $RESULT_SERVER $TESTID finish
@@ -54,7 +48,8 @@ export -f rhts_finish rhts_error
 
 function rhts_compat_main() {
   local file=
-  echo "To abort this run 'touch $KILLER'."
+  echo $"NOTE: This process runs if foreground."
+  echo $"Use 'service $prog stop' from another terminal to stop it."
   echo $$ > $PIDFILE
   touch $LOCKFILE
   if [[ -f $KILLER ]]; then
@@ -75,39 +70,38 @@ function rhts_compat_main() {
   rm -f $PIDFILE
 }
 
-#rhts_compat_main
-
 start() {
-  echo -n $"Starting RHTS-Compatibility Service..."
+  echo $"Running RHTS-Compatibility Service..."
+  check4norhts
   rhts_compat_main
-  #check4norhts
-  #/usr/bin/nm-online >/dev/null 2>&1
-  #/mnt/tests/runtests.sh
 }
 
-stop() {
-  echo -n $"Stopping $prog: "
-  touch $KILLER
+wait_stop() {
+  _stop || return 1
+  while [[ -f $KILLER ]]; do
+    sleep 60
+  done
+  echo " [OK]"
+}
 
-   #/usr/bin/killall runtests.sh
-   #/usr/bin/killall rhts-test-runner.sh
-   # I should kill rhts_xmlrpc.py instead of this innocent process! Or not?
+stop () {
+  _stop && echo " [OK]"
+}
 
-   #if ! killproc $path; then
-   #  kill `cat $PIDFILE`
-   #else
-   #  true
-   #fi
-   #RETVAL=$?
-   #echo
-   #rm -f $LOCKFILE
-   #return $RETVAL
+_stop() {
+  if [[ -f $LOCKFILE ]]; then
+    echo -n $"Stopping $prog: "
+    touch $KILLER
+    true
+  else
+    echo "$prog is not not running. [FAIL]"
+    false
+  fi
 }
 
 restart() {
-  true
-  #stop
-  #start
+  wait_stop
+  start
 }
 
 condrestart(){

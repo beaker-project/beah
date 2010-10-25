@@ -88,8 +88,10 @@ main() {
   rhts-test-runner.sh
   local answ=$?
 
-  # TODO "send finish to rhts server"
-  # This is done by rhts-test-runner.sh
+  if [[ $answ -ne 0 && $answ -ne 143 ]]; then
+    echo -n "" | rhts-report-result "rhts-runner/exit" FAIL - $answ
+  fi
+
   kill $(cat $RUNNER_PIDFILE)
 
   # TODO "clean-up?"
