@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [[ "$1" == "check" ]]; then
-  dir=$(mktemp --directory --tmpdir=/tmp logs-XXXX)
+  dir=$(mktemp -d -t logs-XXXX)
   file=$dir.tar.gz
   mkdir $dir/var
   cp -R /var/beah $dir/var/
@@ -10,7 +10,7 @@ if [[ "$1" == "check" ]]; then
   mkdir $dir/var/log
   cp /var/log/beah* $dir/var/log/
   cp -R /var/log/rhts $dir/var/log/
-  tar cvf $file $dir
+  tar cvf $file -C $(dirname $dir) $(basename $dir)
   rm -rf $dir
   beah-check cp $file logs.tar.gz
   rm -f $file

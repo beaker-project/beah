@@ -39,7 +39,7 @@ fi
 
 # MAIN:
 
-export BEAH_CHECK_ROOT=$(mktemp --directory --tmpdir=/tmp beah-check-$(date +%Y%m%d-%H%M%S)-XXX)
+export BEAH_CHECK_ROOT=$(mktemp -d -t beah-check-$(date +%Y%m%d-%H%M%S)-XXX)
 export BEAH_CHECK=
 
 echo "BEAH_CHECK_ROOT='$BEAH_CHECK_ROOT'"
@@ -69,7 +69,7 @@ for file in $FILES; do
   beah-check-run-check $file
 done
 
-tar -C $(dirname $BEAH_CHECK_ROOT) czf $BEAH_CHECK_ROOT.tar.gz $BEAH_CHECK_ROOT/
+tar czf $BEAH_CHECK_ROOT.tar.gz -C $(dirname $BEAH_CHECK_ROOT) $(basename $BEAH_CHECK_ROOT)/
 
 for file in $FILES; do
   beah-check-run-report $file
