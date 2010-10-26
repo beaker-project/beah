@@ -8,7 +8,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
 Name: beah
-Version: 0.6.16
+Version: 0.6.17
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -74,6 +74,11 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755, root, root)%{_libexecdir}/%{name}/beah-check/*
 
 %changelog
+* Wed Oct 27 2010 Marian Csontos <mcsontos@redhat.com> 0.6.17-1
+- Added beah-check: harness problem reporting tool
+- RHTS compatibility
+- Export environment
+
 * Wed Oct 13 2010 Marian Csontos <mcsontos@redhat.com> 0.6.16-1
 - Added: caps on file size/count
 - beaker-backend broken into smaller pieces
