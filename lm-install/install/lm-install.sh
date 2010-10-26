@@ -265,6 +265,16 @@ function lm_install_beah()
   return $_answ
 }
 
+function lm_the_recipe()
+{
+  if [[ -f $1 ]]; then
+    rm -f /root/the_recipe
+    ln -s $1 /root/the_recipe
+  else
+    echo "No such file '$1'"
+  fi
+}
+
 function lm_config_beah()
 {
   cat > /etc/beah_beaker.conf <<END
