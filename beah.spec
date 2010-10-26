@@ -70,6 +70,8 @@ rm -rf $RPM_BUILD_ROOT
 %{python_sitelib}/%{name}/
 %{python_sitelib}/beahlib.py*
 %{_datadir}/%{name}
+%{_libexecdir}/%{name}
+%attr(0755, root, root)%{_libexecdir}/%{name}/beah-check/*
 
 %changelog
 * Wed Oct 13 2010 Marian Csontos <mcsontos@redhat.com> 0.6.16-1

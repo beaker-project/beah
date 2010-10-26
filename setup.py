@@ -91,6 +91,7 @@ more_data_files = glob_to(prefix, 'share/beah', rdglob(prefix, [
     'tests', # FIXME: add some tests here!
     'doc',
     ], dex=('*.tmp', '*.wip')))
+more_data_files += glob_to(prefix, 'libexec/beah', rdglob(prefix, ['beah-check'], dex=('*.tmp', '*.wip')))
 #print "more_data_files:", more_data_files
 
 # FIXME: Find out about real requirements - packages, versions.
@@ -132,6 +133,7 @@ setup(
         'bin/beah-rhts-runner.sh',
         'bin/rhts-compat-runner.sh',
         'bin/beah-reboot.sh',
+        'bin/beah-check',
         ],
     #scripts+=['tests/*'],
     # FIXME: use `grep -R '#!.*python' examples` to find python scripts

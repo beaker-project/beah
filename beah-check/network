@@ -1,0 +1,26 @@
+#!/bin/bash
+
+if [[ "$1" == "check" ]]; then
+
+  try-ping() {
+    local lc=$1
+    if ping -c 1 $lc; then
+      beah-check echo "OK: ping '$lc' ok."
+    else
+      beah-check error "Can not ping the Lab Controller '$lc'"
+    fi
+  }
+  export -f try-ping
+
+  answ=Failed
+  for file in /var/beah/beah_task_*.env; do
+    json-env =$file bash -c 'try-ping $LAB_CONTROLLER' && answ=
+  done
+
+  if [[ -n $answ ]]; then
+    ifconfig 2>&1 | beah-check cat ifconfig.out
+    route 2>&1 | beah-check cat route.out
+    iptables -S 2>&1 | beah-check cat iptables-S.out
+  fi
+
+fi

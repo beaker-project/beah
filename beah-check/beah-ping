@@ -1,0 +1,36 @@
+#!/bin/bash
+
+if [[ "$1" == "check" ]]; then
+
+  try() {
+    local timeout=$1
+    shift
+    "$@" &
+    local pid=$!
+    sleep $timeout
+    kill $pid
+    wait $pid
+  }
+
+  beah-ping() {
+    echo "beah-ping"
+    try 5 beah ping
+  }
+
+  check-ps() {
+    ps -elf | grep $1 | grep -v grep || {
+      beah-check error "'$1' is not running."
+    }
+  }
+
+  check-ps beah-srv && {
+  if beah-ping; then
+    try 5 beah dump 2>&1 | beah-check cat beah-dump.out
+  else
+    beah-check error "Can not ping the local beah-srv."
+  fi
+  }
+  check-ps beah-beaker-backend
+  check-ps beah-fwd-backend
+
+fi

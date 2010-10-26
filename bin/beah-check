@@ -1,0 +1,91 @@
+#!/bin/bash
+
+if [[ -n $1 ]]; then
+
+beah-check-cp() {
+  local file=$1 save_as=${2:-$1}
+  local fullname=$BEAH_CHECK_ROOT$BEAH_CHECK/$save_as
+  mkdir -p $(dirname $fullname)
+  cp $1 $fullname
+}
+
+beah-check-cat() {
+  beah-check-cp /proc/self/fd/0 $1
+}
+
+beah-check-echo() {
+  echo "beah_check$BEAH_CHECK: $*" | tee -a $BEAH_CHECK_ROOT/report.txt
+}
+
+beah-check-error() {
+  beah-check-echo "ERROR: $*"
+  false
+}
+
+beah-check-report-file() {
+  echo "$BEAH_CHECK_ROOT/report.txt"
+}
+
+beah-check-dispatch() {
+  local func=$1
+  shift
+  beah-check-$func "$@"
+}
+
+beah-check-dispatch "$@"
+exit $?
+
+fi
+
+# MAIN:
+
+export BEAH_CHECK_ROOT=$(mktemp --directory --tmpdir=/tmp beah-check-$(date +%Y%m%d-%H%M%S)-XXX)
+export BEAH_CHECK=
+
+echo "BEAH_CHECK_ROOT='$BEAH_CHECK_ROOT'"
+
+beah-check-run-check() {
+  local file=$1
+  if [[ ! -x $file ]]; then
+    chmod a+x $file
+  fi
+  echo "Running $file check"
+  BEAH_CHECK="$BEAH_CHECK/$(basename $file)" $file check 2>&1 | tee -a $BEAH_CHECK_ROOT/output.txt
+}
+
+beah-check-run-report() {
+  local file=$1
+  if [[ -x $file ]]; then
+    $file report
+  fi
+}
+
+FILES="$(echo /usr/libexec/beah/beah-check/*)"
+if [[ "$(beah-data-root)" != "/usr/share/beah" ]]; then
+  FILES="$FILES $(echo $(dirname $(dirname $(beah-data-root)))/libexec/beah/beah-check/*)"
+fi
+
+for file in $FILES; do
+  beah-check-run-check $file
+done
+
+tar -C $(dirname $BEAH_CHECK_ROOT) czf $BEAH_CHECK_ROOT.tar.gz $BEAH_CHECK_ROOT/
+
+for file in $FILES; do
+  beah-check-run-report $file
+done
+
+if [[ -f $BEAH_CHECK_ROOT/report.txt ]]; then
+  echo ""
+  echo "Summary:"
+  cat $BEAH_CHECK_ROOT/report.txt
+else
+  echo ""
+  echo "Summary: Found no apparent problems. Report the problem, please."
+fi
+
+echo ""
+echo "Data dir:"
+echo "BEAH_CHECK_ROOT='$BEAH_CHECK_ROOT'"
+echo "BEAH_CHECK_ARCHIVE='$BEAH_CHECK_ROOT.tar.gz'"
+

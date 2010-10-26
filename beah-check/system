@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [[ "$1" == "check" ]]; then
+  free | beah-check cat free.out
+  df | beah-check cat df.out
+  top -b -n 1 | beah-check cat top.out
+  ps -elfH | beah-check cat ps-elfH.out
+fi
+

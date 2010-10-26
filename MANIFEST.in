@@ -6,3 +6,4 @@ graft recipesets
 graft beah-tests
 graft tests
 graft doc
+graft beah-check
