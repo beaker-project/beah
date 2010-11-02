@@ -77,6 +77,9 @@ class CmdFilter(object):
             message = None
         return command.PING(message)
 
+    def proc_cmd_flush(self, cmd, cmd_args):
+        return command.flush()
+
     def proc_cmd_dump(self, cmd, cmd_args):
         return command.Command('dump')
 
@@ -129,6 +132,7 @@ runthis [OPTS] TASK [ARGS]\n\trun a task. TASK is an executable (a script).
 \tUseful to run a script on a remote machine.
 kill\tkill a controller.
 dump\tinstruct controller to print a diagnostics message on stdout.
+flush\twrite memory cached data to disk.
 quit\nq\tclose this backend.
 help\nh\tprint this help message.
 """

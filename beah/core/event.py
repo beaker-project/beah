@@ -68,6 +68,10 @@ def end(task_id, rc, origin={}, timestamp=None):
     """Event generated when task finished"""
     return Event('end', origin, timestamp, task_id=task_id, rc=rc)
 
+def flush(origin={}, timestamp=None):
+    """Event to request a memory-flush."""
+    return Event('flush', origin, timestamp)
+
 def introduce(task_id, origin={}, timestamp=None):
     return Event('introduce', origin=origin, timestamp=timestamp,
             task_id=task_id)

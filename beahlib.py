@@ -62,18 +62,34 @@ def stdout_send_noanswer(evt):
     return 0
 
 
+def StdoutSender(nowait=True):
+    if nowait:
+        return stdout_send_noanswer
+    else:
+        return stdout_send
+
+
 class SocketSender(object):
 
     def __init__(self, nowait=True):
         self.buffer = ""
         self.nowait = nowait
+        # if available: use Unix socket:
         tsocket = os.getenv('BEAH_TSOCKET')
         if tsocket:
             self.s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             self.s.connect(tsocket)
-        else:
-            self.s = None
-            raise Exception('BEAH_TSOCKET is not defined!')
+            return
+        # otherwise: TCP/IP socket:
+        thost = os.getenv('BEAH_THOST')
+        tport = os.getenv('BEAH_TPORT')
+        if thost and tport:
+            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.s.connect((thost, tport))
+            return
+        # unavailable:
+        self.s = None
+        raise Exception('None of BEAH_TSOCKET or (BEAH_THOST, BEAH_TPORT) are defined!')
 
     def __del__(self):
         self.close()
@@ -95,12 +111,17 @@ class SocketSender(object):
                 (head, self.buffer) = ht
                 return an_answer(evt, head)
 
+
+def DefaultSender():
+    return SocketSender()
+
+
 # FIXME: Add fallback wrapper for SocketSender - if BEAH_TSOCKET is not defined: write
 # to a file (what file?) or use stdout.
 
 def get_task(sender=None):
     if sender is None:
-        sender = stdout_send_noanswer
+        sender = DefaultSender()
     return BeahTask.the_task(sender=sender)
 
 
@@ -248,7 +269,7 @@ class BeahTask(IBeahSection):
 
     def __init__(self, sender=None, origin=None):
         #assert sender, "Seneder must be defined."
-        self._sender = sender or stdout_send_noanswer
+        self._sender = sender or DefaultSender()
         self._id = os.getenv('BEAH_TID')
         self._origin = origin or {}
         if not self._id:
@@ -281,6 +302,9 @@ class BeahTask(IBeahSection):
 
     def lose_item(self, o):
         return self.send(event.lose_item(o))
+
+    def flush(self):
+        return self.send(event.flush())
 
     def _attach(self, file):
         pass

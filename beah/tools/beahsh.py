@@ -37,6 +37,11 @@ Use stdin: (NOTE: NOT IMPLEMENTED!)
   WARN warn log message
   warn have a suspicion...
   END
+
+NOTE: The stdout can be used for output, but it is not recommended for
+multiprocess tasks. Things will break (at least synchronization for sure) if
+multiple clients will attempt to read answers from stdin.
+
 """
 
 
@@ -48,13 +53,7 @@ from optparse import OptionParser
 from beah.core import event
 from beah.core.constants import RC, LOG_LEVEL
 import beah.misc
-
-
-
-def evt_send_stdout(evt):
-    if evt:
-        print(json.dumps(evt))
-        return True
+import beahlib
 
 
 no_opts = OptionParser()
@@ -81,6 +80,10 @@ def proc_evt_nop(cmd, args):
     no_opts.usage = "%prog"
     no_opts.description = "Do nothing."
     opts, args = no_opts.parse_args(args)
+
+
+def proc_evt_flush(cmd, args):
+    return [event.flush()]
 
 
 def proc_evt_echo(cmd, args):
@@ -274,7 +277,16 @@ def help_commands(self, opt, value, parser, *args, **kwargs):
     sys.exit(0)
 
 
-def _main(args, evt_send=evt_send_stdout):
+def make_sender(sender, opts):
+    if sender == 'stdout':
+        return beahlib.StdoutSender()
+    elif sender == 'socket':
+        return beahlib.SocketSender()
+    else:
+        raise RuntimeError("No sender for '%s'" % sender)
+
+
+def _main(args, default_sender='socket'):
     errs = 0
     main_opts = OptionParser(
             usage="%prog [OPTIONS] COMMAND [COMMAND-OPTIONS] [COMMAND-ARGS]",
@@ -296,17 +308,25 @@ def _main(args, evt_send=evt_send_stdout):
             dest="print_id", help="Print event id on stderr.")
     main_opts.add_option("-I", "--print-all-ids", action="store_true",
             dest="print_all_ids", help="Print all event ids on stderr.")
+    main_opts.add_option("-S", "--use-socket", action="store_const",
+            const="socket", dest="sender",
+            help="Use socket for communication with server.")
+    main_opts.add_option("--use-stdout", action="store_const",
+            const="stdout", dest="sender",
+            help="""Use stdout for communication with server.
+                NOTE: Don't use this unless you know what you are doing.""")
     opts, args = main_opts.parse_args(args)
+    the_task = beahlib.get_task(make_sender(opts.sender or default_sender, opts))
     if opts.commands:
         for line in opts.commands:
-            if not _run(shlex.split(line, True), evt_send, opts.print_all_ids):
+            if not _run(shlex.split(line, True), the_task.send, opts.print_all_ids):
                 errs += 1
     if not args:
         if not opts.nostdin:
             # FIXME: process stdin
             pass
     else:
-        if not _run(args, evt_send, opts.print_id or opts.print_all_ids):
+        if not _run(args, the_task.send, opts.print_id or opts.print_all_ids):
             errs += 1
     return errs
 

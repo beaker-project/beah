@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# FIXME: Remove sleeps once beah uses synchronous calls (BZ )
+
+beahsh_flush() {
+  if [[ -n $BEAH_TSOCKET && ( -n $BEAH_THOST && -n $BEAH_TPORT ) ]]; then
+    echo "trying 'beahsh flush'..."
+    beahsh flush || { echo "'beahsh flush' failed. Trying the next option..."; false; }
+  else
+    echo "Can not use beahsh - environment variables are not set."
+    false
+  fi
+}
+
+sleep 2 # allow all events to make it to backends.
+beahsh_flush \
+  || echo "trying 'beah flush'..." && beah flush \
+  || echo "'beah flush' failed. No more options. Failing." && exit 1
+sleep 2 # allow for flush command to get processed.

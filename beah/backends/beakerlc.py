@@ -1348,10 +1348,19 @@ class BeakerLCBackend(SerializingBackend):
         self.digest_method = self.conf.get('DEFAULT', 'DIGEST')
         self.waiting_for_lc = False
         self.runtime = runtimes.ShelveRuntime(self.conf.get('DEFAULT', 'RUNTIME_FILE_NAME'))
-        #save_runtime = self.runtime.sync
-        #def quit():
-        #    save_runtime()
-        self.runtime.sync = lambda type: None
+        # override runtime sync to prevent performance hit:
+        runtime_sync_orig = self.runtime.sync
+        def runtime_sync(type=None):
+            """
+            Synchronize the runtime to disk.
+            
+            Original sync method will be called only when called explicitly
+            i.e. with type == None.
+            
+            """
+            if type is None:
+                runtime_sync_orig()
+        self.runtime.sync = runtime_sync
         id1 = reactor.addSystemEventTrigger('before', 'shutdown', self.close)
         self.__commands = {}
         self.recipe = None
@@ -1386,6 +1395,23 @@ class BeakerLCBackend(SerializingBackend):
             make_logging_proxy(self.proxy)
             self.proxy.logging_print = log.info
         self.on_idle()
+        self.start_flusher()
+
+    def flusher(self):
+        """
+        Ensure memory-cache is flushed regularly.
+        
+        We do not want flush to happen too often as it hits performance and
+        this should help preventing loosing mind e.g. in case of unexpected
+        panic.
+        
+        """
+        self.flush()
+        self.start_flusher()
+
+    def start_flusher(self):
+        """See flusher."""
+        reactor.callLater(60, self.flusher)
 
     def check_link(self):
         return True
@@ -1437,6 +1463,11 @@ class BeakerLCBackend(SerializingBackend):
     def close(self):
         self.runtime.close()
         log.info("Runtime closed.")
+
+    def flush(self):
+        """Flush any memory-cached data to disk."""
+        log.debug("flush")
+        self.runtime.sync()
 
     ############################################################################
     # RECIPE HANDLING
@@ -1493,6 +1524,7 @@ class BeakerLCBackend(SerializingBackend):
         if self.waiting_for_lc:
             self.on_error("on_idle called with waiting_for_lc already set.")
             return
+        self.flush()
         if self.recipe:
             d = defer.maybeDeferred(self.recipe.next_task)
         else:
@@ -1594,6 +1626,9 @@ class BeakerLCBackend(SerializingBackend):
                     cb.callback(evt.args)
                 else:
                     cb.errback(evt.args)
+        elif evev == 'flush':
+            self.flush()
+            return
         # store the task:
         if self.get_evt_task(evt) is None:
             return

@@ -134,6 +134,8 @@ setup(
         'bin/rhts-compat-runner.sh',
         'bin/beah-reboot.sh',
         'bin/beah-check',
+        'bin/beah-flush',
+        'bin/rhts-flush',
         ],
     #scripts+=['tests/*'],
     # FIXME: use `grep -R '#!.*python' examples` to find python scripts

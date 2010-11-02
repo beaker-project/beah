@@ -47,6 +47,9 @@ def run(file, name=None, env=None, args=None):
 def run_this(script, name=None, env=None, args=None):
     return Command('run_this', script=script, task_info={'name':name}, env=env, args=args)
 
+def flush():
+    return Command('flush')
+
 def kill():
     return Command('kill')
 

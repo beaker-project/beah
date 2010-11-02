@@ -202,7 +202,7 @@ class Controller(object):
         orig = evt.origin()
         if not orig.has_key('id'):
             orig['id'] = task.task_id
-        self.send_evt(evt)
+        self.send_evt(evt, to_all=(evev in ('flush',)))
 
     def send_evt(self, evt, to_all=False):
         #cmd_str = "%s\n" % json.dumps(evt)
@@ -351,6 +351,9 @@ class Controller(object):
         self.killed = True
         self.generate_evt(event.Event('bye', message='killed'), to_all=True)
         self.on_killed()
+
+    def proc_cmd_flush(self, backend, cmd, echo_evt):
+        self.generate_evt(event.flush(), to_all=True)
 
     def proc_cmd_dump(self, backend, cmd, echo_evt):
         answ = ""
