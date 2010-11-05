@@ -287,12 +287,12 @@ class RHTSSync(xmlrpc.XMLRPC):
 
     def __init__(self, main):
         self.main = main
+        self.localhosts = (main.env.get('HOSTNAME', ''), os.environ.get('HOSTNAME', ''))
 
-    def trhostname(hostname):
-        if hostname == os.environ['HOSTNAME']:
+    def trhostname(self, hostname):
+        if hostname in self.localhosts:
             return ''
         return hostname
-    trhostname = staticmethod(trhostname)
 
     def xmlrpc_set(self, recipe_set_id, test_order, result_server, hostname,
             state):
@@ -400,7 +400,29 @@ class RHTSMain(object):
         log = logging.getLogger('rhts_task')
         twmisc.twisted_logging(log)
         make_log_handler(log, LOG_PATH, "rhts_task_%s.log" % (taskid,))
-        log.setLevel(str2log_level(os.environ.get('BEAH_TASK_LOG', "warning")))
+        ll = self.env.get('BEAH_TASK_LOG', "warning")
+        log.setLevel(str2log_level(ll))
+
+        # parse task's metadata:
+        try:
+            from rhts import testinfo
+            ti = testinfo.parse_file(os.path.join(self.env['TESTPATH'], 'testinfo.desc'), raise_errors=False)
+        except:
+            log.error("Error in tasks metadata: %s" % format_exc())
+            ti = None
+        if ti is not None:
+            for k,v in getattr(ti, 'environment', {}).iteritems():
+                self.env.setdefault(k, v)
+            for o in getattr(ti, 'options', []):
+                if o.lower().startswith('compat'):
+                    self.env.setdefault('RHTS_OPTION_COMPATIBLE', 'yes')
+                elif o.lower().startswith('-compat'):
+                    self.env.setdefault('RHTS_OPTION_COMPATIBLE', '')
+
+        # update log level if necessary:
+        ll2 = self.env.get('BEAH_TASK_LOG', ll)
+        if ll2 != ll:
+            log.setLevel(str2log_level(ll2))
 
         # No point in storing everything in one big file. Use one file per task
         rt = runtimes.ShelveRuntime(RUNTIME_PATHNAME_TEMPLATE % taskid)
@@ -408,7 +430,7 @@ class RHTSMain(object):
 
         # FIXME: use configurable range of ports.
         self.variables = runtimes.TypeDict(rt, 'variables')
-        port = self.variables.setdefault('port', os.environ.get('RHTS_PORT', random.randint(7080, 7099)))
+        port = self.variables.setdefault('port', self.env.get('RHTS_PORT', random.randint(7080, 7099)))
         self.variables.setdefault('nohup', False)
         self.variables.setdefault('has_result', False)
 
