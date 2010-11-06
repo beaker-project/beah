@@ -1336,7 +1336,7 @@ class BeakerLCBackend(SerializingBackend):
             'proc_evt_lose_item', 'proc_evt_log', 'proc_evt_echo',
             'proc_evt_start', 'proc_evt_end', 'proc_evt_result',
             'proc_evt_relation', 'proc_evt_file', 'proc_evt_file_meta',
-            'proc_evt_file_write',
+            'proc_evt_file_write', 'proc_evt_abort',
             ]
     _VERBOSE += ['_queue_evt_int', 'set_idle', 'on_idle', 'on_lc_failure',
             '_next_evt', '_pop_evt', 'idle',
@@ -1622,7 +1622,7 @@ class BeakerLCBackend(SerializingBackend):
             log.error("No abort type specified.")
             raise exceptions.RuntimeError("No abort type specified.")
         task = evt.task
-        self.task.flush()
+        task.flush()
         id = task.id
         target = evt.arg('target', None)
         d = None

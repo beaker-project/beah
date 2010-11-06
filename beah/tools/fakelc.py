@@ -351,10 +351,10 @@ class Results(object):
         self.write(Element("result_upload", parent=file, size=size, offset=offset))
 
     def job_stop(self, id, stop_type, msg):
-        self.write(Element("job_stop", parent=Job(id), classes=(stop_type), stop_type=stop_type, message=msg))
+        self.write(Element("job_stop", parent=Job(id), classes=(stop_type,), stop_type=stop_type, message=msg))
 
     def recipeset_stop(self, id, stop_type, msg):
-        self.write(Element("recipeset_stop", parent=RecipeSet(id), classes=(stop_type), stop_type=stop_type, message=msg))
+        self.write(Element("recipeset_stop", parent=RecipeSet(id), classes=(stop_type,), stop_type=stop_type, message=msg))
 
     def recipe_stop(self, id, stop_type, msg):
         self.write(Element("recipe_stop", parent=Recipe(id), classes=(stop_type,), stop_type=stop_type, message=msg))
