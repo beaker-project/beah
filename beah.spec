@@ -59,7 +59,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root)
-%{_sysconfdir}/%{name}*
+%config(noreplace) %{_sysconfdir}/%{name}*
 %attr(0755, root, root)%{_sysconfdir}/init.d/%{name}*
 %attr(0755, root, root)%{_sysconfdir}/init.d/rhts-compat
 %attr(0755, root, root)%{_bindir}/%{name}*
