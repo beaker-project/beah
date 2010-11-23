@@ -371,6 +371,11 @@ class RHTSMain(object):
 
     VARIABLE_VALUE_TIMEOUT=2
 
+    ENV_DEFAULTS = {
+            'RHTS_OPTION_COMPATIBLE': '',
+            'RHTS_OPTION_STRONGER_AVC': 'yes',
+            }
+
     def __init__(self, task_path, env):
         self.process = None
         self.listener = None
@@ -414,10 +419,16 @@ class RHTSMain(object):
             for k,v in getattr(ti, 'environment', {}).iteritems():
                 self.env.setdefault(k, v)
             for o in getattr(ti, 'options', []):
-                if o.lower().startswith('compat'):
-                    self.env.setdefault('RHTS_OPTION_COMPATIBLE', 'yes')
-                elif o.lower().startswith('-compat'):
-                    self.env.setdefault('RHTS_OPTION_COMPATIBLE', '')
+                opt_lower = o.lower()
+                if opt_lower[0] == '-':
+                    opt_lower = opt_lower[1:]
+                    value = ''
+                else:
+                    value = 'yes'
+                if opt_lower.startswith('compat'):
+                    self.env.setdefault('RHTS_OPTION_COMPATIBLE', value)
+                elif opt_lower.startswith('strongeravc'):
+                    self.env.setdefault('RHTS_OPTION_STRONGER_AVC', value)
 
         # update log level if necessary:
         ll2 = self.env.get('BEAH_TASK_LOG', ll)
@@ -438,6 +449,10 @@ class RHTSMain(object):
         self.env['RESULT_SERVER'] = "%s:%s%s" % ("127.0.0.1", port, "")
         self.env.setdefault('DIGEST_METHOD', 'no_digest') # use no digests by default... Seems waste of time on localhost.
         self.env.setdefault('TESTORDER', '123') # FIXME: More sensible default
+
+        # update defaults:
+        for k, v in self.ENV_DEFAULTS.iteritems():
+            self.env.setdefault(k, v)
 
         # save env:
         env_file = ENV_PATHNAME_TEMPLATE % taskid
