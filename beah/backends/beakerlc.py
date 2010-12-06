@@ -1370,18 +1370,6 @@ class BeakerLCBackend(SerializingBackend):
         self.__cmd_queue = []
         offs = self.__journal_offs = self.runtime.type_get('', 'journal_offs', 0)
         SerializingBackend.__init__(self)
-        f = self.get_journal()
-        f.seek(offs, 1)
-        while True:
-            ln = f.readline()
-            if ln == '':
-                break
-            try:
-                evt, flags = json.loads(ln)
-                evt = event.Event(evt)
-                self._queue_evt_int(evt, flags, len(ln))
-            except:
-                self.on_exception("Can not parse a line from journal.", line=ln)
         url = self.conf.get('DEFAULT', 'LAB_CONTROLLER')
         self.proxy = repeatingproxy.RepeatingProxy(url, allowNone=True)
         try:
@@ -1391,6 +1379,19 @@ class BeakerLCBackend(SerializingBackend):
             self.proxy.set_timeout(None)
         self.proxy.serializing = True
         self.proxy.on_idle = self.set_idle
+        f = self.get_journal()
+        f.seek(offs, 1)
+        while True:
+            ln = f.readline()
+            if ln == '':
+                break
+            try:
+                evt, flags = json.loads(ln)
+                evt = event.Event(evt)
+                self.async_proc(evt, flags)
+                self._queue_evt_int(evt, flags, len(ln))
+            except:
+                self.on_exception("Can not parse a line from journal.", line=ln)
         if is_class_verbose(self):
             make_logging_proxy(self.proxy)
             self.proxy.logging_print = log.info
@@ -1615,23 +1616,8 @@ class BeakerLCBackend(SerializingBackend):
     def proc_evt_end(self, evt):
         evt.task.end(evt.arg("rc", None))
 
-    def proc_evt(self, evt, **flags):
+    def async_proc(self, evt, flags):
         evev = evt.event()
-        if evev == 'echo':
-            cid = evt.arg('cmd_id', None)
-            cb = self.__command_callbacks.get(cid, None)
-            if cb:
-                del self.__command_callbacks[cid]
-                if evt.arg('rc') == ECHO.OK:
-                    cb.callback(evt.args)
-                else:
-                    cb.errback(evt.args)
-        elif evev == 'flush':
-            self.flush()
-            return
-        # store the task:
-        if self.get_evt_task(evt) is None:
-            return
         # some events need asynchronous processing, so they do not wait in
         # queue.
         if evev == 'extend_watchdog':
@@ -1649,6 +1635,25 @@ class BeakerLCBackend(SerializingBackend):
             log.info('Task %s done. Submitting logs...', id)
             self.proxy.callRemote('extend_watchdog', id, 4*3600)
             # end will be processed synchronously too to mark the task finished
+
+    def proc_evt(self, evt, **flags):
+        evev = evt.event()
+        if evev == 'echo':
+            cid = evt.arg('cmd_id', None)
+            cb = self.__command_callbacks.get(cid, None)
+            if cb:
+                del self.__command_callbacks[cid]
+                if evt.arg('rc') == ECHO.OK:
+                    cb.callback(evt.args)
+                else:
+                    cb.errback(evt.args)
+        elif evev == 'flush':
+            self.flush()
+            return
+        # store the task:
+        if self.get_evt_task(evt) is None:
+            return
+        self.async_proc(evt, flags)
         SerializingBackend.proc_evt(self, evt, **flags)
 
     def proc_evt_abort(self, evt):
