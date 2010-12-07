@@ -848,6 +848,21 @@ class NullFile(object):
         pass
 
 
+def truef():
+    return True
+
+
+def falsef():
+    return False
+
+
+def boolf(cond):
+    if cond:
+        return truef
+    else:
+        return falsef
+
+
 class BeakerTask(PersistentBeakerObject):
 
     _VERBOSE = ['__init__', 'start', 'end', 'abort', 'new_result', 'new_file', 'output', 'stop', 'writer']
@@ -886,10 +901,12 @@ class BeakerTask(PersistentBeakerObject):
         self.link_limits = [int(confget('DEFAULT', self.LINK_LIMIT_SOFT, '-1')),
                 int(confget('DEFAULT', self.LINK_LIMIT, '-1'))]
         self.check_link = BeakerLinkCounter(self).check_link
+        self.on_set_state()
 
     def close(self):
-        started = self.has_started()
-        finished = self.has_finished()
+        self.has_started = boolf(self.has_started())
+        self.has_finished = boolf(self.has_finished())
+        self.has_completed = boolf(self.has_completed())
         self.writers.close()
         self.writers = None
         self.results.close()
@@ -899,8 +916,6 @@ class BeakerTask(PersistentBeakerObject):
         self.check_link = None
         self.parsed = None
         PersistentBeakerObject.close(self)
-        self.has_started = lambda: started
-        self.has_finished = lambda: finished
 
     def name(self):
         if not getattr(self, '_name', ''):
@@ -942,19 +957,33 @@ class BeakerTask(PersistentBeakerObject):
     def parent_task(self):
         return self
 
-    def has_started(self):
-        return self.stored_data.get('state', 0) >= 1
+    STATE_INIT = 0 # uninitialised state
+    STATE_STARTED = 10 # the task started
+    STATE_FINISHED = 20 # the task finished, but there may be pending data
+    STATE_COMPLETED = 30 # all tasks data are uploaded
 
-    def has_finished(self):
-        return self.stored_data.get('state', 0) >= 2
+    def on_set_state(self, new_state=None):
+        state = self.stored_data.get('state', self.STATE_INIT)
+        if new_state is None:
+            new_state = state
+        else:
+            assert new_state >= state
+            if new_state == state:
+                return
+            self.stored_data['state'] = new_state
+            self.write_metadata()
+        self.has_started = boolf(state >= self.STATE_STARTED)
+        self.has_finished = boolf(state >= self.STATE_FINISHED)
+        self.has_completed = boolf(state >= self.STATE_COMPLETED)
 
     def set_started(self):
-        self.stored_data['state'] = 1
-        self.write_metadata()
+        self.on_set_state(self.STATE_STARTED)
 
     def set_finished(self):
-        self.stored_data['state'] = 2
-        self.write_metadata()
+        self.on_set_state(self.STATE_FINISHED)
+
+    def set_completed(self):
+        self.on_set_state(self.STATE_COMPLETED)
 
     def flush_writers(self):
         for writer in self.writers.get_cached():
@@ -985,7 +1014,7 @@ class BeakerTask(PersistentBeakerObject):
         # type: ('stop'|'abort')
         self.flush()
         d = self.proxy().callRemote('task_stop', self.beaker_id, type, msg)
-        self.set_finished() # move to close(?)
+        self.set_completed() # move to close(?)
         d.addCallback(self.handle_Stop).addErrback(self.backend().on_lc_failure)
 
     def handle_Stop(self, result):
@@ -1255,7 +1284,7 @@ class BeakerRecipe(BeakerTask):
                 t = self.tasks._get(id, (), {'parsed': task})
             else:
                 t = None
-            if t and t.has_finished():
+            if t and t.has_completed():
                 log.debug("task id: %r finished.", bid)
                 continue
             return task
@@ -1315,7 +1344,8 @@ class BeakerRecipe(BeakerTask):
             self.save_task(run_cmd, task_id, task)
         else:
             tuuid = run_cmd.id()
-            self.tasks._get(tuuid, (), {'parsed': task})
+            if self.tasks._get(tuuid, (), {'parsed': task}).has_finished():
+                return
         self.backend().send_cmd(run_cmd)
 
     def save_task(self, run_cmd, tid, task):
@@ -1582,7 +1612,7 @@ class BeakerLCBackend(SerializingBackend):
 
     def pre_proc(self, evt):
         task = self.get_evt_task(evt)
-        if not task or task.has_finished():
+        if not task or task.has_completed():
             # Do not submit to finished tasks!
             return True
         task.writer('debug/.task_beah_raw').write(jsonln(evt.printable()))
@@ -1636,6 +1666,7 @@ class BeakerLCBackend(SerializingBackend):
         elif evev == 'end':
             # task is done: override EWD to allow for data submission, even in
             # case of network/LC problems:
+            evt.task.set_finished()
             id = evt.task.beaker_id
             log.info('Task %s done. Submitting logs...', id)
             self.proxy.callRemote('extend_watchdog', id, 4*3600)
