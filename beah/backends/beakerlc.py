@@ -1345,8 +1345,10 @@ class BeakerRecipe(BeakerTask):
         else:
             tuuid = run_cmd.id()
             if self.tasks._get(tuuid, (), {'parsed': task}).has_finished():
-                return
-        self.backend().send_cmd(run_cmd)
+                run_cmd = None
+            self.backend().init_queue()
+        if run_cmd:
+            self.backend().send_cmd(run_cmd)
 
     def save_task(self, run_cmd, tid, task):
         tuuid = run_cmd.id()
@@ -1394,11 +1396,12 @@ class BeakerLCBackend(SerializingBackend):
         id1 = reactor.addSystemEventTrigger('before', 'shutdown', self.close)
         self.__commands = {}
         self.recipe = None
-        self.__journal_file = None
+        self.__journal_file = self.open_journal('ab+')
         self.__len_queue = []
         self.__command_callbacks = {}
         self.__cmd_queue = []
-        offs = self.__journal_offs = self.runtime.type_get('', 'journal_offs', 0)
+        self.__queue_ready = False
+        self.__journal_offs = self.runtime.type_get('', 'journal_offs', 0)
         SerializingBackend.__init__(self)
         url = self.conf.get('DEFAULT', 'LAB_CONTROLLER')
         self.proxy = repeatingproxy.RepeatingProxy(url, allowNone=True)
@@ -1409,7 +1412,17 @@ class BeakerLCBackend(SerializingBackend):
             self.proxy.set_timeout(None)
         self.proxy.serializing = True
         self.proxy.on_idle = self.set_idle
-        f = self.get_journal()
+        if is_class_verbose(self):
+            make_logging_proxy(self.proxy)
+            self.proxy.logging_print = log.info
+        self.on_idle()
+        self.start_flusher()
+
+    def init_queue(self):
+        if self.__queue_ready:
+            return
+        f = self.open_journal('rb')
+        offs = self.__journal_offs
         f.seek(offs, 1)
         evt_len = 0 # counter to skip any events which can not be enqueued
         while True:
@@ -1427,11 +1440,8 @@ class BeakerLCBackend(SerializingBackend):
                 evt_len = 0
             except:
                 self.on_exception("Can not parse a line from journal.", line=ln)
-        if is_class_verbose(self):
-            make_logging_proxy(self.proxy)
-            self.proxy.logging_print = log.info
-        self.on_idle()
-        self.start_flusher()
+        f.close()
+        self.__queue_ready = True
 
     def flusher(self):
         """
@@ -1463,20 +1473,21 @@ class BeakerLCBackend(SerializingBackend):
         '''Used by recipe to allow using Backend as its parent'''
         self.on_error(message)
 
-    def get_journal(self):
-        if self.__journal_file is None:
-            jname = self.conf.get('DEFAULT', 'VAR_ROOT') + '/journals/beakerlc.journal'
-            self.__journal_file = open_(jname, 'ab+')
-        return self.__journal_file
+    def open_journal(self, mode):
+        return open_(self.conf.get('DEFAULT', 'VAR_ROOT') + '/journals/beakerlc.journal', mode)
 
     def _queue_evt_int(self, evt, flags, line_len):
         SerializingBackend._queue_evt(self, evt, **flags)
         self.__len_queue.append(line_len)
 
-    def _queue_evt(self, evt, **flags):
+    def journal_evt(self, evt, flags):
         data = jsonln((evt, flags))
         self.__journal_file.write(data)
         self.__journal_file.flush()
+        return data
+
+    def _queue_evt(self, evt, **flags):
+        data = self.journal_evt(evt, flags)
         self._queue_evt_int(evt, flags, len(data))
 
     def _pop_evt(self):
@@ -1686,11 +1697,14 @@ class BeakerLCBackend(SerializingBackend):
         elif evev == 'flush':
             self.flush()
             return
-        # store the task:
-        if self.get_evt_task(evt) is None:
-            return
-        self.async_proc(evt, flags)
-        SerializingBackend.proc_evt(self, evt, **flags)
+        if self.__queue_ready:
+            # store the task:
+            if self.get_evt_task(evt) is None:
+                return
+            self.async_proc(evt, flags)
+            SerializingBackend.proc_evt(self, evt, **flags)
+        else:
+            self.journal_evt(evt, flags)
 
     def proc_evt_abort(self, evt):
         type = evt.arg('type', '')
