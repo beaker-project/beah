@@ -1381,15 +1381,20 @@ class BeakerLCBackend(SerializingBackend):
         self.proxy.on_idle = self.set_idle
         f = self.get_journal()
         f.seek(offs, 1)
+        evt_len = 0 # counter to skip any events which can not be enqueued
         while True:
             ln = f.readline()
+            evt_len += len(ln)
             if ln == '':
                 break
             try:
                 evt, flags = json.loads(ln)
                 evt = event.Event(evt)
+                if self.get_evt_task(evt) is None:
+                    continue
                 self.async_proc(evt, flags)
-                self._queue_evt_int(evt, flags, len(ln))
+                self._queue_evt_int(evt, flags, evt_len)
+                evt_len = 0
             except:
                 self.on_exception("Can not parse a line from journal.", line=ln)
         if is_class_verbose(self):
