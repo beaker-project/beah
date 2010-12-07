@@ -1013,7 +1013,7 @@ class BeakerResult(BeakerObject, PersistentItem):
     def name(self):
         return self._name
 
-    def make_object(cls, id, parent, args):
+    def make_object(cls, id, parent, args={}):
         result = cls(id, parent)
         type = result.result_type(args.get('rc', None))
         handle = args.get('handle', '%s/%s' % \
@@ -1027,7 +1027,7 @@ class BeakerResult(BeakerObject, PersistentItem):
         return result
     make_object = classmethod(make_object)
 
-    def read_object(cls, id, parent, args):
+    def read_object(cls, id, parent, args={}):
         result = cls(id, parent)
         if result.beaker_id == self.PENDING_RESULT:
             raise KeyError("The result '%s' did not get through." % id)
