@@ -1058,7 +1058,7 @@ class BeakerResult(BeakerObject, PersistentItem):
 
     def read_object(cls, id, parent, args={}):
         result = cls(id, parent)
-        if result.beaker_id == self.PENDING_RESULT:
+        if result.beaker_id == cls.PENDING_RESULT:
             raise KeyError("The result '%s' did not get through." % id)
     read_object = classmethod(read_object)
 
