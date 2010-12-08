@@ -168,6 +168,9 @@ def get_recipe_xml(**kwargs):
 def get_recipe_args(**kwargs):
     return get_recipe_(**kwargs)[1]
 
+def get_recipe_path(task_id):
+    return "%(job_id)s/%(recipeset_id)s/%(recipe_id)s" % get_recipe_args(task_id=task_id)
+
 
 RESULT_TYPE_ = ["Pass", "Warn", "Fail", "Panic"]
 
@@ -669,7 +672,15 @@ class LCHandler(xmlrpc.XMLRPC):
     def xmlrpc_task_info(self, qtask):
         return self.Return(do_task_info("task_info", qtask))
 
+    def get_ids(self, task_id):
+        recipe_args = get_recipe_args(task_id=task_id)
+        return (recipe_args['job_id'], recipe_args['recipeset_id'],
+                recipe_args['recipe_id'])
+
     def xmlrpc_task_start(self, task_id, kill_time):
+        if kill_time:
+            global runtime
+            runtime.type_set('watchdog/' + get_recipe_path(task_id), task_id, kill_time-1)
         return self.Return(do_task_start("task_start", task_id, kill_time))
 
     def xmlrpc_task_stop(self, task_id, stop_type, msg=''):
@@ -698,10 +709,15 @@ class LCHandler(xmlrpc.XMLRPC):
                 summary))
 
     def xmlrpc_extend_watchdog(self, task_id, kill_time):
-        global results
+        global results, runtime
         log.info('extend_watchdog(%r, %r)', task_id, kill_time)
         results.extend_watchdog(task_id, kill_time)
-        return self.Return(0)
+        runtime.type_set('watchdog/' + get_recipe_path(task_id), task_id, kill_time-1)
+        return self.Return(kill_time-1)
+
+    def xmlrpc_status_watchdog(self, task_id):
+        global runtime
+        return runtime.type_get('watchdog/' + get_recipe_path(task_id), task_id, -1)
 
     def xmlrpc_task_upload_file(self, task_id, path, name, size, digest,
             offset, data):
