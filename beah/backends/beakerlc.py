@@ -1346,7 +1346,7 @@ class BeakerRecipe(BeakerTask):
             tuuid = run_cmd.id()
             if self.tasks._get(tuuid, (), {'parsed': task}).has_finished():
                 run_cmd = None
-            self.backend().init_queue()
+        self.backend().init_queue()
         if run_cmd:
             self.backend().send_cmd(run_cmd)
 
