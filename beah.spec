@@ -8,7 +8,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
 Name: beah
-Version: 0.6.19
+Version: 0.6.20
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -75,6 +75,12 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755, root, root)%{_libexecdir}/%{name}/beah-check/*
 
 %changelog
+* Tue Jan 04 2011 Marian Csontos <mcsontos@redhat.com> 0.6.20-1
+- dev-env: fakelc handling watchdog better
+- Make a difference between finished and completed task
+- Fixed: skipping invalid entries in journal
+- Fixed: process extend_watchog read from journal
+
 * Wed Nov 24 2010 Marian Csontos <mcsontos@redhat.com> 0.6.19-1
 - Added option for stronger AVC checks (mcsontos@redhat.com)
 
