@@ -972,9 +972,9 @@ class BeakerTask(PersistentBeakerObject):
                 return
             self.stored_data['state'] = new_state
             self.write_metadata()
-        self.has_started = boolf(state >= self.STATE_STARTED)
-        self.has_finished = boolf(state >= self.STATE_FINISHED)
-        self.has_completed = boolf(state >= self.STATE_COMPLETED)
+        self.has_started = boolf(new_state >= self.STATE_STARTED)
+        self.has_finished = boolf(new_state >= self.STATE_FINISHED)
+        self.has_completed = boolf(new_state >= self.STATE_COMPLETED)
 
     def set_started(self):
         self.on_set_state(self.STATE_STARTED)
