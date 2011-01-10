@@ -50,21 +50,27 @@ function rhts_compat_main() {
   local file=
   echo $"NOTE: This process runs if foreground."
   echo $"Use 'service $prog stop' from another terminal to stop it."
-  echo $$ > $PIDFILE
-  touch $LOCKFILE
   if [[ -f $KILLER ]]; then
     rm -f $KILLER
   fi
+  if status; then
+    wait `cat $PIDFILE`
+    return $?
+  fi
+  echo $$ > $PIDFILE
+  touch $LOCKFILE
   while true; do
     if [[ -f $KILLER ]]; then
       rm -f $KILLER
       break
     fi
     for file in $LAUNCHERS/*; do
-      $file
-      rm -f $file
+      if [ -f $file ]; then
+        $file
+        rm -f $file
+      fi
     done
-    sleep 60
+    sleep 10
   done
   rm -f $LOCKFILE
   rm -f $PIDFILE
@@ -109,6 +115,10 @@ condrestart(){
   return 0
 }
 
+status() {
+  [ -e $LOCKFILE ] && [ ! -e $KILLER ] && ps -p $PIDFILE
+}
+
 # See how we were called.
 case "$1" in
   start)
@@ -119,7 +129,7 @@ case "$1" in
     ;;
   status)
     #status $prog
-    [ -e $LOCKFILE ]
+    status
     RETVAL=$?
     ;;
   restart)
