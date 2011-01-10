@@ -56,6 +56,31 @@ class ExtBackend(BasicBackend):
         answ = BasicBackend.proc_evt(self, evt, **flags)
         return self.post_proc(evt, answ)
 
+
+class ListQueue(object):
+
+    def __init__(self):
+        self.queue = []
+
+    def _enqueue(self, obj):
+        self.queue.append(obj)
+
+    def push(self, obj):
+        self._enqueue(obj)
+
+    def top(self):
+        return self.queue[0]
+
+    def pop(self):
+        return self.queue.pop(0)
+
+    def ready(self):
+        return True
+
+    def empty(self):
+        return not self.queue
+
+
 class SerializingBackend(ExtBackend):
 
     """
@@ -66,10 +91,10 @@ class SerializingBackend(ExtBackend):
     is called, e.g. by calling set_idle().
     """
 
-    def __init__(self):
+    def __init__(self, queue):
         self.__idle = True
         self.__pop = False
-        self.__evt_queue = []
+        self.__evt_queue = queue
         ExtBackend.__init__(self)
 
     def set_busy(self, busy=True):
@@ -86,34 +111,29 @@ class SerializingBackend(ExtBackend):
         """
         return self.__idle
 
-    def filter_evt(self, evt):
-        """
-        Method returning True when event is to be processed.
-
-        Override this.
-        """
-        return True
+    def _queue_ready(self):
+        return self.__evt_queue.ready()
 
     def _queue_evt(self, evt, **flags):
-        self.__evt_queue.append([evt, flags])
+        self.__evt_queue.push([evt, flags])
 
     def _get_evt(self):
-        return self.__evt_queue[0]
+        return self.__evt_queue.top()
 
     def _pop_evt(self):
-        return self.__evt_queue.pop(0)
+        return self.__evt_queue.pop()
 
     def proc_evt(self, evt, **flags):
-        if not self.filter_evt(evt):
-            return False
         self._queue_evt(evt, **flags)
         self._next_evt()
 
     def _next_evt(self):
+        if not self._queue_ready():
+            return
         if self.idle() and self.__pop:
             self._pop_evt()
             self.__pop = False
-        while self.__evt_queue and self.idle():
+        while not self.__evt_queue.empty() and self.idle():
             evt, flags = self._get_evt()
             try:
                 ExtBackend.proc_evt(self, evt, **flags)

@@ -1371,7 +1371,7 @@ class BeakerRecipe(BeakerTask):
             tuuid = run_cmd.id()
             if self.tasks._get(tuuid, (), {'parsed': task}).has_finished():
                 run_cmd = None
-        backend.init_queue()
+        backend.on_new_task(task)
         if run_cmd:
             backend.send_cmd(run_cmd)
         backend.add_task(self.tasks[tuuid])
@@ -1387,6 +1387,69 @@ class BeakerRecipe(BeakerTask):
         log.error(msg)
 
 
+class JournallingQueue(object):
+
+    def __init__(self, offset_writer=None, read_offset=None, journal_file=None):
+        self.queue = []
+        self.len_queue = []
+        self.journal_file = journal_file
+        self.journal_ready = False
+        self.read_offset = read_offset
+        self.offset_writer = offset_writer
+
+    def ready(self):
+        return self.journal_ready
+
+
+    def _enqueue(self, obj, data_len):
+        self.queue.append(obj)
+        self.len_queue.append(data_len)
+
+    def push(self, obj):
+        data = jsonln(obj)
+        self.journal_file.write(data)
+        self.journal_file.flush()
+        if self.ready():
+            self._enqueue(obj, len(data))
+
+    def pop(self):
+        self.read_offset += self.len_queue.pop(0)
+        self.offset_writer(self.read_offset)
+        return self.queue.pop(0)
+
+    def top(self):
+        return self.queue[0]
+
+    def empty(self):
+        return not self.queue
+
+
+def journal_reader(queue, journal_in, backend):
+    if queue.ready():
+        return
+    evt_len = 0 # counter to skip any events which can not be enqueued
+    while True:
+        ln = journal_in.readline()
+        evt_len += len(ln)
+        if ln == '':
+            if evt_len > 0:
+                queue._enqueue((event.nop(), {}), evt_len)
+            break
+        try:
+            evt, flags = json.loads(ln)
+            evt = event.Event(evt)
+            if not backend.async_proc(evt, flags):
+                tid = evt.task_id()
+                log.error("No task '%s' for the event '%r'.", tid, evt)
+                continue
+            queue._enqueue((evt, flags), evt_len)
+            evt_len = 0
+        except:
+                log.error("Can not parse a line from journal. line=%r", ln)
+    journal_in.close()
+    queue.journal_ready = True
+
+
 class BeakerLCBackend(SerializingBackend):
 
     _VERBOSE = ['set_controller', '_send_cmd',
@@ -1396,58 +1459,29 @@ class BeakerLCBackend(SerializingBackend):
             'proc_evt_relation', 'proc_evt_file', 'proc_evt_file_meta',
             'proc_evt_file_write', 'proc_evt_abort',
             ]
-    _VERBOSE += ['_queue_evt_int', 'set_idle', 'on_idle', 'on_lc_failure',
+    _VERBOSE += ['set_idle', 'on_idle', 'on_lc_failure',
             '_next_evt', '_pop_evt', 'idle',
             ]
 
     WATCHDOG_TOLERANCE = 5 # Account for trip from scheduler to handler
 
-    def __init__(self):
-        self.conf = config.get_conf('beah-backend')
-        self.hostname = self.conf.get('DEFAULT', 'HOSTNAME')
+    def __init__(self, conf=None, proxy=None, runtime=None, queue=None,
+            build_queue=None):
+        self.conf = conf
+        self.hostname = self.conf.get('DEFAULT', 'HOSTNAME')        
         self.recipe_id = int(self.conf.get('DEFAULT', 'RECIPEID'))
         self.digest_method = self.conf.get('DEFAULT', 'DIGEST')
         self.name = self.conf.get('DEFAULT', 'NAME')
         self.waiting_for_lc = False
-        self.runtime = runtimes.ShelveRuntime(self.conf.get('DEFAULT', 'RUNTIME_FILE_NAME'))
-        # override runtime sync to prevent performance hit:
-        runtime_sync_orig = self.runtime.sync
-        def runtime_sync(type=None):
-            """
-            Synchronize the runtime to disk.
-            
-            Original sync method will be called only when called explicitly
-            i.e. with type == None.
-            
-            """
-            if type is None:
-                runtime_sync_orig()
-        self.runtime.sync = runtime_sync
-        id1 = reactor.addSystemEventTrigger('before', 'shutdown', self.close)
+        self.runtime = runtime
         self._active_tasks = []
         self.__commands = {}
         self.recipe = None
-        self.__journal_file = self.open_journal('ab+')
-        self.__len_queue = []
         self.__command_callbacks = {}
         self.__cmd_queue = []
-        self.__queue_ready = False
-        self.__journal_offs = self.runtime.type_get('', 'journal_offs', 0)
-        SerializingBackend.__init__(self)
-        url = self.conf.get('DEFAULT', 'LAB_CONTROLLER')
-        self.proxy = repeatingproxy.RepeatingProxy(url, allowNone=True)
-        try:
-            rpc_timeout = float(self.conf.get('DEFAULT', 'RPC_TIMEOUT'))
-            self.proxy.set_timeout(repeatingproxy.IncreasingTimeout(rpc_timeout, max=300))
-        except:
-            self.proxy.set_timeout(None)
-        self.proxy.serializing = True
-        self.proxy.on_idle = self.set_idle
-        if is_class_verbose(self):
-            make_logging_proxy(self.proxy)
-            self.proxy.logging_print = log.debug
-        self.on_idle()
-        self.start_flusher()
+        self.proxy = proxy
+        self.build_queue = build_queue
+        SerializingBackend.__init__(self, queue)
 
     def add_task(self, task):
         if task in self._active_tasks:
@@ -1463,50 +1497,8 @@ class BeakerLCBackend(SerializingBackend):
     def active_tasks(self):
         return self._active_tasks
 
-    def init_queue(self):
-        if self.__queue_ready:
-            return
-        f = self.open_journal('rb')
-        offs = self.__journal_offs
-        f.seek(offs, 1)
-        evt_len = 0 # counter to skip any events which can not be enqueued
-        while True:
-            ln = f.readline()
-            evt_len += len(ln)
-            if ln == '':
-                if evt_len > 0:
-                    self._queue_evt_int(event.nop(), {}, evt_len)
-                break
-            try:
-                evt, flags = json.loads(ln)
-                evt = event.Event(evt)
-                if self.get_evt_task(evt) is None:
-                    tid = evt.task_id()
-                    log.error("No task '%s' for the event '%r'.", tid, evt)
-                    continue
-                self.async_proc(evt, flags)
-                self._queue_evt_int(evt, flags, evt_len)
-                evt_len = 0
-            except:
-                log.error("Can not parse a line from journal. line=%r", ln)
-        f.close()
-        self.__queue_ready = True
-
-    def flusher(self):
-        """
-        Ensure memory-cache is flushed regularly.
-        
-        We do not want flush to happen too often as it hits performance and
-        this should help preventing loosing mind e.g. in case of unexpected
-        panic.
-        
-        """
-        self.flush()
-        self.start_flusher()
-
-    def start_flusher(self):
-        """See flusher."""
-        reactor.callLater(60, self.flusher)
+    def on_new_task(self, task):
+        self.build_queue(self)
 
     def check_link(self):
         return True
@@ -1521,28 +1513,6 @@ class BeakerLCBackend(SerializingBackend):
     def log_error(self, message):
         '''Used by recipe to allow using Backend as its parent'''
         self.on_error(message)
-
-    def open_journal(self, mode):
-        return open_(self.conf.get('DEFAULT', 'VAR_ROOT') + '/journals/beakerlc.journal', mode)
-
-    def _queue_evt_int(self, evt, flags, line_len):
-        SerializingBackend._queue_evt(self, evt, **flags)
-        self.__len_queue.append(line_len)
-
-    def journal_evt(self, evt, flags):
-        data = jsonln((evt, flags))
-        self.__journal_file.write(data)
-        self.__journal_file.flush()
-        return data
-
-    def _queue_evt(self, evt, **flags):
-        data = self.journal_evt(evt, flags)
-        self._queue_evt_int(evt, flags, len(data))
-
-    def _pop_evt(self):
-        self.__journal_offs += self.__len_queue.pop(0)
-        self.runtime.type_set('', 'journal_offs', self.__journal_offs)
-        return SerializingBackend._pop_evt(self)
 
     def idle(self):
         return self.proxy.is_idle()
@@ -1719,6 +1689,8 @@ class BeakerLCBackend(SerializingBackend):
             origin={'id': task.id, 'source': self.name})))
 
     def async_proc(self, evt, flags):
+        if self.get_evt_task(evt) is None:
+            return False
         evev = evt.event()
         # some events need asynchronous processing, so they do not wait in
         # queue.
@@ -1745,6 +1717,7 @@ class BeakerLCBackend(SerializingBackend):
             d = self.proxy.callRemote('extend_watchdog', id, 4*3600)
             d.addCallback(self.handle_status_watchdog, evt.task)
             # end will be processed synchronously too to mark the task finished
+        return True
 
     def proc_evt(self, evt, **flags):
         if evt.origin().get('source', None) == self.name:
@@ -1762,14 +1735,13 @@ class BeakerLCBackend(SerializingBackend):
         elif evev == 'flush':
             self.flush()
             return
-        if self.__queue_ready:
+        if self._queue_ready():
             # store the task:
-            if self.get_evt_task(evt) is None:
+            if not self.async_proc(evt, flags):
                 return
-            self.async_proc(evt, flags)
             SerializingBackend.proc_evt(self, evt, **flags)
         else:
-            self.journal_evt(evt, flags)
+            self._queue_evt(evt, flags)
 
     def proc_evt_abort(self, evt):
         type = evt.arg('type', '')
@@ -1859,19 +1831,105 @@ class BeakerLCBackend(SerializingBackend):
         return id
 
 
-def start_beaker_backend():
-    if parse_bool(config.get_conf('beah-backend').get('DEFAULT', 'DEVEL')):
-        print_this = log_this(lambda s: log.debug(s), log_on=True)
-        make_class_verbose(BeakerLCBackend, print_this)
-        make_class_verbose(BeakerWriter, print_this)
-        make_class_verbose(BeakerRecipe, print_this)
-        make_class_verbose(BeakerTask, print_this)
-        make_class_verbose(BeakerResult, print_this)
-        make_class_verbose(BeakerFile, print_this)
-        make_class_verbose(repeatingproxy.RepeatingProxy, print_this)
-    backend = BeakerLCBackend()
-    # Start a default TCP client:
+class CallRegularly(object):
+
+    def __init__(self, interval, func, *args, **kwargs):
+        self.interval = interval
+        self.__call__ = lambda: func(*args, **kwargs)
+
+    def make_call(self):
+        self()
+        self.start()
+
+    def start(self):
+        """See make_call."""
+        reactor.callLater(self.interval, self.make_call)
+
+
+def make_runtime(conf):
+    runtime = runtimes.ShelveRuntime(conf.get('DEFAULT', 'RUNTIME_FILE_NAME'))
+    # override runtime sync to prevent performance hit:
+    runtime_sync_orig = runtime.sync
+    def runtime_sync(type=None):
+        """
+        Synchronize the runtime to disk.
+        
+        Original sync method will be called only when called explicitly
+        i.e. with type == None.
+        
+        """
+        if type is None:
+            runtime_sync_orig()
+    runtime.sync = runtime_sync
+    return runtime
+
+
+def make_proxy(conf, verbose):
+    url = conf.get('DEFAULT', 'LAB_CONTROLLER')
+    proxy = repeatingproxy.RepeatingProxy(url, allowNone=True)
+    if verbose:
+        make_logging_proxy(proxy)
+        proxy.logging_print = log.debug
+    try:
+        rpc_timeout = float(conf.get('DEFAULT', 'RPC_TIMEOUT'))
+        proxy.set_timeout(repeatingproxy.IncreasingTimeout(rpc_timeout, max=300))
+    except:
+        proxy.set_timeout(None)
+    proxy.serializing = True
+    return proxy
+
+
+def make_verbose():
+    print_this = log_this(lambda s: log.debug(s), log_on=True)
+    make_class_verbose(BeakerLCBackend, print_this)
+    make_class_verbose(BeakerWriter, print_this)
+    make_class_verbose(BeakerRecipe, print_this)
+    make_class_verbose(BeakerTask, print_this)
+    make_class_verbose(BeakerResult, print_this)
+    make_class_verbose(BeakerFile, print_this)
+    make_class_verbose(repeatingproxy.RepeatingProxy, print_this)
+
+
+def make_queue(conf, runtime):
+    offset = runtime.type_get('', 'journal_offs', 0)
+    journal_fname = os.path.join(conf.get('DEFAULT', 'VAR_ROOT'), 'journals' , 'beakerlc.journal')
+    queue = JournallingQueue(
+            offset_writer=lambda offset: runtime.type_set('', 'journal_offs', offset),
+            read_offset=offset,
+            journal_file=open_(journal_fname, 'ab+'))
+    journal_in = open_(journal_fname, 'rb')
+    journal_in.seek(offset, 1)
+    return dict(queue=queue, build_queue=lambda backend: journal_reader(queue, journal_in, backend))
+
+
+def start_beaker_backend(conf):
+    runtime = make_runtime(conf)
+
+    verbose = parse_bool(conf.get('DEFAULT', 'DEVEL'))
+    if verbose:
+        make_verbose()
+
+    proxy = make_proxy(conf, verbose)
+
+    backend = BeakerLCBackend(conf=conf, proxy=proxy, runtime=runtime, **make_queue(conf, runtime))
+
+    reactor.addSystemEventTrigger('before', 'shutdown', backend.close)
+
+    proxy.on_idle = backend.set_idle
+
+    # Ensure memory-cache is flushed regularly.
+    # 
+    # We do not want flush to happen too often as it hits performance and
+    # this should help preventing loosing mind e.g. in case of unexpected
+    # panic.
+    CallRegularly(60, backend.flush)
+
+    # start idling:
+    backend.on_idle()
+
+    # Start a client:
     start_backend(backend)
+
 
 def beakerlc_opts(opt, conf):
     def lc_cb(option, opt_str, value, parser):
@@ -1956,7 +2014,7 @@ def main():
     conf = config.get_conf('beah-backend')
     debug.setup(os.getenv("BEAH_BEAKER_DEBUGGER"), conf.get('DEFAULT', 'NAME'))
     log_handler()
-    start_beaker_backend()
+    start_beaker_backend(config.get_conf('beah-backend'))
     debug.runcall(reactor.run)
 
 def test_configure():
