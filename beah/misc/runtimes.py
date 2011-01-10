@@ -272,23 +272,20 @@ class TypeList(object):
         assert d == r
 
 
-class ShelveRuntime(BaseRuntime):
+class DictRuntime(BaseRuntime):
     """
-    Runtime using shelve to store data.
+    Runtime using dict to store data.
     """
 
-    def __init__(self, fname):
-        self.fname = fname
-        pre_open(fname)
-        self.so = shelve.open(fname, 'c')
+    def __init__(self, dict_):
+        self.dict_ = dict_
+        BaseRuntime.__init__(self)
 
     def close(self):
-        if self.so is not None:
-            self.so.close()
-            self.so = None
+        pass
 
     def sync(self, type=None):
-        self.so.sync()
+        pass
 
     def mk_type_key(self, type, key):
         # NOTE: In python 2.3 this might return unicode, which is not handled
@@ -301,26 +298,45 @@ class ShelveRuntime(BaseRuntime):
         return (id[:l], id[l:][1:])
 
     def type_set_primitive(self, type, key, value):
-        self.so[self.mk_type_key(type, key)] = value
+        self.dict_[self.mk_type_key(type, key)] = value
 
     def type_del_primitive(self, type, key):
-        del self.so[self.mk_type_key(type, key)]
+        del self.dict_[self.mk_type_key(type, key)]
 
     def type_get(self, type, key, defval=UNDEFINED):
         if defval is UNDEFINED:
-            return self.so[self.mk_type_key(type, key)]
-        return self.so.get(self.mk_type_key(type, key), defval)
+            return self.dict_[self.mk_type_key(type, key)]
+        return self.dict_.get(self.mk_type_key(type, key), defval)
 
     def type_has_key(self, type, key):
-        return self.so.has_key(self.mk_type_key(type, key))
+        return self.dict_.has_key(self.mk_type_key(type, key))
 
     def type_keys(self, type):
         tl = len(type)+1
         type = type + '/'
-        return [key[tl:] for key in self.so.keys() if key[:tl] == type]
+        return [key[tl:] for key in self.dict_.keys() if key[:tl] == type]
 
     def dump(self):
-        return list([(k, v) for k, v in enumerate(self.so)])
+        return list([(k, v) for k, v in enumerate(self.dict_)])
+
+
+class ShelveRuntime(DictRuntime):
+    """
+    Runtime using shelve to store data.
+    """
+
+    def __init__(self, fname):
+        self.fname = fname
+        pre_open(fname)
+        DictRuntime.__init__(self, shelve.open(fname, 'c'))
+
+    def close(self):
+        if self.dict_ is not None:
+            self.dict_.close()
+            self.dict_ = None
+
+    def sync(self, type=None):
+        self.dict_.sync()
 
 
 if __name__ == '__main__':
