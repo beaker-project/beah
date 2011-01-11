@@ -1,3 +1,5 @@
+# -*- test-case-name: beah.wires.internals.test.test_repeatingproxy -*-
+
 # Beah - Test harness. Part of Beaker project.
 #
 # Copyright (C) 2009 Red Hat, Inc.
@@ -28,7 +30,7 @@ RepeatingProxy(twisted.web.xmlrpc.Proxy):
 """
 
 from twisted.internet import reactor
-from twisted.web.xmlrpc import Proxy, _QueryFactory, QueryProtocol
+from twisted.web.xmlrpc import _QueryFactory, QueryProtocol
 from twisted.protocols.policies import TimeoutMixin
 from twisted.internet.defer import Deferred, TimeoutError, AlreadyCalledError
 from twisted.internet.error import ConnectError, DNSLookupError, ConnectionLost, ConnectionDone
@@ -236,7 +238,8 @@ class RepeatingProxy(object):
             d.callback(True)
 
     def when_idle(self):
-        self.__on_idle = Deferred()
+        if self.__on_idle is None:
+            self.__on_idle = Deferred()
         return self.__on_idle
 
     def dump(self):
@@ -279,7 +282,7 @@ class RepeatingProxy(object):
         Handler for unsuccessfull remote call.
         """
         if fail.check(AlreadyCalledError):
-            return
+            return -2
         self.__pending -= 1
         repeat = self.is_auto_retry_condition(fail)
         if m[5] is not None and m[5](fail):
@@ -295,13 +298,15 @@ class RepeatingProxy(object):
                 m[0].errback(fail)
                 self.delay.decr()
                 self.send_next()
-                return
+                return -1
         if self.serializing:
             self.insert(m)
         else:
             self.push(m)
-        reactor.callLater(self.delay.incr(), self.resend)
+        delay = self.delay.incr()
+        reactor.callLater(delay, self.resend)
         self.__sleep = True
+        return delay
 
     def resend(self):
         """
@@ -392,269 +397,8 @@ class RepeatingProxy(object):
         self.__cache.append(m)
 
     _VERBOSE = ('callRemote', 'callRemote_', 'is_accepted_failure', 'is_auto_retry_condition')
-    _MORE_VERBOSE = ('is_auto_retry_condition', 'is_accepted_failure', 'on_ok', 'on_error',
+    _MORE_VERBOSE = ('is_accepted_failure', 'on_ok', 'on_error',
                 'resend', 'send_next', 'when_idle', 'is_empty', 'is_idle',
                 'pop', 'insert', 'push')
     _VERBOSE_CLASSES = (QueryWithTimeoutProtocol, QueryFactoryWithTimeout, )
-
-if __name__ == '__main__':
-
-    import exceptions
-    import xmlrpclib
-    from twisted.web.xmlrpc import XMLRPC
-    from twisted.web import server
-    import time
-    import sys
-    from beah.misc.log_this import log_this
-    from beah.misc import make_class_verbose
-
-    for i in range(7):
-        assert repeatAlways(i)
-    r6 = repeatTimes(6)
-    for i in range(6):
-        assert r6(i)
-    assert not r6(7)
-    del r6
-    class repeatWithMemory(repeatWithHandle):
-        def __init__(self, repeat):
-            self.x = None
-            repeatWithHandle.__init__(self, repeat)
-        def first_time(self, fail):
-            self.x = fail
-    def testr6(i, expected_return, expected_x):
-        ret = r6(i)
-        if ret != expected_return:
-            assert False, "r6(i) is %s and not %s as expected." % (ret, expected_return)
-        if r6.x != expected_x:
-            assert False, "r6.x is %s and not %s as expected." % (r6.x, expected_x)
-    r6 = repeatWithMemory(repeatTimes(6))
-    assert r6.x is None
-    testr6(0, True, 0)
-    testr6(1, True, 0)
-    r6.x = None
-    for i in range(4):
-        testr6(2+i, True, None)
-    testr6(7, False, None)
-    try:
-        testr6(8, False, 0)
-        raise Exception("Failure was expected.")
-    except AssertionError:
-        pass
-    try:
-        testr6(8, True, None)
-        raise Exception("Failure was expected.")
-    except AssertionError:
-        pass
-
-    def printf_w_timestamp(s):
-        #ts = time.strftime("%Y%m%d-%H%M%S")
-        ts = time.time()
-        print("%.2f: %s" % (ts, s))
-        sys.stdout.flush()
-    printf = printf_w_timestamp
-    print_this = log_this(printf)
-
-    ct = ConstTimeout(10)
-    assert ct.get() == 10
-    assert ct.incr() == 10
-    assert ct.incr() == 10
-    assert ct.incr() == 10
-    assert ct.decr() == 10
-    assert ct.decr() == 10
-    assert ct.decr() == 10
-    assert ct.get() == 10
-
-    def TestIT():
-        def check(it, itn):
-            assert itn == it.get()
-            assert itn == it.decr()
-            assert itn <= it.max
-            assert itn >= it.timeout
-        it = IncreasingTimeout(10)
-        itn = itp = it.get()
-        assert itp == 10
-        while itn < it.max:
-            itn = it.incr()
-            printf(itn)
-            check(it, itn)
-            assert itn > itp
-            itp = itn
-        assert itn == it.max
-        itn = it.incr()
-        check(it, itn)
-        assert itn == it.max
-    TestIT()
-
-    def TestAT():
-        def check(it, itn):
-            assert itn == it.get()
-            assert itn <= it.max
-            assert itn >= it.timeout
-        it = AdaptiveTimeout(10)
-        itn = itp = it.get()
-        assert itp == 10
-        while itn < it.max:
-            itn = it.incr()
-            check(it, itn)
-            assert itn > itp
-            itp = itn
-        assert itn == it.max
-        itn = it.incr()
-        check(it, itn)
-        assert itn == it.max
-        while itn > it.timeout:
-            itn = it.decr()
-            check(it, itn)
-            assert itn < itp
-            itp = itn
-        assert itn == it.timeout
-        itn = it.decr()
-        check(it, itn)
-        assert itn == it.timeout
-    TestAT()
-
-    class Result(object):
-
-        def __init__(self, print_passed=False):
-            self.results = []
-            self.result = [0, 0]
-            self.print_passed = print_passed
-
-        def add(self, pass_, message):
-            self.results.append((pass_, message))
-            if pass_:
-                self.result[1] += 1
-            else:
-                self.result[0] += 1
-
-        def __str__(self):
-            answ = ""
-            for result in self.results:
-                if not self.print_passed and result[0]:
-                    continue
-                answ += "%s\n" % result[1]
-            answ += "%d Passed\n%d Failed" % (self.result[1], self.result[0])
-            return answ
-
-    results = Result()
-
-    def chk(result, method, result_ok, expected_ok):
-        pass_ = result_ok == expected_ok
-        message = ("%s: method %s resulted in %s %s%s" % (
-                pass_ and "OK" or "ERROR",
-                method,
-                pass_ and "expected" or "unexpected",
-                result_ok and "pass" or "failure",
-                '', #":\n%s" % result,
-                ))
-        results.add(pass_, message)
-        printf(message)
-        return None
-    chk = print_this(chk)
-
-    def rem_call(proxy, method, exp_, args=(), repeat=None):
-        if repeat is None:
-            return proxy.callRemote(method, *args) \
-                    .addCallbacks(chk, chk,
-                            callbackArgs=[method, True, exp_],
-                            errbackArgs=[method, False, exp_])
-        else:
-            return proxy.repeatedRemote(repeat, method, *args) \
-                    .addCallbacks(chk, chk,
-                            callbackArgs=[method, True, exp_],
-                            errbackArgs=[method, False, exp_])
-    rem_call = print_this(rem_call)
-
-    class TestHandler(XMLRPC):
-        _VERBOSE = ('xmlrpc_test', 'xmlrpc_test_exc', 'xmlrpc_test_exc2',
-                'xmlrpc_test_long_call')
-        def xmlrpc_retry_set(self, n):
-            self.retries = n
-            return n
-        def xmlrpc_retry(self):
-            self.retries -= 1
-            if self.retries >= 0:
-                raise exceptions.RuntimeError("Sorry. Try again...")
-            return "Finally OK"
-        def xmlrpc_test(self): return "OK"
-        def xmlrpc_test_exc(self): raise exceptions.RuntimeError
-        def xmlrpc_test_exc2(self): raise exceptions.NotImplementedError
-        def xmlrpc_test_long_call(self, delay=12):
-            d = Deferred()
-            reactor.callLater(delay, d.callback, True)
-            return d
-
-    make_class_verbose(RepeatingProxy, print_this)
-    make_class_verbose(TestHandler, print_this)
-    p = RepeatingProxy(Proxy(url='http://127.0.0.1:54123/'))
-    #def accepted_failure(fail):
-    #    if fail.check(exceptions.NotImplementedError):
-    #        # This does not work :-(
-    #        return True
-    #    if fail.check(xmlrpclib.Fault):
-    #        # This would work:
-    #        return True
-    #    return False
-    #accepted_failure = print_this(accepted_failure)
-    #p.is_accepted_failure = accepted_failure
-    p.RPC_TIMEOUT = 0.75
-    p.TIMEOUT_FACTOR = 1.5
-    p.DELAY_TIMEOUT = 0.5
-    p.LONG_CALL = 3.0
-
-    p.delay = AdaptiveTimeout(p.DELAY_TIMEOUT, factor=p.TIMEOUT_FACTOR)
-    p.set_timeout(IncreasingTimeout(p.RPC_TIMEOUT, factor=p.TIMEOUT_FACTOR))
-    p.max_retries = 6
-    print 80*"="
-    print "Serializing RepeatingProxy:"
-    print 80*"="
-    p.serializing = True
-    def run_again(result):
-        print 80*"="
-        print "Not serializing RepeatingProxy:"
-        print 80*"="
-        p.serializing = False
-        p.set_timeout(IncreasingTimeout(p.DELAY_TIMEOUT, factor=p.TIMEOUT_FACTOR))
-        p.when_idle().addCallback(stopper(1))
-        rem_call(p, 'test', True)
-        rem_call(p, 'test', True)
-        rem_call(p, 'test2', False)
-        rem_call(p, 'test_exc', False)
-        rem_call(p, 'test_exc2', False)
-        rem_call(p, 'test_long_call', True, (p.LONG_CALL,))
-        rem_call(p, 'test_long_call', True, (2*p.LONG_CALL,))
-        rem_call(p, 'retry_set', True, (2,))
-        rem_call(p, 'retry', True, args=(), repeat=repeatAlways)
-    def stopper(delay=1):
-        def cb(result):
-            reactor.callLater(delay, reactor.stop)
-        return cb
-    p.when_idle().addCallback(run_again)
-    def run_first():
-        rem_call(p, 'test', True)
-        rem_call(p, 'test', True)
-        rem_call(p, 'test2', False)
-        rem_call(p, 'test_exc', False)
-        rem_call(p, 'test_exc2', False)
-        rem_call(p, 'test_long_call', True, (p.LONG_CALL,))
-        rem_call(p, 'test_long_call', True, (p.LONG_CALL,))
-        rem_call(p, 'test_long_call', True, (2*p.LONG_CALL,))
-        rem_call(p, 'retry_set', True, (2,))
-        rem_call(p, 'retry', True, args=(), repeat=repeatAlways)
-        rem_call(p, 'retry_set', True, (3,))
-        rem_call(p, 'retry', False, args=(), repeat=repeatTimes(2))
-    reactor.callWhenRunning(run_first)
-    #reactor.callWhenRunning(rem_call, p, 'test', True)
-    #reactor.callWhenRunning(rem_call, p, 'test2', False)
-    #reactor.callWhenRunning(rem_call, p, 'test_exc', False)
-    #reactor.callWhenRunning(rem_call, p, 'test_exc2', False)
-    #reactor.callWhenRunning(rem_call, p, 'test_long_call', True, (p.LONG_CALL,))
-    #reactor.callWhenRunning(rem_call, p, 'test_long_call', True, (p.LONG_CALL,))
-    #reactor.callWhenRunning(rem_call, p, 'test_long_call', True, (2*p.LONG_CALL,))
-    reactor.callLater(5, reactor.listenTCP, 54123, server.Site(TestHandler(), timeout=30), interface='127.0.0.1')
-    reactor.run()
-    print 80*"="
-    print "Results:"
-    print 80*"="
-    print results
 
