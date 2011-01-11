@@ -62,6 +62,7 @@ from xml.dom import minidom
 from twisted.web.xmlrpc import Proxy
 from twisted.internet import reactor, defer
 from twisted.python import failure
+from twisted.web import xmlrpc
 
 from beah import config
 from beah.core import command, event, addict
@@ -1873,7 +1874,7 @@ def make_runtime(conf):
 
 def make_proxy(conf, verbose):
     url = conf.get('DEFAULT', 'LAB_CONTROLLER')
-    proxy = repeatingproxy.RepeatingProxy(url, allowNone=True)
+    proxy = repeatingproxy.RepeatingProxy(xmlrpc.Proxy(url, allowNone=True))
     if verbose:
         make_logging_proxy(proxy)
         proxy.logging_print = log.debug

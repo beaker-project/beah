@@ -175,7 +175,7 @@ def repeatAlways(fail):
     return True
 
 
-class RepeatingProxy(Proxy):
+class RepeatingProxy(object):
 
     """
     Repeat XML-RPC until it is delivered.
@@ -203,7 +203,7 @@ class RepeatingProxy(Proxy):
       behavior.)
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, proxy):
         """
         Initialize instance variables and pass all arguments to the base class.
         """
@@ -222,7 +222,7 @@ class RepeatingProxy(Proxy):
         self.max_retries = None
         # serializing: allow only one pending remote call when True
         self.serializing = False
-        Proxy.__init__(self, *args, **kwargs)
+        self.proxy = proxy
         # use factory with timeout...
         self.queryFactory = QueryFactoryWithTimeout
 
@@ -334,7 +334,7 @@ class RepeatingProxy(Proxy):
         """
         Method to call superclass' callRemote
         """
-        answ = Proxy.callRemote(self, method, *args, **kwargs)
+        answ = self.proxy.callRemote(method, *args, **kwargs)
         self.__pending += 1
         return answ
 
@@ -570,6 +570,7 @@ if __name__ == '__main__':
                 'xmlrpc_test_long_call')
         def xmlrpc_retry_set(self, n):
             self.retries = n
+            return n
         def xmlrpc_retry(self):
             self.retries -= 1
             if self.retries >= 0:
@@ -585,7 +586,7 @@ if __name__ == '__main__':
 
     make_class_verbose(RepeatingProxy, print_this)
     make_class_verbose(TestHandler, print_this)
-    p = RepeatingProxy(url='http://127.0.0.1:54123/')
+    p = RepeatingProxy(Proxy(url='http://127.0.0.1:54123/'))
     #def accepted_failure(fail):
     #    if fail.check(exceptions.NotImplementedError):
     #        # This does not work :-(
