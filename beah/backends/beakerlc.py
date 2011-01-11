@@ -1354,7 +1354,7 @@ class BeakerRecipe(BeakerTask):
         backend = self.backend()
         if task_data is None:
             log.info("* Recipe done. Nothing to do...")
-            reactor.callLater(60, backend.on_idle)
+            backend.schedule_idle(60)
             return
         task_id = task_data['task_env']['TASKID']
         task_data['task_env']['LAB_CONTROLLER'] = self.backend().conf.get('DEFAULT', 'COBBLER_SERVER')
@@ -1527,6 +1527,9 @@ class BeakerLCBackend(SerializingBackend):
             log.info("Connection to controller lost.")
 
     def close(self):
+        if self.scheduled_on_idle:
+            self.scheduled_on_idle.cancel()
+            self.scheduled_on_idle = None
         self.runtime.close()
         log.info("Runtime closed.")
 
@@ -1580,6 +1583,7 @@ class BeakerLCBackend(SerializingBackend):
         self.__on_error("ERROR", msg, traceback.format_stack(), *args, **kwargs)
 
     def on_idle(self, result=None):
+        self.scheduled_on_idle = None
         if self.waiting_for_lc:
             self.on_error("on_idle called with waiting_for_lc already set.")
             return
@@ -1617,6 +1621,9 @@ class BeakerLCBackend(SerializingBackend):
         self.recipe = recipe
         return self.recipe.next_task()
 
+    def schedule_idle(self, delay):
+        self.scheduled_on_idle = reactor.callLater(delay, self.on_idle)
+
     def on_lc_failure(self, result):
         self.waiting_for_lc = False
         if result.check(NothingToDoException):
@@ -1629,7 +1636,7 @@ class BeakerLCBackend(SerializingBackend):
                 log.error(traceback.format_exception(type, value, tb))
             else:
                 log.error(traceback.format_tb(result.getTracebackObject()))
-        reactor.callLater(120, self.on_idle)
+        self.schedule_idle(120)
         return None
 
     ############################################################################
