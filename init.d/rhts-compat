@@ -117,7 +117,21 @@ condrestart(){
 }
 
 status() {
-  [ -e $LOCKFILE ] && [ ! -e $KILLER ] && ps -p $PIDFILE
+  if [ -e $PIDFILE ]; then
+    if ps -p `cat $PIDFILE` &> /dev/null; then
+      if [ ! -e $KILLER ]; then
+        return 0
+      else
+        return 3
+      fi
+    else
+      return 1
+    fi
+  elif [ -e $LOCKFILE ]; then
+    return 2
+  else
+    return 3
+  fi
 }
 
 # See how we were called.
