@@ -105,6 +105,10 @@ def echo(cmd, rc, message="", origin={}, timestamp=None, **kwargs):
         cmd_id = cmd.id()
     return Event('echo', origin, timestamp, cmd_id=cmd_id, rc=rc, message=message, **kwargs)
 
+def nop(origin={}, timestamp=None):
+    """Null Event."""
+    return Event('nop', origin, timestamp)
+
 def lose_item(data, origin={}, timestamp=None):
     """Event generated when unformatted data are received."""
     return Event('lose_item', origin, timestamp, data=data)

@@ -972,9 +972,9 @@ class BeakerTask(PersistentBeakerObject):
                 return
             self.stored_data['state'] = new_state
             self.write_metadata()
-        self.has_started = boolf(state >= self.STATE_STARTED)
-        self.has_finished = boolf(state >= self.STATE_FINISHED)
-        self.has_completed = boolf(state >= self.STATE_COMPLETED)
+        self.has_started = boolf(new_state >= self.STATE_STARTED)
+        self.has_finished = boolf(new_state >= self.STATE_FINISHED)
+        self.has_completed = boolf(new_state >= self.STATE_COMPLETED)
 
     def set_started(self):
         self.on_set_state(self.STATE_STARTED)
@@ -1429,17 +1429,21 @@ class BeakerLCBackend(SerializingBackend):
             ln = f.readline()
             evt_len += len(ln)
             if ln == '':
+                if evt_len > 0:
+                    self._queue_evt_int(event.nop(), {}, evt_len)
                 break
             try:
                 evt, flags = json.loads(ln)
                 evt = event.Event(evt)
                 if self.get_evt_task(evt) is None:
+                    tid = self.get_evt_task_id(evt)
+                    log.error("No task '%s' for the event '%r'.", tid, evt)
                     continue
                 self.async_proc(evt, flags)
                 self._queue_evt_int(evt, flags, evt_len)
                 evt_len = 0
             except:
-                self.on_exception("Can not parse a line from journal.", line=ln)
+                log.error("Can not parse a line from journal. line=%r", ln)
         f.close()
         self.__queue_ready = True
 
@@ -1520,12 +1524,7 @@ class BeakerLCBackend(SerializingBackend):
     # RECIPE HANDLING
     ############################################################################
 
-    def get_evt_task(self, evt):
-        if not self.recipe:
-            return None
-        task = getattr(evt, 'task', None)
-        if task is not None:
-            return task
+    def get_evt_task_id(self, evt):
         evev = evt.event()
         if evev in ('start', 'end'):
             tid = evt.arg('task_id')
@@ -1533,6 +1532,15 @@ class BeakerLCBackend(SerializingBackend):
             tid = evt.arg('cmd_id')
         else:
             tid = evt.origin().get('id', None)
+        return tid
+
+    def get_evt_task(self, evt):
+        if not self.recipe:
+            return None
+        task = getattr(evt, 'task', None)
+        if task is not None:
+            return task
+        tid = self.get_evt_task_id(evt)
         if tid is None:
             return None
         task = self.recipe.tasks.get(tid, None)
