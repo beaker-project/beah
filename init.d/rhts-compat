@@ -31,7 +31,7 @@ PIDFILE=$BEAH_ROOT/var/run/${prog}.pid
 LOCKFILE=$BEAH_ROOT/var/lock/subsys/$prog
 
 LAUNCHERS="$BEAH_ROOT/var/beah/rhts-compat/launchers"
-KILLER="/tmp/rhts-compat-end"
+KILLER="/mnt/testarea/rhts-compat-end"
 
 function rhts_finish() {
   rhts-test-update $RESULT_SERVER $TESTID finish
@@ -97,6 +97,7 @@ stop () {
 _stop() {
   if [[ -f $LOCKFILE ]]; then
     echo -n $"Stopping $prog: "
+    mkdir -p $(dirname $KILLER)
     touch $KILLER
     true
   else
