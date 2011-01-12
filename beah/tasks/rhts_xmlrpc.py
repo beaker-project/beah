@@ -372,7 +372,8 @@ class RHTSMain(object):
     VARIABLE_VALUE_TIMEOUT=2
 
     ENV_DEFAULTS = {
-            'RHTS_OPTION_COMPATIBLE': '',
+            'RHTS_OPTION_COMPATIBLE': 'yes',
+            'RHTS_OPTION_COMPAT_SERVICE': '',
             'RHTS_OPTION_STRONGER_AVC': 'yes',
             }
 
@@ -425,8 +426,10 @@ class RHTSMain(object):
                     value = ''
                 else:
                     value = 'yes'
-                if opt_lower.startswith('compat'):
+                if opt_lower.startswith('compatible'):
                     self.env.setdefault('RHTS_OPTION_COMPATIBLE', value)
+                elif opt_lower.startswith('compatservice'):
+                    self.env.setdefault('RHTS_OPTION_COMPAT_SERVICE', value)
                 elif opt_lower.startswith('strongeravc'):
                     self.env.setdefault('RHTS_OPTION_STRONGER_AVC', value)
 
