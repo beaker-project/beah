@@ -61,6 +61,9 @@ heartbeat() {
 }
 
 main() {
+  if [[ -f /etc/profile.d/task-overrides-rhts.sh ]]; then
+    source /etc/profile.d/task-overrides-rhts.sh
+  fi
   if [[ -z $RHTS_OPTION_COMPATIBLE ]]; then
     exec /usr/bin/rhts-test-runner.sh </dev/null || \
         die 1 "Can not run rhts-test-runner.sh"

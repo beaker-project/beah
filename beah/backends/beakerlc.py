@@ -89,6 +89,17 @@ class RHTSTask(ShExecutable):
 
     def content(self):
         self.write_line("""
+# read environment:
+if [[ -f /etc/profile.d/task-defaults-rhts.sh ]]; then
+    __TEMP_ENV=$(mktemp)
+    # save the current environment:
+    export > $__TEMP_ENV
+    # load defaults:
+    source /etc/profile.d/task-defaults-rhts.sh
+    # restore saved env:
+    source $__TEMP_ENV
+    rm -f $__TEMP_ENV
+fi
 # This wrapper should prevent rhts-test-runner.sh to install rpm from default
 # rhts repository and use repositories defined in recipe
 #mkdir -p $TESTPATH
