@@ -31,7 +31,7 @@ PIDFILE=$BEAH_ROOT/var/run/${prog}.pid
 LOCKFILE=$BEAH_ROOT/var/lock/subsys/$prog
 
 LAUNCHERS="$BEAH_ROOT/var/beah/rhts-compat/launchers"
-KILLER="/tmp/rhts-compat-end"
+KILLER="/mnt/testarea/rhts-compat-end"
 
 function rhts_finish() {
   rhts-test-update $RESULT_SERVER $TESTID finish
@@ -50,21 +50,27 @@ function rhts_compat_main() {
   local file=
   echo $"NOTE: This process runs if foreground."
   echo $"Use 'service $prog stop' from another terminal to stop it."
-  echo $$ > $PIDFILE
-  touch $LOCKFILE
   if [[ -f $KILLER ]]; then
     rm -f $KILLER
   fi
+  if status; then
+    wait `cat $PIDFILE`
+    return $?
+  fi
+  echo $$ > $PIDFILE
+  touch $LOCKFILE
   while true; do
     if [[ -f $KILLER ]]; then
       rm -f $KILLER
       break
     fi
     for file in $LAUNCHERS/*; do
-      $file
-      rm -f $file
+      if [ -f $file ]; then
+        $file
+        rm -f $file
+      fi
     done
-    sleep 60
+    sleep 10
   done
   rm -f $LOCKFILE
   rm -f $PIDFILE
@@ -91,6 +97,7 @@ stop () {
 _stop() {
   if [[ -f $LOCKFILE ]]; then
     echo -n $"Stopping $prog: "
+    mkdir -p $(dirname $KILLER)
     touch $KILLER
     true
   else
@@ -109,6 +116,24 @@ condrestart(){
   return 0
 }
 
+status() {
+  if [ -e $PIDFILE ]; then
+    if ps -p `cat $PIDFILE` &> /dev/null; then
+      if [ ! -e $KILLER ]; then
+        return 0
+      else
+        return 3
+      fi
+    else
+      return 1
+    fi
+  elif [ -e $LOCKFILE ]; then
+    return 2
+  else
+    return 3
+  fi
+}
+
 # See how we were called.
 case "$1" in
   start)
@@ -119,7 +144,7 @@ case "$1" in
     ;;
   status)
     #status $prog
-    [ -e $LOCKFILE ]
+    status
     RETVAL=$?
     ;;
   restart)

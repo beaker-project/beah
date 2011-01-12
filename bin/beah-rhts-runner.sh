@@ -61,7 +61,17 @@ heartbeat() {
 }
 
 main() {
+  if [[ -f /etc/profile.d/task-overrides-rhts.sh ]]; then
+    source /etc/profile.d/task-overrides-rhts.sh
+  fi
   if [[ -z $RHTS_OPTION_COMPATIBLE ]]; then
+    if [[ -z $RHTS_OPTION_COMPAT_SERVICE ]]; then
+      if service rhts-compat status; then
+        echo "Stopping rhts-compat service."
+        service rhts-compat stop
+        chkconfig rhts-compat off
+      fi
+    fi
     exec /usr/bin/rhts-test-runner.sh </dev/null || \
         die 1 "Can not run rhts-test-runner.sh"
   else
