@@ -25,7 +25,7 @@ def new_id():
 
     Return: a string representation of id.
     """
-    return str(uuid.uuid1())
+    return str(uuid.uuid4())
 
 def esc_name(name):
     """
