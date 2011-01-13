@@ -29,7 +29,6 @@ import re
 import tempfile
 import exceptions
 import traceback
-import uuid
 import logging
 import random
 from beah.core import event, command
