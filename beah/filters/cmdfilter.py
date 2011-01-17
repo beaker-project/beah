@@ -1,3 +1,5 @@
+# -*- test-case-name: beah.filters.test.test_cmdfilter -*-
+
 # Beah - Test harness. Part of Beaker project.
 #
 # Copyright (C) 2009 Red Hat, Inc.
@@ -137,28 +139,3 @@ quit\nq\tclose this backend.
 help\nh\tprint this help message.
 """
 
-if __name__ == '__main__':
-    cp = CmdFilter()
-    def test_(result, expected):
-        if not result.same_as(expected):
-            print "--- ERROR: result is not same as expected"
-            print "result: %r" % (result,)
-            print "expected: %r" % (expected,)
-            assert False
-    test_(cp.proc_line('r a'), command.run(os.path.abspath('a'), name='a', args=[], env={}))
-    test_(cp.proc_line('run a_task'), command.run(os.path.abspath('a_task'),
-        name='a_task', args=[], env={}))
-    test_(cp.proc_line('run -n NAME a_task'), command.run(os.path.abspath('a_task'),
-        name='NAME', args=[], env={}))
-    test_(cp.proc_line('run -D VAR=VAL -D VAR2=VAL2 a_task'), command.run(os.path.abspath('a_task'),
-        name='a_task', args=[], env={'VAR':'VAL', 'VAR2':'VAL2'}))
-    test_(cp.proc_line('run a_task arg1 arg2'), command.run(os.path.abspath('a_task'),
-        name='a_task', args=['arg1', 'arg2'], env={}))
-    test_(cp.proc_line('ping'), command.ping())
-    test_(cp.proc_line('ping hello world'), command.ping('hello world'))
-    test_(cp.proc_line('PING'), command.PING())
-    test_(cp.proc_line('PING hello world'), command.PING('hello world'))
-    cp.proc_line('help')
-    test_(cp.proc_line('kill'), command.command('kill'))
-    print cp.proc_line('quit')
-    #cp.proc_line('r')

@@ -1,3 +1,5 @@
+# -*- test-case-name: beah.core.test.test_event -*-
+
 # Beah - Test harness. Part of Beaker project.
 #
 # Copyright (C) 2009 Red Hat, Inc.
@@ -632,81 +634,4 @@ class file_write_(Event):
         e.args()['data'] = '...%sB hidden...' % len(self.arg('data'))
         return e
 file_write_.register_class()
-
-
-################################################################################
-# TESTING:
-################################################################################
-if __name__=='__main__':
-    import traceback, sys
-
-    # test constructor:
-    def test(expected, evt, origin={}, timestamp=None, cls=Event, **kwargs):
-        try:
-            answ = Event(evt, origin=origin, timestamp=timestamp, **kwargs)
-            if not isinstance(answ, cls):
-                print >> sys.stderr, \
-                    "--- ERROR: Event(%r, %r) is a %s != %s" % (evt,
-                            kwargs, answ.__class__.__name__, cls.__name__)
-            answ = list(answ)
-            if answ != expected:
-                print >> sys.stderr, "--- ERROR: Event(%r, %r) == %r != %r" % (evt,
-                        kwargs, answ, expected)
-        except:
-            answ = sys.exc_type.__name__
-            if answ != expected:
-                print >> sys.stderr, "--- ERROR: Event(%r, %r) raised %r != %r" % (evt,
-                        kwargs, answ, expected)
-                traceback.print_exc()
-
-    test(['Event', 'ping', '99', {}, None, {}], 'ping', id='99')
-    test('TypeError', 1)
-    test(['Event', 'ping', '99', {}, None, {}], evt='ping', id='99')
-    test('TypeError', evt=1)
-    #test('TypeError', evt='ping', origin='') # dict('') is all right!
-    test('TypeError', evt='ping', origin={}, timestamp='')
-    test(['Event', 'ping', '99', {}, None, {'value':1}], evt='ping', value=1, id='99')
-    test(['Event', 'ping', '99', {}, None, {'value':1}], **{'evt':'ping', 'value':1, 'id':'99'})
-    test(['Event', 'ping', '99', {}, None, {'value':1}], value=1, evt='ping', id='99')
-    test(['Event', 'ping', '99', {}, None, {'value':1}], **{'value':1, 'evt':'ping', 'id':'99'})
-    test(['Event', 'file_write', '99', {}, None, {'file_id':'FID', 'data':'DATA'}], evt='file_write', id='99', data='DATA', file_id='FID', cls=file_write_)
-
-    # test overridden methods:
-    s = "Data to be written but not displayed"
-    fw = file_write('FID', s)
-    assert fw.__str__().find(s) == -1
-    assert fw.__repr__().find(s) == -1
-
-    # test copy constructors:
-    def test_copy(e, copy):
-        assert copy.same_as(e)
-        assert copy.id() == e.id()
-
-    def test_constructors(e):
-        test_copy(e, Event(e))
-        test_copy(e, Event(list(e)))
-        test_copy(e, event(list(e)))
-        if isinstance(e, Event):
-            assert e is event(e)
-
-    test_constructors(pong(message='Hello World!'))
-    test_constructors(file_write('FID', 'DATA'))
-
-    # test encoder/decoder:
-    def test(codec, f):
-        for s in ["Hello World!"]:
-            assert decode(codec, f(s)) == s
-            assert decode(codec, encode(codec, s)) == s
-    test('', lambda x: x)
-    test(None, lambda x: x)
-    test('|||', lambda x: x)
-    test('base64', lambda x: base64.encodestring(x))
-    #test('base64', lambda x: base64.b64encode(x))
-    test('gz', lambda x: zlib.compress(x))
-    test('bz2', lambda x: bz2.compress(x))
-    test('bz2|base64', lambda x: base64.encodestring(bz2.compress(x)))
-    test('|bz2||base64|', lambda x: base64.encodestring(bz2.compress(x)))
-    #test('bz2|base64', lambda x: base64.b64encode(bz2.compress(x)))
-    #test('|bz2||base64|', lambda x: base64.b64encode(bz2.compress(x)))
-    #test('utf8', lambda x: x) # THIS WILL FAIL!
 

@@ -1,3 +1,5 @@
+# -*- test-case-name: beah.core.test.test_backends -*-
+
 # Beah - Test harness. Part of Beaker project.
 #
 # Copyright (C) 2009 Red Hat, Inc.
@@ -207,25 +209,4 @@ class CmdOnlyBackend(CmdBackend):
         if controller:
             self.controller.proc_cmd(self, command.no_output())
 
-
-################################################################################
-# TESTING:
-################################################################################
-if __name__ == '__main__':
-    import exceptions
-    be = CmdOnlyBackend()
-    class FakeController(object):
-        def __init__(self, expected=None):
-            self.expected = expected
-        def proc_cmd(self, backend, cmd):
-            if cmd != self.expected:
-                raise exceptions.Exception('got %r, expected %r' % (cmd, self.expected))
-    be.set_controller(FakeController(command.no_output()))
-    def test(be, input, output):
-        be.controller.expected = output
-        be.proc_input(input)
-    test(be, 'ping', command.ping())
-    test(be, 'PING a message', command.PING('a message'))
-    test(be, 'run a_task', command.run('a_task'))
-    print "This is likely an expected failure - task id changes over the time..."
 

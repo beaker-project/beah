@@ -1,3 +1,5 @@
+# -*- test-case-name: beah.core.test.test_command -*-
+
 # Beah - Test harness. Part of Beaker project.
 #
 # Copyright (C) 2009 Red Hat, Inc.
@@ -164,29 +166,4 @@ class Command(list):
                         return False
             return True
         return self.args() == cmd.args()
-
-################################################################################
-# TESTING:
-################################################################################
-if __name__=='__main__':
-    import traceback, sys
-    def test(expected, cmd, **kwargs):
-        try:
-            answ = list(Command(cmd, **kwargs))
-            if answ != expected:
-                print >> sys.stderr, "--- ERROR: Command(%r, %r) == %r != %r" % (cmd,
-                        kwargs, answ, expected)
-        except:
-            answ = sys.exc_type.__name__
-            if answ != expected:
-                print >> sys.stderr, "--- ERROR: Command(%r, %r) raised %r != %r" % (cmd,
-                        kwargs, answ, expected)
-    test(['Command', 'ping', '99', {}], 'ping', id='99')
-    test('TypeError', 1)
-    test(['Command', 'ping', '99', {}], cmd='ping', id='99')
-    test('TypeError', cmd=1)
-    test(['Command', 'ping', '99', {'value':1}], cmd='ping', value=1, id='99')
-    test(['Command', 'ping', '99', {'value':1}], **{'cmd':'ping', 'value':1, 'id':'99'})
-    test(['Command', 'ping', '99', {'value':1}], value=1, cmd='ping', id='99')
-    test(['Command', 'ping', '99', {'value':1}], **{'value':1, 'cmd':'ping', 'id':'99'})
 
