@@ -5,13 +5,20 @@ _is_rhfamily() {
   local op=$2
   local ver=$3
   shift 3
-  if ! rpm -q ${family}-release &> /dev/null; then
-    return 1
-  fi
-  if [[ -n "$op" && -n "$ver" ]]; then
-    eval "[[ $(rpm -q --qf="%{VERSION}" ${family}-release) $op $ver ]]"
-  else
+  local the_rpms="$(rpm -qa | grep ${family}-release)"
+  if [[ -z $the_rpms ]]; then
     false
+  else
+    local the_ver="$(rpm -q --qf="%{VERSION}" $the_rpms | sed "s/^\([0-9]\+\)[^0-9]\+.*$/\1/")"
+    if [[ "$op" == "show" ]]; then
+      echo "Family: $family"
+      echo "Version: $the_ver"
+      echo "Rpms: $the_rpms"
+    elif [[ -n "$op" && -n "$ver" ]]; then
+      eval "[[ $the_ver $op $ver ]]"
+    else
+      true
+    fi
   fi
 }
 is_rhel() { _is_rhfamily redhat "$1" "$2"; }
