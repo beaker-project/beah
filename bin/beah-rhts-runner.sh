@@ -72,7 +72,7 @@ main() {
         chkconfig rhts-compat off
       fi
     fi
-    exec /usr/bin/rhts-test-runner.sh </dev/null || \
+    exec beah-unconfined.sh /usr/bin/rhts-test-runner.sh </dev/null || \
         die 1 "Can not run rhts-test-runner.sh"
   else
     local compat_root=$BEAH_ROOT/var/beah/rhts-compat

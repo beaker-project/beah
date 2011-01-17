@@ -85,7 +85,7 @@ main() {
   # - kill rhts-compat-placeholder.sh
 
   # "launch"
-  rhts-test-runner.sh
+  bin/beah-unconfined.sh rhts-test-runner.sh
   local answ=$?
 
   if [[ $answ -ne 0 && $answ -ne 143 ]]; then
