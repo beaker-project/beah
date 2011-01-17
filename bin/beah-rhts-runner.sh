@@ -62,7 +62,7 @@ heartbeat() {
 
 main() {
   if [[ -z $RHTS_OPTION_COMPATIBLE ]]; then
-    exec /usr/bin/rhts-test-runner.sh </dev/null || \
+    exec bin/beah-unconfined.sh /usr/bin/rhts-test-runner.sh </dev/null || \
         die 1 "Can not run rhts-test-runner.sh"
   else
     local compat_root=$BEAH_ROOT/var/beah/rhts-compat
