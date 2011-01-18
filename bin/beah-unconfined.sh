@@ -53,6 +53,7 @@ function runcon_unconfined() {
 }
 
 if selinuxenabled; then
+  echo "-- INFO: selinux enabled: trying to switch context..."
   runcon_unconfined "$@"
 else
   exec "$@"
