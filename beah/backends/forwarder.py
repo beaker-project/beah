@@ -237,7 +237,7 @@ def start_forwarder_backend():
 def main(args=None):
     config.backend_conf(
             defaults={'NAME':'beah_forwarder_backend'},
-            overrides=config.backend_opts())
+            overrides=config.backend_opts(args=args))
     log_handler()
     start_forwarder_backend()
     reactor.run()
