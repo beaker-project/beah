@@ -1,0 +1,18 @@
+#!/bin/bash
+
+if [[ "$1" == "report" && -n "$CALLED_BY_BEAH" ]]; then
+  file=$(beah-check report-file)
+  logs=$BEAH_CHECK_ROOT.tar.gz
+  if grep 'ERROR:' $file; then
+    # looks like an error!
+    if [[ -z $TEST ]]; then
+        TEST=beah-check
+    else
+        TEST=$TEST/beah-check
+    fi
+    beahsh warn -H $TEST -f errors.txt:$file -f logs.tar.gz:$logs ""
+  else
+    beahsh upload $logs
+  fi
+fi
+
