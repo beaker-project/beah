@@ -114,6 +114,49 @@ __TEXT_RESULT_TO_BEAH = {
         }
 
 
+upload_opts = None
+
+
+class AppendingSender(object):
+
+    def __init__(self, queue=None):
+        self._events = queue or []
+
+    def close(self):
+        pass
+
+    def __call__(self, evt):
+        self._events.append(evt)
+
+    def get_events(self):
+        return self._events
+
+
+def attach(dest, files):
+    if files:
+        for f in files:
+            handle, fname = (f+":").split(":", 1)
+            if not fname:
+                fname = handle
+            else:
+                fname = fname[:-1]
+            dest.upload(handle, fname)
+
+
+def proc_evt_upload(cmd, args):
+    """Upload a file."""
+    global upload_opts
+    if not upload_opts:
+        upload_opts = OptionParser(usage="%prog FILES",
+                description="Attach FILES to the current task.")
+        upload_opts.prog = "upload"
+    opts, args = upload_opts.parse_args(args)
+    s = AppendingSender()
+    t = beahlib.get_task(s)
+    attach(t, args)
+    return s.get_events()
+
+
 result_opts = None
 
 
@@ -132,13 +175,18 @@ def _proc_evt_result(cmd, args):
                 default="")
         result_opts.add_option("-s", "--score", action="store",
                 dest="score", help="result score", default="0.0", type="float")
+        result_opts.add_option("-f", "--file", action="append",
+                dest="files", help="Attach a file.")
     result_opts.prog = text_result
     opts, args = result_opts.parse_args(args)
     statistics = {}
     if opts.score:
         statistics["score"] = opts.score
-    return [event.result_ex(evt_result, handle=opts.handle,
-        message=" ".join(args), statistics=statistics)]
+    s = AppendingSender()
+    r = beahlib.get_task(s).result(evt_result, handle=opts.handle,
+            message=" ".join(args), statistics=statistics)
+    attach(r, opts.files)
+    return s.get_events()
 
 
 proc_evt_pass = _proc_evt_result
