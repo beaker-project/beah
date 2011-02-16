@@ -5,7 +5,7 @@ _is_rhfamily() {
   local op=$2
   local ver=$3
   shift 3
-  local the_rpms="$(rpm -qa | grep ${family}-release)"
+  local the_rpms="$(rpm -q --whatprovides redhat-release)"
   if [[ -z $the_rpms ]]; then
     false
   else
