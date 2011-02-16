@@ -413,6 +413,11 @@ function lm_beaker()
   service beah-beaker-backend ${1:-restart}
 }
 
+function lm_watchdog()
+{
+  service beah-watchdog-backend ${1:-restart}
+}
+
 function lm_fakelc()
 {
   service beah-fakelc ${1:-restart}
@@ -421,6 +426,7 @@ function lm_fakelc()
 function lm_stop()
 {
   service beah-beaker-backend stop
+  service beah-watchdog-backend stop
   service beah-fwd-backend stop
   if [[ -n "$FAKELC_SERVICE" ]]; then
     service beah-fakelc stop
@@ -485,8 +491,9 @@ function lm_start_()
       fi
     fi
   fi
-  service beah-beaker-backend start
+  service beah-watchdog-backend start
   service beah-fwd-backend start
+  service beah-beaker-backend start
 }
 
 function lm_start()
@@ -526,6 +533,9 @@ function lm_chkconfig_del()
   if chkconfig beah-srv; then
     chkconfig --del beah-srv
   fi
+  if chkconfig beah-watchdog-backend; then
+    chkconfig --del beah-watchdog-backend
+  fi
   if chkconfig beah-beaker-backend; then
     chkconfig --del beah-beaker-backend
   fi
@@ -541,6 +551,9 @@ function lm_chkconfig_add()
 {
   if ! chkconfig beah-srv; then
     chkconfig --add beah-srv
+  fi
+  if ! chkconfig beah-watchdog-backend; then
+    chkconfig --add beah-watchdog-backend
   fi
   if ! chkconfig beah-beaker-backend; then
     chkconfig --add beah-beaker-backend

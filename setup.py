@@ -145,8 +145,8 @@ setup(
     namespace_packages=['beah'],
 
     data_files=[
-        ('/etc', ['beah.conf', 'beah_beaker.conf']),
-        ('/etc/init.d', ['init.d/beah-srv', 'init.d/beah-fakelc', 'init.d/beah-beaker-backend', 'init.d/beah-fwd-backend', 'init.d/rhts-compat']),
+        ('/etc', ['beah.conf', 'beah_beaker.conf', 'beah_watchdog.conf']),
+        ('/etc/init.d', ['init.d/beah-srv', 'init.d/beah-fakelc', 'init.d/beah-beaker-backend', 'init.d/beah-watchdog-backend', 'init.d/beah-fwd-backend', 'init.d/rhts-compat']),
         ] + more_data_files,
     #package_data={
     #    '': ['beah.conf', 'beah_beaker.conf'],
@@ -160,6 +160,7 @@ setup(
             'beah-cmd-backend = beah.bin.cmd_backend:main',
             'beah-out-backend = beah.bin.out_backend:main',
             'beah-beaker-backend = beah.backends.beakerlc:main',
+            'beah-watchdog-backend = beah.backends.watchdog:main',
             'beah-fwd-backend = beah.backends.forwarder:main',
             'beah-fakelc = beah.tools.fakelc:main',
             'beah-rhts-task = beah.tasks.rhts_xmlrpc:main',
