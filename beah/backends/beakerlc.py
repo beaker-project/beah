@@ -1037,6 +1037,7 @@ class BeakerTask(PersistentBeakerObject):
         backend.send_cmd(command.forward(event.completed(task_id=self.id,
             origin={'source': backend.name},
             success=success)))
+        backend.remove_task(self)
         self.close()
         log_flush(log)
         return result
@@ -1344,9 +1345,10 @@ class BeakerRecipe(BeakerTask):
     def new_task(self, task):
         task_data = task.task_data()
         log.debug("new_task(task=%s, task_data=%s)", task, task_data)
+        backend = self.backend()
         if task_data is None:
             log.info("* Recipe done. Nothing to do...")
-            reactor.callLater(60, self.backend().on_idle)
+            reactor.callLater(60, backend.on_idle)
             return
         task_id = task_data['task_env']['TASKID']
         task_data['task_env']['LAB_CONTROLLER'] = config.get_conf('beah-backend').get('DEFAULT', 'COBBLER_SERVER')
@@ -1357,14 +1359,16 @@ class BeakerRecipe(BeakerTask):
                     name=task_name,
                     env=task_data['task_env'],
                     args=task_data['args'])
+            tuuid = run_cmd.id()
             self.save_task(run_cmd, task_id, task)
         else:
             tuuid = run_cmd.id()
             if self.tasks._get(tuuid, (), {'parsed': task}).has_finished():
                 run_cmd = None
-        self.backend().init_queue()
+        backend.init_queue()
         if run_cmd:
-            self.backend().send_cmd(run_cmd)
+            backend.send_cmd(run_cmd)
+        backend.add_task(self.tasks[tuuid])
 
     def save_task(self, run_cmd, tid, task):
         tuuid = run_cmd.id()
@@ -1413,6 +1417,7 @@ class BeakerLCBackend(SerializingBackend):
                 runtime_sync_orig()
         self.runtime.sync = runtime_sync
         id1 = reactor.addSystemEventTrigger('before', 'shutdown', self.close)
+        self._active_tasks = []
         self.__commands = {}
         self.recipe = None
         self.__journal_file = self.open_journal('ab+')
@@ -1436,6 +1441,20 @@ class BeakerLCBackend(SerializingBackend):
             self.proxy.logging_print = log.info
         self.on_idle()
         self.start_flusher()
+
+    def add_task(self, task):
+        if task in self._active_tasks:
+            raise RuntimeError('The task is already running!')
+        self._active_tasks.append(task)
+
+    def remove_task(self, task):
+        if task in self._active_tasks:
+            self._active_tasks.remove(task)
+        else:
+            raise RuntimeError('No such task.')
+
+    def active_tasks(self):
+        return self._active_tasks
 
     def init_queue(self):
         if self.__queue_ready:
@@ -1678,6 +1697,12 @@ class BeakerLCBackend(SerializingBackend):
 
     def proc_evt_end(self, evt):
         evt.task.end(evt.arg("rc", None))
+
+    def query_watchdogs(self):
+        proxy = self.proxy
+        for task in self.active_tasks():
+            d = proxy.callRemote('status_watchdog', task.beaker_id)
+            d.addCallback(self.handle_status_watchdog, task)
 
     def handle_status_watchdog(self, watchdog, task):
         self.send_cmd(command.forward(event.extend_watchdog(
