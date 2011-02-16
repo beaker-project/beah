@@ -459,11 +459,12 @@ class RHTSMain(object):
         # save env:
         env_file = ENV_PATHNAME_TEMPLATE % taskid
         self.env['RHTS_ENV'] = env_file
-        jsonenv.export_env(env_file, self.env)
 
         # provide sensible defaults for selected system env.variables:
         self.env.setdefault('HOME', '/root')
         self.env.setdefault('LANG', 'en_US.UTF-8')
+
+        jsonenv.export_env(env_file, self.env)
 
         # FIXME: should any checks go here?
         # e.g. does Makefile PURPOSE exist? try running `make testinfo.desc`? ...
