@@ -1447,7 +1447,7 @@ class BeakerLCBackend(SerializingBackend):
                 evt, flags = json.loads(ln)
                 evt = event.Event(evt)
                 if self.get_evt_task(evt) is None:
-                    tid = self.get_evt_task_id(evt)
+                    tid = evt.task_id()
                     log.error("No task '%s' for the event '%r'.", tid, evt)
                     continue
                 self.async_proc(evt, flags)
@@ -1535,23 +1535,13 @@ class BeakerLCBackend(SerializingBackend):
     # RECIPE HANDLING
     ############################################################################
 
-    def get_evt_task_id(self, evt):
-        evev = evt.event()
-        if evev in ('start', 'end'):
-            tid = evt.arg('task_id')
-        elif evev == 'echo':
-            tid = evt.arg('cmd_id')
-        else:
-            tid = evt.origin().get('id', None)
-        return tid
-
     def get_evt_task(self, evt):
         if not self.recipe:
             return None
         task = getattr(evt, 'task', None)
         if task is not None:
             return task
-        tid = self.get_evt_task_id(evt)
+        tid = evt.task_id()
         if tid is None:
             return None
         task = self.recipe.tasks.get(tid, None)

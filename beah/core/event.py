@@ -565,6 +565,17 @@ class Event(list):
     def __repr__(self):
         return list.__repr__(self.printable())
 
+    def task_id(self):
+        evev = self.event()
+        if evev in ('start', 'end', 'completed'):
+            tid = self.arg('task_id')
+        elif evev == 'echo':
+            tid = self.arg('cmd_id')
+        else:
+            tid = self.origin().get('id', None)
+        return tid
+
+
 
 ################################################################################
 # SUBCLASSES:
