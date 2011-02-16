@@ -280,7 +280,7 @@ class Controller(object):
         evt = event.event(cmd.arg('event'))
         evev = evt.event()
         # FIXME: incomming events filter - CHECK
-        if evev not in ['variable_get', 'variable_set', 'variables']:
+        if evev not in ['variable_get', 'variable_set', 'variables', 'completed', 'extend_watchdog', 'update_watchdog']:
             echo_evt.args()['rc'] = ECHO.EXCEPTION
             echo_evt.args()['message'] = 'Event %r is not permitted here.' % evev
             return

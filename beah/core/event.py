@@ -68,6 +68,13 @@ def end(task_id, rc, origin={}, timestamp=None):
     """Event generated when task finished"""
     return Event('end', origin, timestamp, task_id=task_id, rc=rc)
 
+def completed(task_id, success, origin={}, timestamp=None):
+    """
+    Task was fully handled by the originating backend.
+    
+    """
+    return Event('completed', origin, timestamp, task_id=task_id, success=success)
+
 def flush(origin={}, timestamp=None):
     """Event to request a memory-flush."""
     return Event('flush', origin, timestamp)
@@ -75,6 +82,9 @@ def flush(origin={}, timestamp=None):
 def introduce(task_id, origin={}, timestamp=None):
     return Event('introduce', origin=origin, timestamp=timestamp,
             task_id=task_id)
+
+def query_watchdog(origin={}, timestamp=None):
+    return Event('query_watchdog', origin, timestamp)
 
 def extend_watchdog(timeout, origin={}, timestamp=None):
     return Event('extend_watchdog', origin, timestamp, timeout=timeout)
