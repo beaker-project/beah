@@ -260,6 +260,10 @@ function lm_install_beah()
   if which beah-root; then
     rm -f ~/beah
     ln -s $(beah-root) ~/beah
+    rm -f ~/beah-libexec
+    ln -s $(dirname $(dirname $(beah-data-root)))/libexec/beah ~/beah-libexec
+    rm -f ~/beah-data
+    ln -s $(beah-data-root) ~/beah-data
   fi
   echo "lm_install_beah: return $_answ"
   return $_answ
