@@ -61,6 +61,7 @@ from xml.dom import minidom
 
 from twisted.web.xmlrpc import Proxy
 from twisted.internet import reactor, defer
+from twisted.python import failure
 
 from beah import config
 from beah.core import command, event, addict
@@ -915,9 +916,6 @@ class BeakerTask(PersistentBeakerObject):
         self.on_set_state()
 
     def close(self):
-        self.has_started = boolf(self.has_started())
-        self.has_finished = boolf(self.has_finished())
-        self.has_completed = boolf(self.has_completed())
         self.writers.close()
         self.writers = None
         self.results.close()
@@ -926,6 +924,7 @@ class BeakerTask(PersistentBeakerObject):
         self.files = None
         self.check_link = None
         self.parsed = None
+        self.set_completed()
         PersistentBeakerObject.close(self)
 
     def name(self):
@@ -1025,16 +1024,22 @@ class BeakerTask(PersistentBeakerObject):
         # type: ('stop'|'abort')
         self.flush()
         d = self.proxy().callRemote('task_stop', self.beaker_id, type, msg)
-        self.set_completed() # move to close(?)
-        d.addCallback(self.handle_Stop).addErrback(self.backend().on_lc_failure)
+        d.addBoth(self.handle_Stop).addCallback(self.backend().on_idle).addErrback(self.backend().on_lc_failure)
 
     def handle_Stop(self, result):
         '''Handler for task_stop XML-RPC return.'''
-        log.info('Task %s done. Completely.', self.beaker_id)
+        success = not isinstance(result, failure.Failure)
+        if success:
+            log.info('Task %s done. Completely.', self.beaker_id)
+        else:
+            log.error('Task %s done. Stop failed: %s.', self.beaker_id, result)
         backend = self.backend()
+        backend.send_cmd(command.forward(event.completed(task_id=self.id,
+            origin={'source': backend.name},
+            success=success)))
         self.close()
         log_flush(log)
-        backend.on_idle()
+        return result
 
 
 class BeakerResult(BeakerObject, PersistentItem):
@@ -1385,10 +1390,13 @@ class BeakerLCBackend(SerializingBackend):
             '_next_evt', '_pop_evt', 'idle',
             ]
 
+    WATCHDOG_TOLLERANCE = 5
+
     def __init__(self):
         self.conf = config.get_conf('beah-backend')
         self.hostname = self.conf.get('DEFAULT', 'HOSTNAME')
         self.digest_method = self.conf.get('DEFAULT', 'DIGEST')
+        self.name = self.conf.get('DEFAULT', 'NAME')
         self.waiting_for_lc = False
         self.runtime = runtimes.ShelveRuntime(self.conf.get('DEFAULT', 'RUNTIME_FILE_NAME'))
         # override runtime sync to prevent performance hit:
@@ -1576,7 +1584,7 @@ class BeakerLCBackend(SerializingBackend):
     def on_error(self, msg, *args, **kwargs):
         self.__on_error("ERROR", msg, traceback.format_stack(), *args, **kwargs)
 
-    def on_idle(self):
+    def on_idle(self, result=None):
         if self.waiting_for_lc:
             self.on_error("on_idle called with waiting_for_lc already set.")
             return
@@ -1671,17 +1679,28 @@ class BeakerLCBackend(SerializingBackend):
     def proc_evt_end(self, evt):
         evt.task.end(evt.arg("rc", None))
 
+    def handle_status_watchdog(self, watchdog, task):
+        self.send_cmd(command.forward(event.extend_watchdog(
+            watchdog - self.WATCHDOG_TOLLERANCE,
+            origin={'id': task.id, 'source': self.name})))
+
     def async_proc(self, evt, flags):
         evev = evt.event()
         # some events need asynchronous processing, so they do not wait in
         # queue.
+        if evev == 'query_watchdog':
+            # query_watchdog is sent immediately. May be used as ping.
+            id = evt.task.beaker_id
+            d = self.proxy.callRemote('status_watchdog', id, tio)
+            d.addCallback(self.handle_status_watchdog, evt.task)
         if evev == 'extend_watchdog':
             # extend_watchdog is send immediately, to prevent EWD killing us in
             # case of network/LC problems.
             tio = evt.arg('timeout')
             id = evt.task.beaker_id
             log.info('Extending Watchdog for task %s by %s..', id, tio)
-            self.proxy.callRemote('extend_watchdog', id, tio)
+            d = self.proxy.callRemote('extend_watchdog', id, tio)
+            d.addCallback(self.handle_status_watchdog, evt.task)
             #return
         elif evev == 'end':
             # task is done: override EWD to allow for data submission, even in
@@ -1689,10 +1708,13 @@ class BeakerLCBackend(SerializingBackend):
             evt.task.set_finished()
             id = evt.task.beaker_id
             log.info('Task %s done. Submitting logs...', id)
-            self.proxy.callRemote('extend_watchdog', id, 4*3600)
+            d = self.proxy.callRemote('extend_watchdog', id, 4*3600)
+            d.addCallback(self.handle_status_watchdog, evt.task)
             # end will be processed synchronously too to mark the task finished
 
     def proc_evt(self, evt, **flags):
+        if evt.origin().get('source', None) == self.name:
+            return
         evev = evt.event()
         if evev == 'echo':
             cid = evt.arg('cmd_id', None)
