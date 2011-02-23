@@ -8,7 +8,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
 Name: beah
-Version: 0.6.21
+Version: 0.6.22
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -75,6 +75,10 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755, root, root)%{_libexecdir}/%{name}/beah-check/*
 
 %changelog
+* Wed Feb 23 2011 Marian Csontos <mcsontos@redhat.com> 0.6.22-1
+- bz677717 - issue when running in rhts compat mode
+- bz601126 - $HOME variable not set
+
 * Tue Jan 25 2011 Marian Csontos <mcsontos@redhat.com> 0.6.21-1
 - Fixed: rhts-compat uses login shell and correct PWD
 - bz669665 - Run rhts tasks in unconfined context
