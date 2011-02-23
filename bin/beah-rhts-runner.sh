@@ -60,6 +60,37 @@ heartbeat() {
   true
 }
 
+check_compat() {
+  # "check rhts-compat is runing. setup and reboot if not"
+  if service rhts-compat status; then
+    return
+  else
+    # if the service is not running and is scheduled to run: wait first...
+    if chkconfig rhts-compat; then
+      local i=0
+      for i in $(seq 1 10); do
+        sleep 4
+        if service rhts-compat status; then
+          return
+        fi
+      done
+    fi
+    chkconfig --add rhts-compat && \
+    chkconfig rhts-compat on || die 1 "Can not set the rhts-compat service."
+    echo "The rhts-compat service is set up. Rebooting..."
+    echo "Optionally run 'service rhts-compat start' and kill rhts-reboot process."
+    echo "Do not press C-c as adviced, please."
+    beah-reboot.sh
+
+    # in case we got here:
+    local answ=$?
+    echo "Wow, it escaped from infinite loop! Try 'ps -ef | grep -i copperfield'..."
+    echo -n "" | rhts-report-result rhts-compat/reboot-failed WARN - $answ
+    echo "Starting rhts-compat service manually: I do not want the job to fail beacause of this..."
+    service rhts-compat start
+  fi
+}
+
 main() {
   if [[ -f /etc/profile.d/task-overrides-rhts.sh ]]; then
     source /etc/profile.d/task-overrides-rhts.sh
@@ -96,17 +127,8 @@ main() {
       chmod a+x $launcher || die 1 "Error chmodding launcher"
     fi
 
-    # "check rhts-compat is runing. setup and reboot if not"
-    if service rhts-compat status; then
-      echo "rhts-compat service is running. Waiting for launcher being picked up."
-    else
-      chkconfig --add rhts-compat && \
-      chkconfig rhts-compat on || die "Can not set the rhts-compat service."
-      echo "The rhts-compat service is set up. Rebooting..."
-      echo "Optionally run 'service rhts-compat start' and kill rhts-reboot process."
-      echo "Do not press C-c as adviced, please."
-      beah-reboot.sh
-    fi
+    check_compat
+    echo "rhts-compat service is running. Waiting for launcher being picked up."
 
     # "write pid file if does not exist"
     if [[ -f $pidfile ]]; then
