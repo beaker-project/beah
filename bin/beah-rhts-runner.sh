@@ -119,6 +119,14 @@ main() {
       json-env - =$RHTS_ENV RUNNER_PIDFILE=$pidfile LAUNCHER_PIDFILE=$pidfile2 /bin/bash -c 'export' > $shenv || die 1 "Can not create the environment."
     fi
 
+    # "write pid file if does not exist"
+    if [[ -f $pidfile ]]; then
+      true
+      # 1. TODO: check the process is running. If not simply remove pid file and create it.
+      # 2. TODO: what now?
+    fi
+    echo "$$" > $pidfile
+
     # "write launcher if it does not exist"
     if [[ ! -x $launcher ]]; then
       mkdir -p $(dirname $launcher)
@@ -129,14 +137,6 @@ main() {
 
     check_compat
     echo "rhts-compat service is running. Waiting for launcher being picked up."
-
-    # "write pid file if does not exist"
-    if [[ -f $pidfile ]]; then
-      true
-      # 1. TODO: check the process is running. If not simply remove pid file and create it.
-      # 2. TODO: what now?
-    fi
-    echo "$$" > $pidfile
 
     # TODO "set traps"
     # - on kill: kill launcher, remove pid file. Shall we remove launcher here?
