@@ -2,7 +2,7 @@
 #
 # beah-fwd-backend:	Start the Beaker backend.
 #
-# chkconfig:	345 98 98
+# chkconfig:	345 99 99
 # description:	Daemon linking Beaker Harness with Lab Controller.
 
 # Source function library.
