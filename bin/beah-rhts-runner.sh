@@ -129,10 +129,12 @@ main() {
 
     # "write launcher if it does not exist"
     if [[ ! -x $launcher ]]; then
+      local temp_file=$(mktemp rhts-launcher.XXXXXX)
       mkdir -p $(dirname $launcher)
-      echo "#!/bin/sh" > $launcher || die 1 "Error writing launcher"
-      echo "rhts-compat-runner.sh $shenv" >> $launcher || die 1 "Error writing launcher"
-      chmod a+x $launcher || die 1 "Error chmodding launcher"
+      echo "#!/bin/sh" > $temp_file || die 1 "Error writing launcher"
+      echo "rhts-compat-runner.sh $shenv" >> $temp_file || die 1 "Error writing launcher"
+      chmod a+x $temp_file || die 1 "Error chmodding launcher"
+      mv $temp_file $launcher
     fi
 
     check_compat
