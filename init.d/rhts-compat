@@ -1,7 +1,7 @@
 #!/bin/sh
 # rhts:	Start the RHTS tests
 #
-# chkconfig: 345 99 99
+# chkconfig: - 99 99
 # description:  This service is used in rhts-compat mode.
 #
 # Tihs service should run after all other services are up, as it is running in
@@ -19,7 +19,7 @@ check4norhts() {
   fi
 }
 
-prog="rhts-compat"
+prog=rhts-compat
 
 if [ -f /etc/sysconfig/$prog ]; then
   . /etc/sysconfig/$prog
@@ -147,16 +147,16 @@ case "$1" in
     status
     RETVAL=$?
     ;;
-  restart)
+  restart|force-reload)
     restart
     ;;
-  condrestart)
+  condrestart|try-restart)
     condrestart
     ;;
   reload)
     ;;
-  *)
-    echo $"Usage: $0 {start|stop|status|restart|condrestart|reload}"
+  usage|*)
+    echo $"Usage: $0 {start|stop|status|restart|condrestart|reload|force-reload|usage}"
     ;;
 esac
 exit $RETVAL

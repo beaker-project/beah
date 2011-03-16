@@ -3,6 +3,8 @@
 %global __python python2.6
 %global _rhel3 26
 %endif
+%global _services_restart "beah-fakelc beah-beaker-backend beah-fwd-backend"
+%global _services "beah-srv ${_services_restart}"
 
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
@@ -30,6 +32,11 @@ Requires: python-hashlib
 Requires: python-uuid
 %endif
 BuildRequires: python%{?_rhel3}-devel python%{?_rhel3}-setuptools
+Requires(post): chkconfig
+Requires(preun): chkconfig
+# This is for /sbin/service
+Requires(preun): initscripts
+Requires(postun): initscripts
 
 %description
 Beah - Beaker Test Harness.
@@ -42,7 +49,6 @@ Backends issue commands to Server and process events from tasks.
 Tasks are mostly events producers.
 
 Powered by Twisted.
-
 
 %prep
 %setup -q
@@ -73,6 +79,26 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/%{name}
 %{_libexecdir}/%{name}
 %attr(0755, root, root)%{_libexecdir}/%{name}/beah-check/*
+
+%post
+for service in %{_services}; do
+    /sbin/chkconfig --add $service
+done
+
+%preun
+if [ $1 = 0 ]; then
+    for service in %{_services}; do
+        /sbin/service $service stop >/dev/null 2>&1
+        /sbin/chkconfig --del $service
+    done
+fi
+
+%postun
+if [ "$1" -ge "1" ]; then
+    for service in %{_services_restart}; do
+        /sbin/service $service condrestart >/dev/null 2>&1 || :
+    done
+fi
 
 %changelog
 * Tue Mar 22 2011 Marian Csontos <mcsontos@redhat.com> 0.6.24-1
@@ -190,4 +216,4 @@ rm -rf $RPM_BUILD_ROOT
 - Use ReleaseTagger as default on the branch. (mcsontos@redhat.com)
 
 * Mon May 03 2010 Bill Peck <bpeck@redhat.com> 0.6-1
- - Initial spec file and use of tito for tagging and building.
+- Initial spec file and use of tito for tagging and building.
