@@ -35,9 +35,13 @@ PIDFILE=/var/run/${prog}.pid
 LOCKFILE=/var/lock/subsys/$prog
 
 start() {
-    echo "Waiting for network..."
-    if [[ -x "/usr/bin/nm-online" ]]; then
-      /usr/bin/nm-online
+    if service NetworkManager status; then
+        echo $"Waiting for network..."
+        if [[ -x "/usr/bin/nm-online" ]]; then
+            /usr/bin/nm-online
+        fi
+    else
+        echo $"Network is not managed by NM."
     fi
     echo -n $"Starting $prog: "
     daemon --user $RUN_AS $path "$OPTIONS >> /tmp/$prog.out 2>&1 &" 'echo $!' ">$PIDFILE"
