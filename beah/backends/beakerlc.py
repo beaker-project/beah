@@ -1394,7 +1394,7 @@ class BeakerLCBackend(SerializingBackend):
             '_next_evt', '_pop_evt', 'idle',
             ]
 
-    WATCHDOG_TOLLERANCE = 5
+    WATCHDOG_TOLERANCE = 5 # Account for trip from scheduler to handler
 
     def __init__(self):
         self.conf = config.get_conf('beah-backend')
@@ -1706,7 +1706,7 @@ class BeakerLCBackend(SerializingBackend):
 
     def handle_status_watchdog(self, watchdog, task):
         self.send_cmd(command.forward(event.extend_watchdog(
-            watchdog - self.WATCHDOG_TOLLERANCE,
+            watchdog - self.WATCHDOG_TOLERANCE,
             origin={'id': task.id, 'source': self.name})))
 
     def async_proc(self, evt, flags):
@@ -1716,7 +1716,7 @@ class BeakerLCBackend(SerializingBackend):
         if evev == 'query_watchdog':
             # query_watchdog is sent immediately. May be used as ping.
             id = evt.task.beaker_id
-            d = self.proxy.callRemote('status_watchdog', id, tio)
+            d = self.proxy.callRemote('status_watchdog', id)
             d.addCallback(self.handle_status_watchdog, evt.task)
         if evev == 'extend_watchdog':
             # extend_watchdog is send immediately, to prevent EWD killing us in

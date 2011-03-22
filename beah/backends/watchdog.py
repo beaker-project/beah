@@ -141,7 +141,7 @@ class Task(object):
             try:
                 handler(self)
             except:
-                self.log.exception('Handler %r raised an exception.', name)
+                self.backend.log.exception('Handler %r raised an exception.', name)
 
     def on_watchdog(self):
         '''\
@@ -200,7 +200,8 @@ class Task(object):
             self._set_watchdog(timeout)
 
     def clean(self, attrs):
-        '''Clean-up attributes requiring special handling.
+        '''
+        Clean-up attributes requiring special handling.
 
         attrs - list of attributes to reset. Reset all when empty.
 
@@ -215,14 +216,30 @@ class Task(object):
                     call.cancel()
 
     def close(self):
+        '''
+        Clean Up method called when task is deleted.
+
+        This must stop all timeouts.
+
+        '''
         self.clean(None)
 
 
 class WatchdogBackend(ExtBackend):
 
     '''
-    Dispathcer object to create and maintain collection of Task instances and
+    Dispatcher object to create and maintain collection of Task instances and
     route events to them.
+
+    Watchdog is queried if task without known watchdog is met so it is not
+    necessary to keep state. This is also more reliable, as on reboot e.g. the
+    system clock could be changed (obtained from ntp server) and estimated
+    watchdog time may be wrong.
+
+    If event is received and the task instance does not exist the objects it
+    created anyway - we may still want to wait for completed event in case of
+    end event or the service might have been restarted in case of
+    extend_watchdog.
 
     '''
 
@@ -240,17 +257,20 @@ class WatchdogBackend(ExtBackend):
         self.tasks = {}
 
     def start(self):
-        #self.send_cmd(command.forward())
-        # query_all_tasks - send query_watchdog - should query all running tasks!
+        '''Initialize instance.'''
+        # it may be desirable to call query_watchdogs to send query_watchdog to
+        # all running tasks
         pass
 
     def set_controller(self, controller=None):
+        '''Handle server going online/offline.'''
         ExtBackend.set_controller(self, controller)
         if controller:
             for task in self.tasks.values():
                 task.online()
 
     def proc_evt_start(self, evt):
+        '''Process start event.'''
         tid = evt.task_id()
         t = self.tasks.get(tid, None)
         if t is None:
@@ -260,6 +280,7 @@ class WatchdogBackend(ExtBackend):
             self.log.warning('Task %r already exists!', tid)
 
     def proc_evt_end(self, evt):
+        '''Process end event.'''
         tid = evt.task_id()
         t = self.tasks.get(tid, None)
         if t is None:
@@ -268,6 +289,7 @@ class WatchdogBackend(ExtBackend):
         t.start()
 
     def proc_evt_completed(self, evt):
+        '''Process completed event.'''
         tid = evt.task_id()
         t = self.tasks.pop(tid, None)
         if t:
@@ -276,6 +298,7 @@ class WatchdogBackend(ExtBackend):
             self.log.warning('Task %r does not exist!', tid)
 
     def proc_evt_extend_watchdog(self, evt):
+        '''Process extend_watchdog event.'''
         tid = evt.task_id()
         t = self.tasks.get(tid, None)
         if t is None:
@@ -326,13 +349,13 @@ def watchdog_opts(opt, conf):
 
     '''
     def timeout_cb(option, opt_str, value, parser):
-        # FIXME!!! check value
+        '''Process timeout option.'''
         conf['TIMEOUT'] = str(value)
     opt.add_option('-t', '--timeout',
             action='callback', callback=timeout_cb, type='int',
             help='Fire watchdog handler TIMEOUT seconds before it exipres.')
     def query_cb(option, opt_str, value, parser):
-        # FIXME!!! check value
+        '''Process query-watchdog option.'''
         conf['QUERY_WATCHDOG'] = str(value)
     opt.add_option('-Q', '--query-watchdog', metavar='QUERY_WATCHDOG',
             action='callback', callback=query_cb, type='int',
