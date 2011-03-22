@@ -1,16 +1,47 @@
 #!/bin/bash
 
+# Beah - Test harness. Part of Beaker project.
+#
+# Copyright (C) 2011 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
 if [[ -n $1 ]]; then
 
 beah-check-cp() {
+  if [[ $1 == '--tee' ]]; then
+    local tee=$1
+    shift
+  fi
   local file=$1 save_as=${2:-$1}
   local fullname=$BEAH_CHECK_ROOT$BEAH_CHECK/$save_as
   mkdir -p $(dirname $fullname)
-  cp $1 $fullname
+  cp $file $fullname
+  if [[ -n $tee ]]; then
+    echo "cat > $fullname <<END_$fullname"
+    cat $file
+    echo "END_$fullname"
+  fi
 }
 
 beah-check-cat() {
-  beah-check-cp /proc/self/fd/0 $1
+  if [[ $1 == '--tee' ]]; then
+    local tee=$1
+    shift
+  fi
+  beah-check-cp $tee /proc/self/fd/0 $1
 }
 
 beah-check-echo() {
@@ -22,8 +53,28 @@ beah-check-error() {
   false
 }
 
+beah-check-info() {
+  echo "INFO: $*"
+}
+
+beah-check-cat-info() {
+  while read; do
+    beah-check-info "$*$REPLY"
+  done
+}
+
+beah-check-cat-error() {
+  while read; do
+    beah-check-error "$*$REPLY"
+  done
+}
+
 beah-check-report-file() {
   echo "$BEAH_CHECK_ROOT/report.txt"
+}
+
+beah-check-output-file() {
+  echo "$BEAH_CHECK_ROOT/output.txt"
 }
 
 beah-check-dispatch() {

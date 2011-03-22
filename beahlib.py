@@ -334,6 +334,7 @@ class BeahResult(BeahEventObject, IBeahUpload):
 class BeahFile(BeahEventObject):
 
     MAX_CHUNK_SIZE = 128*1024
+    CODEC = 'base64'
 
     def __init__(self, parent, handle):
         BeahEventObject.__init__(self, parent)
@@ -363,7 +364,8 @@ class BeahFile(BeahEventObject):
             new_offset = self.tell() + len(data)
         else:
             new_offset = offset + len(data)
-        self.send(event.file_write(self.id(), data, offset=offset))
+        self.send(event.file_write(self.id(), event.encode(self.CODEC, data),
+            offset=offset, codec=self.CODEC))
         self.seek(new_offset)
         return None
 

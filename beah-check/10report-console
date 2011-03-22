@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [[ "$1" == "report" ]]; then
+  # TODO: if there are any errors - print output.txt to console as well!
+  file=$(beah-check report-file)
+  if [[ -f $file && $(cat $file | wc -l) -gt 0 ]]; then
+    cat $(beah-check output-file) > /dev/console
+    echo -e "\nMessages found in '$file':" > /dev/console
+    cat $file > /dev/console
+  fi
+fi

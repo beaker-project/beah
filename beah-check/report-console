@@ -1,7 +1,0 @@
-#!/bin/bash
-
-if [[ "$1" == "report" ]]; then
-  file=$(beah-check report-file)
-  echo -e "\nMessages found in '$file':" > /dev/console
-  cat $file > /dev/console
-fi

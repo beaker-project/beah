@@ -18,9 +18,9 @@ if [[ "$1" == "check" ]]; then
   done
 
   if [[ -n $answ ]]; then
-    ifconfig 2>&1 | beah-check cat ifconfig.out
-    route 2>&1 | beah-check cat route.out
-    iptables -S 2>&1 | beah-check cat iptables-S.out
+    ifconfig 2>&1 | beah-check cat --tee ifconfig.out
+    route 2>&1 | beah-check cat --tee route.out
+    iptables -S 2>&1 | beah-check cat --tee iptables-S.out
   fi
 
 fi
