@@ -8,7 +8,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
 Name: beah
-Version: 0.6.23
+Version: 0.6.24
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -75,6 +75,12 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755, root, root)%{_libexecdir}/%{name}/beah-check/*
 
 %changelog
+* Tue Mar 22 2011 Marian Csontos <mcsontos@redhat.com> 0.6.24-1
+- bz679824 - start backends after NetworkManager
+- Watchdog handling
+- Waiting for NetworkManager only if active
+- Fixed race condition causing External Watchdog
+
 * Tue Mar 01 2011 Bill Peck <bpeck@redhat.com> 0.6.23-1
 - bz681005 - Recipes not completing as expected (mcsontos@redhat.com)
 
