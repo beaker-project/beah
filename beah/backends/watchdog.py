@@ -36,7 +36,7 @@ To start the client use the main function.
 import os
 import logging
 
-from twisted.internet import reactor, defer
+from twisted.internet import reactor
 
 from beah import config
 from beah.core import command, event
@@ -69,8 +69,6 @@ def beah_check(task):
         os.spawnlp(os.P_WAIT, 'beah-check')
 
 
-DEFAULT_HANDLERS = {'beah_check': beah_check}
-
 
 class Task(object):
 
@@ -95,8 +93,9 @@ class Task(object):
 
     '''
 
-    _VERBOSE = ['start', 'online', 'query_watchdog', 'on_expired', 'on_watchdog', 'query_timeout', '_set_watchdog', 'set_watchdog', ]
-
+    _VERBOSE = ['initialize', 'online', 'query_watchdog', 'on_expired',
+            'on_watchdog', 'query_timeout', '_set_watchdog', 'set_watchdog', ]
+    
     QUERY_TIMEOUT = 60
     QUERY_EXPIRED = 5
 
@@ -110,7 +109,7 @@ class Task(object):
         self.has_expired = False # has the watchdog expired already?
         self.handlers = handlers
 
-    def start(self):
+    def initialize(self):
         '''Initialize the instance.'''
         if not self.watchdog_call:
             self.query_watchdog()
@@ -128,6 +127,7 @@ class Task(object):
         '''Try to read the actual value of watchdog.'''
         if not self.timeout_call:
             if self.backend.send_cmd(command.forward(event.query_watchdog(origin=self.origin))):
+                #pylint: disable-msg=E1101
                 self.timeout_call = reactor.callLater(self.QUERY_TIMEOUT, self.query_timeout)
             elif self.watchdog_call is None:
                 # we can not make call to the controller: set expired handler:
@@ -140,11 +140,11 @@ class Task(object):
         for name, handler in self.handlers.iteritems():
             try:
                 handler(self)
-            except:
+            except: #pylint: disable-msg=W0702
                 self.backend.log.exception('Handler %r raised an exception.', name)
 
     def on_watchdog(self):
-        '''\
+        '''
         Watchdog expiration about to happen.
 
         Try to query the value first. Only then call on_expired.
@@ -179,7 +179,7 @@ class Task(object):
         if self.watchdog_call:
             self.watchdog_call.reset(timeout)
         else:
-            self.watchdog_call = reactor.callLater(timeout, self.on_watchdog)
+            self.watchdog_call = reactor.callLater(timeout, self.on_watchdog) #pylint: disable-msg=E1101
 
     def set_watchdog(self, watchdog):
         '''Method called on changes to watchdog's value.'''
@@ -247,16 +247,17 @@ class WatchdogBackend(ExtBackend):
             'proc_evt_start', 'proc_evt_end', 'proc_evt_completed',
             'proc_evt_extend_watchdog', ]
 
-    def __init__(self, conf, log, handlers, Task=Task):
+    def __init__(self, conf, log, handlers, task_class=Task):
         self.conf = conf
         self.timeout = max(int(conf.get('DEFAULT', 'TIMEOUT')), MIN_TIMEOUT)
         self.name = conf.get('DEFAULT', 'NAME')
         self.log = log
         self.handlers = handlers
-        self.Task = Task
+        self.task_class = task_class
         self.tasks = {}
+        ExtBackend.__init__(self)
 
-    def start(self):
+    def initialize(self):
         '''Initialize instance.'''
         # it may be desirable to call query_watchdogs to send query_watchdog to
         # all running tasks
@@ -272,40 +273,42 @@ class WatchdogBackend(ExtBackend):
     def proc_evt_start(self, evt):
         '''Process start event.'''
         tid = evt.task_id()
-        t = self.tasks.get(tid, None)
-        if t is None:
-            t = self.tasks[tid] = self.Task(self, tid, self.handlers)
-            t.start()
+        task = self.tasks.get(tid, None)
+        if task is None:
+            task = self.tasks[tid] = self.task_class(self, tid, self.handlers)
+            task.initialize()
         else:
             self.log.warning('Task %r already exists!', tid)
 
     def proc_evt_end(self, evt):
         '''Process end event.'''
         tid = evt.task_id()
-        t = self.tasks.get(tid, None)
-        if t is None:
+        task = self.tasks.get(tid, None)
+        if task is None:
             self.log.warning('Task %r does not exist. Creating new one.', tid)
-            t = self.tasks[tid] = self.Task(self, tid, self.handlers)
-        t.start()
+            task = self.tasks[tid] = self.task_class(self, tid, self.handlers)
+        task.initialize()
 
     def proc_evt_completed(self, evt):
         '''Process completed event.'''
         tid = evt.task_id()
-        t = self.tasks.pop(tid, None)
-        if t:
-            t.close()
+        task = self.tasks.pop(tid, None)
+        if task:
+            task.close()
         else:
             self.log.warning('Task %r does not exist!', tid)
 
     def proc_evt_extend_watchdog(self, evt):
         '''Process extend_watchdog event.'''
         tid = evt.task_id()
-        t = self.tasks.get(tid, None)
-        if t is None:
+        task = self.tasks.get(tid, None)
+        if task is None:
             self.log.warning('Task %r does not exist. Creating new one.', tid)
-            t = self.tasks[tid] = self.Task(self, tid, self.handlers)
-        t.start()
-        t.set_watchdog(evt.arg('timeout'))
+            task = self.tasks[tid] = self.task_class(self, tid, self.handlers)
+            task.set_watchdog(evt.arg('timeout'))
+            task.initialize()
+        else:
+            task.set_watchdog(evt.arg('timeout'))
 
     def query_watchdogs(self):
         '''Broadcasts query_watchdog to all tasks.'''
@@ -321,11 +324,14 @@ class WatchdogBackend(ExtBackend):
             return False
 
 
+DEFAULT_HANDLERS = {'beah_check': beah_check}
+
+
 def start_watchdog_backend(conf):
     '''Starts a watchdog backend with specified configuration.'''
     log = logging.getLogger('backend')
     if config.parse_bool(conf.get('DEFAULT', 'DEVEL')):
-        print_this = log_this(lambda s: log.debug(s), log_on=True)
+        print_this = log_this(log.debug, log_on=True)
         make_class_verbose(WatchdogBackend, print_this)
         make_class_verbose(Task, print_this)
     handlers = dict(DEFAULT_HANDLERS)
@@ -334,9 +340,10 @@ def start_watchdog_backend(conf):
     query_interval = int(conf.get('DEFAULT', 'QUERY_WATCHDOG'))
     if query_interval > 0:
         watchdogs_request = CallRegularly(query_interval, backend.query_watchdogs)
+        #pylint: disable-msg=E1101
         reactor.addSystemEventTrigger('before', 'shutdown', watchdogs_request.stop)
     # Start a default TCP client:
-    backend.start()
+    backend.initialize()
     start_backend(backend)
 
 
@@ -365,13 +372,13 @@ def watchdog_opts(opt, conf):
 
 def defaults():
     '''Default configuration for watchdog backend.'''
-    d = config.backend_defaults()
-    d.update({
+    default_conf = config.backend_defaults()
+    default_conf.update({
             'NAME':'beah_watchdog_backend',
             'TIMEOUT':'300',
             'QUERY_WATCHDOG':'-1',
             })
-    return d
+    return default_conf
 
 
 def configure():
@@ -392,6 +399,7 @@ def main():
     conf = configure()
     log_handler()
     start_watchdog_backend(conf)
+    #pylint: disable-msg=E1101
     reactor.run()
 
 

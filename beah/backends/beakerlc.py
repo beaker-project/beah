@@ -380,12 +380,12 @@ class TaskParser(object):
     def matcher(task_spec):
         if not task_spec:
             return lambda t: True
-        if isinstance(prev_task, basestring):
+        if isinstance(task_spec, basestring):
             return lambda t: xml_attr(t, 'id') == task_spec
-        if isinstance(prev_task, TaskParser):
+        if isinstance(task_spec, TaskParser):
             task_node = task_spec.task_node
             return lambda t: t == task_node
-        if isinstance(prev_task, minidom.XMLNode):
+        if isinstance(task_spec, minidom.Element):
             return lambda t: task_spec == t
         raise TypeError('task_spec is of wrong type...')
     matcher = staticmethod(matcher)
