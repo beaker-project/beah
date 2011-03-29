@@ -22,13 +22,13 @@ Group: Development/Tools
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 Prefix: %{_prefix}
 BuildArch: noarch
-Requires: python(abi) >= 2.3
 Requires: python%{?_rhel3}
 Requires: python%{?_rhel3}-setuptools
 Requires: python%{?_rhel3}-simplejson 
 Requires: python%{?_rhel3}-twisted-core
 Requires: python%{?_rhel3}-twisted-web
 Requires: python%{?_rhel3}-zope-interface
+# We need these for EL4 and EL5.
 # RHEL3 python26 includes these, but since its a versioned package doesn't provide them.
 %if "0%{?dist}" != "0"
 Requires: python-hashlib
