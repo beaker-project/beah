@@ -2,24 +2,27 @@
 %if "0%{?dist}" == "0"
 %global __python python2.6
 %global _rhel3 26
+%global _py_dev 26
+%else
+%global _py_dev 2
 %endif
 %global _services_restart "beah-fakelc beah-beaker-backend beah-fwd-backend"
 %global _services "beah-srv ${_services_restart}"
 
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
-Summary: Beah - Beaker Test Harness. Part of Beaker project - http://fedorahosted.org/beaker/wiki.
+Summary: Test Harness. Offspring of Beaker project
 Name: beah
 Version: 0.6.24
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
-Group: Development/Libraries
-BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
+Group: Development/Tools
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 Prefix: %{_prefix}
 BuildArch: noarch
-Vendor: Marian Csontos <mcsontos@redhat.com>
+Requires: python(abi) >= 2.3
 Requires: python%{?_rhel3}
 Requires: python%{?_rhel3}-setuptools
 Requires: python%{?_rhel3}-simplejson 
@@ -31,22 +34,25 @@ Requires: python%{?_rhel3}-zope-interface
 Requires: python-hashlib
 Requires: python-uuid
 %endif
-BuildRequires: python%{?_rhel3}-devel python%{?_rhel3}-setuptools
 Requires(post): chkconfig
 Requires(preun): chkconfig
 # This is for /sbin/service
 Requires(preun): initscripts
 Requires(postun): initscripts
+BuildRequires: python%{?_py_dev}-devel
+BuildRequires: python%{?_rhel3}-setuptools
 
 %description
-Beah - Beaker Test Harness.
+Beah - Test Harness.
 
-Ultimate Test Harness, with goal to serve any tests and any test scheduler
-tools. Harness consist of a server and two kinds of clients - backends and
-tasks.
+Test Harness with goal to serve any tests and any test schedulers.
+Harness consist of a server and two kinds of clients - back ends and tasks.
 
-Backends issue commands to Server and process events from tasks.
-Tasks are mostly events producers.
+Back ends issue commands to Server and process events from tasks. Back ends
+usually communicate with a Scheduler or interact with an User.
+
+Tasks are events producers. Tasks are wrappers for Tests to produce stream of
+events.
 
 Powered by Twisted.
 
@@ -58,7 +64,7 @@ Powered by Twisted.
 
 %install
 rm -rf $RPM_BUILD_ROOT
-%{__python} setup.py install --optimize=1 --root=$RPM_BUILD_ROOT $PREFIX
+%{__python} setup.py install --optimize=1 --skip-build --root $RPM_BUILD_ROOT
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -77,6 +83,9 @@ rm -rf $RPM_BUILD_ROOT
 %{python_sitelib}/%{name}/
 %{python_sitelib}/beahlib.py*
 %{_datadir}/%{name}
+%doc %{_datadir}/%{name}/README
+%doc %{_datadir}/%{name}/COPYING
+%doc %{_datadir}/%{name}/LICENSE
 %{_libexecdir}/%{name}
 %attr(0755, root, root)%{_libexecdir}/%{name}/beah-check/*
 
