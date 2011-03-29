@@ -551,19 +551,24 @@ function lm_chkconfig_add()
 {
   if ! chkconfig beah-srv; then
     chkconfig --add beah-srv
+    chkconfig --level 345 beah-srv on
   fi
   if ! chkconfig beah-watchdog-backend; then
     chkconfig --add beah-watchdog-backend
+    chkconfig --level 345 beah-watchdog-backend on
   fi
   if ! chkconfig beah-beaker-backend; then
     chkconfig --add beah-beaker-backend
+    chkconfig --level 345 beah-beaker-backend on
   fi
   if ! chkconfig beah-fwd-backend; then
     chkconfig --add beah-fwd-backend
+    chkconfig --level 345 beah-fwd-backend on
   fi
   if [[ -z $NO_FAKELC && -n $FAKELC_SERVICE ]]; then
     if ! chkconfig beah-fakelc; then
       chkconfig --add beah-fakelc
+      chkconfig --level 345 beah-fakelc on
     fi
   else
     if chkconfig beah-fakelc; then

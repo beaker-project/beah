@@ -76,7 +76,7 @@ check_compat() {
       done
     fi
     chkconfig --add rhts-compat && \
-    chkconfig rhts-compat on || die 1 "Can not set the rhts-compat service."
+    chkconfig --level 345 rhts-compat on || die 1 "Can not set the rhts-compat service."
     echo "The rhts-compat service is set up. Rebooting..."
     echo "Optionally run 'service rhts-compat start' and kill rhts-reboot process."
     echo "Do not press C-c as adviced, please."

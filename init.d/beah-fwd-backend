@@ -2,7 +2,7 @@
 #
 # beah-fwd-backend:	Start the Beaker backend.
 #
-# chkconfig:	345 99 99
+# chkconfig:	- 99 99
 # description:	Daemon linking Beaker Harness with Lab Controller.
 
 # Source function library.
@@ -16,7 +16,7 @@
 #
 # In order to have multiple daemons of same type running at the same time it
 # is necessary/recomended to create a wrapper with different name.
-prog="beah-fwd-backend"
+prog=beah-fwd-backend
 # FIXME: path should use the prefix used during installation, not the const
 # /usr
 BEAH_INSTALL_ROOT=/usr
@@ -30,11 +30,11 @@ fi
 # DO NOT CHANGE THESE VARIABLES WITHOUT GOOD REASON:
 
 path="$BEAH_INSTALL_ROOT/bin/$prog"
-[ -f $path ] || exit 0
 PIDFILE=/var/run/${prog}.pid
 LOCKFILE=/var/lock/subsys/$prog
 
 start() {
+    [ -f $path ] || exit 5
     if service NetworkManager status; then
         echo $"Waiting for network..."
         if [[ -x "/usr/bin/nm-online" ]]; then
@@ -46,9 +46,8 @@ start() {
     echo -n $"Starting $prog: "
     daemon --user $RUN_AS $path "$OPTIONS >> /tmp/$prog.out 2>&1 &" 'echo $!' ">$PIDFILE"
     RETVAL=$?
-    #echo "\$!=$!"
-    echo "$prog running as process `cat $PIDFILE`"
     echo
+    echo "$prog running as process `cat $PIDFILE`"
     if test $RETVAL = 0; then
         touch $LOCKFILE
     fi
@@ -93,13 +92,16 @@ case "$1" in
     restart)
 	restart
 	;;
-    condrestart)
+    condrestart|try-restart)
 	condrestart
 	;;
     reload)
         ;;
-    *)
-	echo $"Usage: $0 {start|stop|status|restart|condrestart|reload}"
+    force-reload)
+        restart
+        ;;
+    usage|*)
+	echo $"Usage: $0 {start|stop|status|restart|condrestart|reload|force-reload|usage}"
 	;;
 esac
 exit $RETVAL
