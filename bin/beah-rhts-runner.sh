@@ -97,10 +97,18 @@ main() {
   fi
   if [[ -z $RHTS_OPTION_COMPATIBLE ]]; then
     if [[ -z $RHTS_OPTION_COMPAT_SERVICE ]]; then
+      chkconfig rhts-compat
+      local compat_scheduled=$?
+      chkconfig rhts-compat off
+      # turn compat service off:
+      if [[ $compat_scheduled == 0 ]]; then
+        # if service was scheduled to start wait - it may be starting right
+        # now...
+        sleep 5
+      fi
       if service rhts-compat status; then
         echo "Stopping rhts-compat service."
         service rhts-compat stop
-        chkconfig rhts-compat off
       fi
     fi
     exec beah-unconfined.sh /usr/bin/rhts-test-runner.sh </dev/null || \
