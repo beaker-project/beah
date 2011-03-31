@@ -314,11 +314,12 @@ class RpmTaskParser(object):
 
     def __init__(self, rpm_node, task, task_name):
         rpm_name = xml_attr(rpm_node, 'name')
+        test_path = xml_attr(rpm_node, "path") or "/mnt/tests"+task_name
         self.task = task
         dict_update(task._env,
                 TEST=task_name,
                 TESTRPMNAME=normalize_rpm_name(rpm_name),
-                TESTPATH="/mnt/tests"+task_name,)
+                TESTPATH=test_path)
         task.executable = mk_rhts_task(task._env, task.recipe.repos, task.recipe.repof)
         task.args = [rpm_name]
         log.info("RPMTest %s - %s %s", rpm_name, task.executable, task.args)
