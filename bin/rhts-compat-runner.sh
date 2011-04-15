@@ -85,7 +85,7 @@ main() {
   # - kill rhts-compat-placeholder.sh
 
   # "launch"
-  bash -l -c "cd $TESTPATH; exec beah-unconfined.sh rhts-test-runner.sh"
+  bash -l -c "cd $TESTPATH; exec beah-initgroups.py beah-unconfined.sh rhts-test-runner.sh"
   local answ=$?
 
   if [[ $answ -ne 0 && $answ -ne 143 ]]; then

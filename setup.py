@@ -136,6 +136,7 @@ setup(
         'bin/beah-flush',
         'bin/rhts-flush',
         'bin/beah-unconfined.sh',
+        'bin/beah-initgroups.py',
         ],
     #scripts+=['tests/*'],
     # FIXME: use `grep -R '#!.*python' examples` to find python scripts

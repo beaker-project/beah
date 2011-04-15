@@ -111,7 +111,7 @@ main() {
         service rhts-compat stop
       fi
     fi
-    exec beah-unconfined.sh /usr/bin/rhts-test-runner.sh </dev/null || \
+    exec beah-initgroups.py beah-unconfined.sh /usr/bin/rhts-test-runner.sh </dev/null || \
         die 1 "Can not run rhts-test-runner.sh"
   else
     local compat_root=$BEAH_ROOT/var/beah/rhts-compat
