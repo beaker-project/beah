@@ -68,7 +68,7 @@ from beah.core import command, event, addict
 from beah.core.backends import SerializingBackend
 from beah.core.constants import ECHO, RC, LOG_LEVEL
 from beah.misc import format_exc, dict_update, log_flush, writers, runtimes, \
-        make_class_verbose, is_class_verbose, pre_open, digests
+        make_class_verbose, is_class_verbose, pre_open, digests, parse_bool
 from beah.misc.log_this import log_this
 import beah.system
 # FIXME: using rpm's, yum - too much Fedora centric(?)
@@ -1852,7 +1852,7 @@ class BeakerLCBackend(SerializingBackend):
 
 
 def start_beaker_backend():
-    if config.parse_bool(config.get_conf('beah-backend').get('DEFAULT', 'DEVEL')):
+    if parse_bool(config.get_conf('beah-backend').get('DEFAULT', 'DEVEL')):
         print_this = log_this(lambda s: log.debug(s), log_on=True)
         make_class_verbose(BeakerLCBackend, print_this)
         make_class_verbose(BeakerWriter, print_this)

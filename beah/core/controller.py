@@ -146,6 +146,11 @@ class Controller(object):
             return answ[0]
         return answ
 
+    def log_event(self, task, evt):
+        evev = evt.event()
+        if evev == 'completed':
+            log.info('Task %s finished and has submitted all results.', task.task_id)
+
     def proc_evt(self, task, evt):
         """
         Process Event received from task.
@@ -156,6 +161,7 @@ class Controller(object):
         This is the only method mandatory for Task side Controller-Adaptor.
         """
         log.debug("Controller: proc_evt(..., %r)", evt)
+        self.log_event(task, evt)
         evev = evt.event()
         if evev == 'introduce':
             task_id = evt.arg('task_id')
@@ -217,12 +223,14 @@ class Controller(object):
                 self.handle_exception("Writing to backend %r failed." % backend)
 
     def task_started(self, task):
+        log.info("Task %s has started.", task.task_id)
         self.add_task(task)
         self.generate_evt(event.start(task.task_id))
 
     def task_finished(self, task, rc):
         self.generate_evt(event.end(task.task_id, rc))
         self.remove_task(task)
+        log.info("Task %s has finished.", task.task_id)
         log_flush(log)
 
     def handle_exception(self, message="Exception raised."):

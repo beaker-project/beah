@@ -31,6 +31,7 @@ import exceptions
 import traceback
 import logging
 import random
+from beah import config
 from beah.core import event, command
 import beah.misc
 from beah.misc import format_exc, runtimes, make_log_handler, str2log_level, digests, jsonenv
@@ -404,9 +405,11 @@ class RHTSMain(object):
         # FIXME! use tempfile and upload log when process ends.
         log = logging.getLogger('rhts_task')
         twmisc.twisted_logging(log)
-        make_log_handler(log, LOG_PATH, "rhts_task_%s.log" % (taskid,))
         ll = self.env.get('BEAH_TASK_LOG', "warning")
         log.setLevel(str2log_level(ll))
+        make_log_handler(log, LOG_PATH, "rhts_task_%s.log" % (taskid,),
+                syslog=True,
+                console=self.env.get('BEAH_TASK_CONSOLE', False))
 
         # parse task's metadata:
         try:
@@ -651,7 +654,7 @@ class RHTSMain(object):
     def get_file(self, name):
         return self.__files.get(name, None)
 
-    def error(msg):
+    def error(self, msg):
         log.error(msg)
         evt = event.error(message=msg)
         self.send_evt(evt)

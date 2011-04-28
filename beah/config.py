@@ -64,7 +64,7 @@ import exceptions
 import random
 from ConfigParser import ConfigParser
 from optparse import OptionParser
-from beah.misc import dict_update
+from beah.misc import dict_update, parse_bool
 
 
 class _ConfigParserFix(ConfigParser):
@@ -394,15 +394,6 @@ def backend_opts(args=None, option_adder=None):
     return conf
 
 
-def parse_bool(arg):
-    """Permissive string into bool parser."""
-    if arg == True or arg == False:
-        return arg
-    if str(arg).strip().lower() in ['', '0', 'false']:
-        return False
-    return True
-
-
 def default_opt(opt, conf, kwargs):
     """
     Parser for common options.
@@ -429,6 +420,9 @@ def default_opt(opt, conf, kwargs):
             help="Decrease verbosity.")
     def log_stderr_cb(option, opt_str, value, parser, arg):
         conf['CONSOLE_LOG'] = arg
+    opt.add_option("--log-console", action="callback",
+            callback=log_stderr_cb, callback_args=("console",),
+            help="Write all logging to /dev/console.")
     opt.add_option("-O", "--log-stderr", action="callback",
             callback=log_stderr_cb, callback_args=("True",),
             help="Write all logging to stderr.")
@@ -597,6 +591,9 @@ if __name__ == '__main__':
                 overrides=overrides)
         _Config._remove('beah-backend')
 
+    def test_parse_bool(arg):
+        return parse_bool(arg) and True or False
+
     def _test_conf():
 
         """Self test."""
@@ -616,15 +613,15 @@ if __name__ == '__main__':
 
             cfg = c.conf
             cfg.set('BACKEND', 'INTERFACE', "127.0.0.1")
-            _tst_eq(parse_bool(cfg.get('DEFAULT', 'DEVEL')), True)
-            _tst_eq(parse_bool(cfg.get('DEFAULT', 'LOG')), False)
+            _tst_eq(test_parse_bool(cfg.get('DEFAULT', 'DEVEL')), True)
+            _tst_eq(test_parse_bool(cfg.get('DEFAULT', 'LOG')), False)
             _tst_eq(cfg.get('BACKEND', 'INTERFACE'), "127.0.0.1")
             _tst_eq(int(cfg.get('BACKEND', 'PORT')), 12432)
             _tst_eq(cfg.get('DEFAULT', 'ROOT'), "/tmp")
 
             cfg.set('DEFAULT', 'LOG', 'True')
-            _tst_eq(parse_bool(cfg.get('DEFAULT', 'DEVEL')), True)
-            _tst_eq(parse_bool(cfg.get('DEFAULT', 'LOG')), True)
+            _tst_eq(test_parse_bool(cfg.get('DEFAULT', 'DEVEL')), True)
+            _tst_eq(test_parse_bool(cfg.get('DEFAULT', 'LOG')), True)
             _tst_eq(cfg.get('BACKEND', 'INTERFACE'), "127.0.0.1")
             _tst_eq(int(cfg.get('BACKEND', 'PORT')), 12432)
             _tst_eq(cfg.get('DEFAULT', 'ROOT'), "/tmp")

@@ -182,6 +182,16 @@ def log_flush(logger):
         except:
             pass
 
+
+def parse_bool(arg):
+    """Permissive string into bool parser."""
+    if arg in [True, False, None]:
+        return arg
+    if str(arg).strip().lower() in ['', '0', 'false']:
+        return False
+    return arg
+
+
 def make_log_handler(log, log_path, log_file_name=None, syslog=None,
         console=None):
 
@@ -197,8 +207,13 @@ def make_log_handler(log, log_path, log_file_name=None, syslog=None,
         lhandler.setLevel(logging.WARNING)
         log.addHandler(lhandler)
 
+    console = parse_bool(console)
     if console:
-        lhandler = logging.StreamHandler()
+        if str(console).strip().lower() == 'console':
+            lhandler = logging.FileHandler('/dev/console')
+            lhandler.setLevel(logging.INFO)
+        else:
+            lhandler = logging.StreamHandler()
         lhandler.setFormatter(logging.Formatter('%(asctime)s %(name)s'+fmt))
         log.addHandler(lhandler)
 

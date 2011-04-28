@@ -78,6 +78,7 @@ def Spawn(host, port, proto=None, socket=''):
                 )
         ll = conf.get('TASK', 'LOG')
         task_env.setdefault('BEAH_TASK_LOG', ll)
+        task_env.setdefault('BEAH_TASK_CONSOLE', conf.get('TASK', 'CONSOLE_LOG', 'False'))
         task_env.setdefault('TERM', 'dumb')
         val = os.getenv('PYTHONPATH')
         if val:
@@ -136,4 +137,4 @@ def start_task(conf, task, host=None, port=None,
     port = port or int(conf.get('TASK', 'PORT'))
     if port != '':
         return reactor.connectTCP(host, int(port), factory)
-    raise exceptions.Exception('Either socket or port must be given.')
+    raise EnvironmentError('Either socket or port must be given.')

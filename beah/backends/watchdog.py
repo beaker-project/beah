@@ -43,7 +43,7 @@ from beah.core import command, event
 from beah.core.backends import ExtBackend
 from beah.wires.internals.twbackend import start_backend, log_handler
 from beah.wires.internals.twmisc import CallRegularly
-from beah.misc import make_class_verbose
+from beah.misc import make_class_verbose, parse_bool
 from beah.misc.log_this import log_this
 from beah.plugins import load_plugins
 
@@ -330,7 +330,7 @@ DEFAULT_HANDLERS = {'beah_check': beah_check}
 def start_watchdog_backend(conf):
     '''Starts a watchdog backend with specified configuration.'''
     log = logging.getLogger('backend')
-    if config.parse_bool(conf.get('DEFAULT', 'DEVEL')):
+    if parse_bool(conf.get('DEFAULT', 'DEVEL')):
         print_this = log_this(log.debug, log_on=True)
         make_class_verbose(WatchdogBackend, print_this)
         make_class_verbose(Task, print_this)

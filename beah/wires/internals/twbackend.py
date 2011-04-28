@@ -21,7 +21,7 @@ from twisted.internet import reactor
 from beah.wires.internals.twadaptors import ControllerAdaptor_Backend_JSON
 from beah.wires.internals.twmisc import twisted_logging
 from beah import config
-from beah.misc import make_log_handler, str2log_level, localhost_
+from beah.misc import make_log_handler, str2log_level, localhost_, parse_bool
 
 import os
 import sys
@@ -89,8 +89,8 @@ def log_handler(log_file_name=None):
     lp = conf.get('DEFAULT', 'LOG_PATH') or "/var/log"
     log = logging.getLogger('backend')
     twisted_logging(log)
-    cons = config.parse_bool(conf.get('DEFAULT', 'CONSOLE_LOG'))
-    make_log_handler(log, lp, log_file_name, syslog=True, console=cons)
+    make_log_handler(log, lp, log_file_name, syslog=True,
+            console=parse_bool(conf.get('DEFAULT', 'CONSOLE_LOG')))
     return log
 
 def start_backend(backend, host=None, port=None,
@@ -102,13 +102,13 @@ def start_backend(backend, host=None, port=None,
     if os.name == 'posix':
         socket = conf.get('DEFAULT', 'SOCKET')
         # 0. check SOCKET_OPT (socket given on command line)
-        if config.parse_bool(conf.get('DEFAULT', 'SOCKET_OPT')) and socket != '':
+        if parse_bool(conf.get('DEFAULT', 'SOCKET_OPT')) and socket != '':
             port = ''
         # 1. check INTERFACE - if not empty nor localhost: must use TCP
         if not localhost_(host):
             socket = ''
         # 2. check PORT_OPT (port given on command line)
-        if config.parse_bool(conf.get('DEFAULT', 'PORT_OPT')) and port != '':
+        if parse_bool(conf.get('DEFAULT', 'PORT_OPT')) and port != '':
             socket = ''
     else:
         socket = ''

@@ -21,7 +21,7 @@ from beah.core.backends import ExtBackend
 from beah.core import command, event
 from beah.core.constants import ECHO
 from beah.misc.log_this import log_this
-from beah.misc import localhost, make_class_verbose, test_loop, test_loop_port, TEST_LOOP
+from beah.misc import localhost, make_class_verbose, test_loop, test_loop_port, TEST_LOOP, parse_bool
 from beah import config
 
 from twisted.internet.defer import Deferred
@@ -223,7 +223,7 @@ class _RemoteBackend(ExtBackend):
             d.callback(('echo', evt.arg('rc') == ECHO.OK, self, cid, evt))
 
 def start_forwarder_backend():
-    if config.parse_bool(config.get_conf('beah-backend').get('DEFAULT', 'DEVEL')):
+    if parse_bool(config.get_conf('beah-backend').get('DEFAULT', 'DEVEL')):
         print_this = log_this(lambda s: log.debug(s), log_on=True)
         make_class_verbose(ForwarderBackend, print_this)
         make_class_verbose(_RemoteBackend, print_this)
