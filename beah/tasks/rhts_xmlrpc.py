@@ -404,7 +404,7 @@ class RHTSMain(object):
 
         # FIXME! use tempfile and upload log when process ends.
         log = logging.getLogger('rhts_task')
-        twmisc.twisted_logging(log)
+        twmisc.twisted_logging(log, level=logging.WARNING)
         ll = self.env.get('BEAH_TASK_LOG', "warning")
         log.setLevel(str2log_level(ll))
         make_log_handler(log, LOG_PATH, "rhts_task_%s.log" % (taskid,),

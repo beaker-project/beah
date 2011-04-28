@@ -1439,7 +1439,7 @@ class BeakerLCBackend(SerializingBackend):
         self.proxy.on_idle = self.set_idle
         if is_class_verbose(self):
             make_logging_proxy(self.proxy)
-            self.proxy.logging_print = log.info
+            self.proxy.logging_print = log.debug
         self.on_idle()
         self.start_flusher()
 

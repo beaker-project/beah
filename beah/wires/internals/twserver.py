@@ -72,7 +72,7 @@ def start_server(conf=None, backend_host=None, backend_port=None,
         conf = config.get_conf('beah')
 
     # LOGGING:
-    twisted_logging(log)
+    twisted_logging(log, level=logging.WARNING)
     log.setLevel(str2log_level(conf.get('CONTROLLER', 'LOG')))
 
     # Create a directory for runtime

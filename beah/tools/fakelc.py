@@ -833,7 +833,7 @@ def main():
     var_path = os.path.join(conf['root'], VAR_PATH, name)
     runtime = runtimes.ShelveRuntime(os.path.join(var_path, "runtime"))
     log = logging.getLogger('beah_fakelc')
-    twisted_logging(log)
+    twisted_logging(log, level=logging.WARNING)
     # FIXME: redirect to console or syslog?
     misc.make_log_handler(log, os.path.join(conf['root'], LOG_PATH), "%s.log" % name)
     log.setLevel(misc.str2log_level(conf.get('LOG', 'warning')))

@@ -18,7 +18,9 @@
 
 import simplejson as json
 from twisted.protocols import basic
+from twisted.internet import reactor
 import exceptions
+import logging
 
 USE_DEFAULT = object()
 
@@ -176,10 +178,12 @@ def make_logging_proxy(proxy):
 
     return proxy
 
-def twisted_logging(logger):
+def twisted_logging(logger, level=None):
     from twisted.python.log import PythonLoggingObserver
     try:
-        observer = PythonLoggingObserver(logger.name)
+        if level is not None:
+            logger.getChild('twisted').setLevel(level)
+        observer = PythonLoggingObserver(logger.name + '.twisted')
         observer.start()
     except:
         logger.critical("Could not add twisted observer!", exc_info=True)

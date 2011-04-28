@@ -88,7 +88,7 @@ def log_handler(log_file_name=None):
             log_file_name = conf.get('DEFAULT', 'NAME') + '.log'
     lp = conf.get('DEFAULT', 'LOG_PATH') or "/var/log"
     log = logging.getLogger('backend')
-    twisted_logging(log)
+    twisted_logging(log, level=logging.WARNING)
     make_log_handler(log, lp, log_file_name, syslog=True,
             console=parse_bool(conf.get('DEFAULT', 'CONSOLE_LOG')))
     return log
