@@ -1,3 +1,5 @@
+include LICENSE
+include COPYING
 include *.conf
 graft init.d
 graft examples
