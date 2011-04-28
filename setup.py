@@ -111,7 +111,7 @@ long_version = os.environ.get('BEAH_VER', version) + os.environ.get('BEAH_DEV', 
 setup(
 
     name="beah",
-    version=version,
+    version=long_version,
 
     install_requires=requirements,
     # NOTE: these can be downloaded from pypi:
