@@ -1583,7 +1583,6 @@ class BeakerLCBackend(SerializingBackend):
 
     def send_cmd(self, cmd):
         if self.controller:
-            log.info("Command %s sent.", cmd)
             self._send_cmd(cmd)
         else:
             log.info("No connection to Controller. %s is queued.", cmd)
