@@ -13,7 +13,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.25
+Version: 0.6.26
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -110,6 +110,10 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Tue May 03 2011 Marian Csontos <mcsontos@redhat.com> 0.6.26-1
+- Improved logging: redirect to /dev/console
+- Fixed missing LICENSE and COPYING breaking sdist
+
 * Tue Apr 05 2011 Marian Csontos <mcsontos@redhat.com> 0.6.25-1
 - bz688122 - ks-templates: beah services usage
 - Improved fedora packaging guidelines compliancy
