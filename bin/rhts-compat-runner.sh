@@ -64,12 +64,19 @@ die() {
 
 main() {
   # check and read env.
-  local shenv="$1"
+  local shenv="$1" launcher="$2"
+  if [[ -x $launcher ]]; then
+    # removing the launcher here, so it won't get recycled
+    rm -f $launcher
+  else
+    echo "INFO: $0: No launcher. Executed manually?"
+  fi
   [[ -f "$shenv" ]] || die 1 "No such env.file: '$shenv'"
   source $shenv || die 1 "Errors while sourcing '$shenv'"
 
   [[ -n "$LAUNCHER_PIDFILE" ]] || die 1 "Missing LAUNCHER_PIDFILE variable."
   [[ -n "$RUNNER_PIDFILE" ]] || die 1 "Missing RUNNER_PIDFILE variable."
+  local runners_pid=$(cat $RUNNER_PIDFILE)
 
   # "check and write PID file"
   if [[ -f $LAUNCHER_PIDFILE ]]; then
@@ -92,11 +99,14 @@ main() {
     echo -n "" | rhts-report-result "rhts-runner/exit" FAIL - $answ
   fi
 
-  kill $(cat $RUNNER_PIDFILE)
-
-  # TODO "clean-up?"
-  rm -f $RUNNER_PIDFILE
-  rm -f $LAUNCHER_PIDFILE
+  if [[ $runners_pid != $(cat $RUNNER_PIDFILE) ]]; then
+    echo "WARNING: $0: Runner's pidfile has changed. Exiting without clean-up."
+  else
+    kill $(cat $RUNNER_PIDFILE)
+    # TODO "clean-up?"
+    rm -f $RUNNER_PIDFILE
+    rm -f $LAUNCHER_PIDFILE
+  fi
 
   return $answ
 }

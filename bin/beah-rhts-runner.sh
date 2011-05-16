@@ -125,31 +125,41 @@ main() {
     mkdir -p $compat_root/launchers &>/dev/null
     [[ -d $compat_root/launchers ]] || die 1 "Directory '$compat_root/launchers' does not exist."
 
-    if [[ ! -f $shenv ]]; then
-      json-env - \
-        BEAKERLIB_COMMAND_REPORT_RESULT=/usr/bin/rhts-report-result \
-        BEAKERLIB_COMMAND_SUBMIT_LOG=/usr/bin/rhts-submit-log \
-        =$RHTS_ENV RUNNER_PIDFILE=$pidfile LAUNCHER_PIDFILE=$pidfile2 \
-        /bin/bash -c 'export' > $shenv || die 1 "Can not create the environment."
-    fi
+    cd $compat_root
+    local temp_root=$(mktemp -d rhts-compat-temp.XXXXXX)
+    [[ -d $temp_root ]] || die 1 "Directory '$temp_root' does not exist."
 
-    # "write pid file if does not exist"
+    json-env - \
+      BEAKERLIB_COMMAND_REPORT_RESULT=/usr/bin/rhts-report-result \
+      BEAKERLIB_COMMAND_SUBMIT_LOG=/usr/bin/rhts-submit-log \
+      =$RHTS_ENV RUNNER_PIDFILE=$pidfile LAUNCHER_PIDFILE=$pidfile2 \
+      /bin/bash -c 'export' > $temp_root/$(basename $shenv) || die 1 "Can not create the environment."
+
+    echo "$$" > $temp_root/$(basename $pidfile) || die 1 "Can not write pid file."
+
+    local temp_file=$temp_root/$(basename $launcher)
+    echo "#!/bin/sh" > $temp_file || die 1 "Error writing launcher"
+    echo "exec rhts-compat-runner.sh $shenv \$0" >> $temp_file || die 1 "Error writing launcher"
+    chmod a+x $temp_file || die 1 "Error chmodding launcher"
+
+    if [[ -x $launcher ]]; then
+      echo "INFO: Launcher '$launcher' exists. The file will be replaced."
+      rm -f $launcher
+    fi
+    if [[ -f $shenv ]]; then
+      echo "INFO: Env.file '$shenv' exists. The file will be replaced."
+      rm -f $shenv
+    fi
     if [[ -f $pidfile ]]; then
-      true
-      # 1. TODO: check the process is running. If not simply remove pid file and create it.
-      # 2. TODO: what now?
+      echo "INFO: PID file '$pidfile' exists. The file will be replaced."
+      ps -fp "$(cat $pidfile)"
+      ps -eH
+      rm -f $pidfile
     fi
-    echo "$$" > $pidfile
 
-    # "write launcher if it does not exist"
-    if [[ ! -x $launcher ]]; then
-      local temp_file=$(mktemp rhts-launcher.XXXXXX)
-      mkdir -p $(dirname $launcher)
-      echo "#!/bin/sh" > $temp_file || die 1 "Error writing launcher"
-      echo "rhts-compat-runner.sh $shenv" >> $temp_file || die 1 "Error writing launcher"
-      chmod a+x $temp_file || die 1 "Error chmodding launcher"
-      mv $temp_file $launcher
-    fi
+    mv $temp_root/$(basename $pidfile) $pidfile || die 1 "Error saving pidfile"
+    mv $temp_root/$(basename $shenv) $shenv || die 1 "Error saving env.file"
+    mv $temp_file $launcher || die 1 "Error saving launcher"
 
     check_compat
     echo "rhts-compat service is running. Waiting for launcher being picked up."
