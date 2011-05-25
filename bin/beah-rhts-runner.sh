@@ -111,6 +111,8 @@ main() {
         service rhts-compat stop
       fi
     fi
+    BEAKERLIB_COMMAND_REPORT_RESULT=/usr/bin/rhts-report-result \
+    BEAKERLIB_COMMAND_SUBMIT_LOG=/usr/bin/rhts-submit-log \
     exec beah-initgroups.py beah-unconfined.sh /usr/bin/rhts-test-runner.sh </dev/null || \
         die 1 "Can not run rhts-test-runner.sh"
   else
@@ -124,7 +126,11 @@ main() {
     [[ -d $compat_root ]] || die 1 "Directory '$compat_root' does not exist."
 
     if [[ ! -f $shenv ]]; then
-      json-env - =$RHTS_ENV RUNNER_PIDFILE=$pidfile LAUNCHER_PIDFILE=$pidfile2 BEAKERLIB_COMMAND_REPORT_RESULT=/usr/bin/rhts-report-result BEAKERLIB_COMMAND_SUBMIT_LOG=/usr/bin/rhts-submit-log /bin/bash -c 'export' > $shenv || die 1 "Can not create the environment."
+      json-env - \
+        BEAKERLIB_COMMAND_REPORT_RESULT=/usr/bin/rhts-report-result \
+        BEAKERLIB_COMMAND_SUBMIT_LOG=/usr/bin/rhts-submit-log \
+        =$RHTS_ENV RUNNER_PIDFILE=$pidfile LAUNCHER_PIDFILE=$pidfile2 \
+        /bin/bash -c 'export' > $shenv || die 1 "Can not create the environment."
     fi
 
     # "write pid file if does not exist"
