@@ -116,14 +116,14 @@ main() {
     exec beah-initgroups.py beah-unconfined.sh /usr/bin/rhts-test-runner.sh </dev/null || \
         die 1 "Can not run rhts-test-runner.sh"
   else
-    local compat_root=$BEAH_ROOT/var/beah/rhts-compat
+    local compat_root=$BEAH_ROOT/var/run/beah/rhts-compat
     local launcher=$compat_root/launchers/launcher-$TASKID.sh
     local pidfile=$compat_root/runner-$TASKID.pid
     local pidfile2=$compat_root/launcher-$TASKID.pid
     local shenv=$compat_root/env-$TASKID.sh
 
-    mkdir -p $compat_root &>/dev/null
-    [[ -d $compat_root ]] || die 1 "Directory '$compat_root' does not exist."
+    mkdir -p $compat_root/launchers &>/dev/null
+    [[ -d $compat_root/launchers ]] || die 1 "Directory '$compat_root/launchers' does not exist."
 
     if [[ ! -f $shenv ]]; then
       json-env - \

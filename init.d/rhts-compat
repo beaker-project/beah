@@ -30,7 +30,7 @@ fi
 PIDFILE=$BEAH_ROOT/var/run/${prog}.pid
 LOCKFILE=$BEAH_ROOT/var/lock/subsys/$prog
 
-LAUNCHERS="$BEAH_ROOT/var/beah/rhts-compat/launchers"
+LAUNCHERS="$BEAH_ROOT/var/run/beah/rhts-compat/launchers"
 KILLER="/mnt/testarea/rhts-compat-end"
 
 function rhts_finish() {
