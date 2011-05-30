@@ -59,13 +59,14 @@ function rhts_compat_main() {
   fi
   echo $$ > $PIDFILE
   touch $LOCKFILE
+  shopt -s nullglob
   while true; do
     if [[ -f $KILLER ]]; then
       rm -f $KILLER
       break
     fi
     for file in $LAUNCHERS/*; do
-      if [ -f $file ]; then
+      if [ -x $file ]; then
         $file
         rm -f $file
       fi
