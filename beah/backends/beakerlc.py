@@ -109,27 +109,34 @@ cat >/etc/yum.repos.d/beaker-tests.repo <<REPO_END
 %s
 REPO_END
 fi
-if rpm -q "$TESTRPMNAME"; then
+check_test() {
+    rpm -q "$TESTRPMNAME" || [[ -f "$TESTPATH/Makefile" ]]
+}
+_install_test() {
+    beahsh extend_watchdog 20m
+    yum -y --disablerepo=* --enablerepo=beaker-* install "$TESTRPMNAME"
+}
+if check_test; then
     beahsh INFO -H wrapper "$TESTRPMNAME is already installed."
 else
     # This will happen only on first run so it is safe to override
     # watchdog as it will be reset by task...
     beahsh INFO -H wrapper "Installing the task $TESTRPMNAME"
-    beahsh extend_watchdog 20m
-    yum -y --disablerepo=* --enablerepo=beaker-* install "$TESTRPMNAME"
-    for iteration in $(seq 6); do
-        if ! rpm -q "$TESTRPMNAME"; then
-            beahsh INFO -H wrapper "$TESTRPMNAME not installed. Will retry in 300s..."
-            sleep 300
-            beahsh extend_watchdog 20m
+    _install_test
+    # If task repo is broken the retry is mostly likely a waste of time, but
+    # let's try it at least once anyway.
+    for iteration in 1; do
+        if ! check_test; then
+            beahsh INFO -H wrapper "$TESTRPMNAME not installed. Will retry in 60s..."
+            sleep 60
             beahsh INFO -H wrapper "Cleaning metadata and trying to get the task again..."
             yum -y clean metadata
-            yum -y --disablerepo=* --enablerepo=beaker-* install "$TESTRPMNAME"
+            _install_test
         else
             break
         fi
     done
-    if ! rpm -q "$TESTRPMNAME"; then
+    if ! check_test; then
         #beahsh fail -H wrapper "$TESTRPMNAME was not installed."
         beahsh abort_task -m "$TESTRPMNAME was not installed."
         exit
@@ -140,9 +147,7 @@ touch /mnt/tests/runtests.sh
 chmod a+x /mnt/tests/runtests.sh
 beahsh INFO -H wrapper "Running the task..."
 exec env PATH="$PATH:/sbin" beah-rhts-task
-#%s -m beah.tasks.rhts_xmlrpc
-""" % (self.__repof,
-                sys.executable))
+""" % (self.__repof,))
 
 
 def mk_rhts_task(env_, repos, repof):
