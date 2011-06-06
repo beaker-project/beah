@@ -216,6 +216,14 @@ class TaskStarter(object):
 task_starter = TaskStarter(0)
 
 
+try:
+    getattr(__builtins__,'sorted')
+except AttributeError:
+    def sorted(l):
+        l = list(l)
+        l.sort()
+        return l
+
 class Element(object):
     def __init__(self, type, id=None, parent=None, name=None, classes=None, **kwargs):
         self.type = type
