@@ -14,8 +14,10 @@
 check4norhts() {
   grep -q norhts < /proc/cmdline
   if [ "$?" -eq 0 ] ; then
-    echo -n $"The kernel command line contains norhts. Therefore, RHTS will not be started."
-    exit 1
+    echo -n $"The kernel command line contains norhts."
+    echo -n $"Use empty 'RHTS_OPTION_COMPATIBLE' parameter or 'RhtsOptions: Compatible' in tasks metadata."
+    # TODO: we still need a way how to temporarily disable beah.
+    # Use similar principle.
   fi
 }
 
