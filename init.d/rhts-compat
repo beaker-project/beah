@@ -63,24 +63,31 @@ function rhts_compat_main() {
   echo $"Use 'service $prog stop' from another terminal to stop it."
   echo $"It will not stop immediately but only after running tasks are processed."
   if [[ -f $KILLER ]]; then
+    echo $"INFO: $prog: Removing existing kill file '$KILLER'."
     rm -f $KILLER
   fi
   if status; then
-    wait `cat $PIDFILE`
-    return $?
+    echo $"INFO: $prog: service is running already."
+    return 0
   fi
   echo $$ > $PIDFILE
   touch $LOCKFILE
   shopt -s nullglob
   while true; do
     if [[ -f $KILLER ]]; then
+      echo $"INFO: $prog stopped."
       rm -f $KILLER
       break
     fi
+    ls -1 $LAUNCHERS
     for file in $LAUNCHERS/*; do
       if [ -x $file ]; then
         $file
         rm -f $file
+      fi
+      if [[ -f $KILLER ]]; then
+        echo $"INFO: $prog: stop scheduled."
+        echo $"INFO: do 'rm -f $KILLER' to continue."
       fi
     done
     sleep 10
@@ -133,18 +140,28 @@ condrestart(){
 
 status() {
   if [ -e $PIDFILE ]; then
-    if ps -p `cat $PIDFILE` &> /dev/null; then
-      if [ ! -e $KILLER ]; then
-        return 0
-      else
-        return 3
-      fi
-    else
+    local pid=`cat $PIDFILE`
+    if [[ -z $pid ]]; then
+      # not running, pidfile exists
       return 1
+    elif ps -p $pid &> /dev/null; then
+      if ps -wwo command -p $pid --no-headers | grep 'rhts-compat' >/dev/null; then
+        if [ -e $KILLER ]; then
+          # killer exists, will exit when tasks are done.
+          return 3
+        else
+          # running
+          return 0
+        fi
+      fi
     fi
+    # not running, pidfile exists
+    return 1
   elif [ -e $LOCKFILE ]; then
+    # not running, lockfile exists
     return 2
   else
+    # not running
     return 3
   fi
 }
