@@ -71,20 +71,11 @@ main() {
   else
     echo "INFO: $0: No launcher. Executed manually?"
   fi
+  if [[ -z $RUNNER_PID ]]; then
+    echo "WARNING: $0: No runner. Executed manually?"
+  fi
   [[ -f "$shenv" ]] || die 1 "No such env.file: '$shenv'"
   source $shenv || die 1 "Errors while sourcing '$shenv'"
-
-  [[ -n "$LAUNCHER_PIDFILE" ]] || die 1 "Missing LAUNCHER_PIDFILE variable."
-  [[ -n "$RUNNER_PIDFILE" ]] || die 1 "Missing RUNNER_PIDFILE variable."
-  local runners_pid=$(cat $RUNNER_PIDFILE)
-
-  # "check and write PID file"
-  if [[ -f $LAUNCHER_PIDFILE ]]; then
-    true
-    # 1. TODO: check the process is running. If not simply remove pid file and create it.
-    # 2. TODO: what now?
-  fi
-  echo "$$" > $LAUNCHER_PIDFILE
 
   # TODO "set traps"
   # this shall
@@ -92,20 +83,18 @@ main() {
   # - kill rhts-compat-placeholder.sh
 
   # "launch"
-  bash -l -c "cd $TESTPATH; exec beah-initgroups.py beah-unconfined.sh rhts-test-runner.sh"
+  LAUNCHER_PID=$$ LAUNCHER_FILE=rhts-compat-runner.sh \
+    bash -l -c "cd $TESTPATH; exec beah-initgroups.py beah-unconfined.sh rhts-test-runner.sh"
   local answ=$?
 
   if [[ $answ -ne 0 && $answ -ne 143 ]]; then
     echo -n "" | rhts-report-result "rhts-runner/exit" FAIL - $answ
   fi
 
-  if [[ $runners_pid != $(cat $RUNNER_PIDFILE) ]]; then
-    echo "WARNING: $0: Runner's pidfile has changed. Exiting without clean-up."
+  if ps -wwo command --no-headers -p $RUNNER_PID | grep -F "$RUNNER_FILE" >/dev/null; then
+    kill $RUNNER_PID
   else
-    kill $(cat $RUNNER_PIDFILE)
-    # TODO "clean-up?"
-    rm -f $RUNNER_PIDFILE
-    rm -f $LAUNCHER_PIDFILE
+    echo "WARNING: $0: Runner $RUNNER_FILE($RUNNER_PID) has finished."
   fi
 
   return $answ

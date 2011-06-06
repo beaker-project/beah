@@ -118,8 +118,6 @@ main() {
   else
     local compat_root=$BEAH_ROOT/var/run/beah/rhts-compat
     local launcher=$compat_root/launchers/launcher-$TASKID.sh
-    local pidfile=$compat_root/runner-$TASKID.pid
-    local pidfile2=$compat_root/launcher-$TASKID.pid
     local shenv=$compat_root/env-$TASKID.sh
 
     mkdir -p $compat_root/launchers &>/dev/null
@@ -132,10 +130,8 @@ main() {
     json-env - \
       BEAKERLIB_COMMAND_REPORT_RESULT=/usr/bin/rhts-report-result \
       BEAKERLIB_COMMAND_SUBMIT_LOG=/usr/bin/rhts-submit-log \
-      =$RHTS_ENV RUNNER_PIDFILE=$pidfile LAUNCHER_PIDFILE=$pidfile2 \
+      =$RHTS_ENV RUNNER_PID=$$ RUNNER_FILE="beah-rhts-runner.sh" \
       /bin/bash -c 'export' > $temp_root/$(basename $shenv) || die 1 "Can not create the environment."
-
-    echo "$$" > $temp_root/$(basename $pidfile) || die 1 "Can not write pid file."
 
     local temp_file=$temp_root/$(basename $launcher)
     echo "#!/bin/sh" > $temp_file || die 1 "Error writing launcher"
@@ -150,14 +146,7 @@ main() {
       echo "INFO: Env.file '$shenv' exists. The file will be replaced."
       rm -f $shenv
     fi
-    if [[ -f $pidfile ]]; then
-      echo "INFO: PID file '$pidfile' exists. The file will be replaced."
-      ps -fp "$(cat $pidfile)"
-      ps -eH
-      rm -f $pidfile
-    fi
 
-    mv $temp_root/$(basename $pidfile) $pidfile || die 1 "Error saving pidfile"
     mv $temp_root/$(basename $shenv) $shenv || die 1 "Error saving env.file"
     mv $temp_file $launcher || die 1 "Error saving launcher"
 
