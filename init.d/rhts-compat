@@ -48,8 +48,18 @@ export -f rhts_finish rhts_error
 
 function rhts_compat_main() {
   local file=
-  echo $"NOTE: This process runs if foreground."
+  # el3,4,5 do not clean subdirectories on boot. el6 and fedora do.
+  echo -n $"Performing /var/run/beah clean-up"
+  # anything going to R/W into /var/run/beah should go through this!
+  lockfile /var/run/beah.lock
+    # remove files only if beah-rm.lock can be obtained:
+    if lockfile -0 -r 0 /var/run/beah/rm.lock; then
+      find /var/run/beah ! -type d -exec rm -f {} \;
+    fi
+  rm -f /var/run/beah.lock
+  echo $"NOTE: This process runs in foreground."
   echo $"Use 'service $prog stop' from another terminal to stop it."
+  echo $"It will not stop immediately but only after running tasks are processed."
   if [[ -f $KILLER ]]; then
     rm -f $KILLER
   fi
@@ -89,6 +99,7 @@ wait_stop() {
     sleep 60
   done
   echo " [OK]"
+  echo $"Stopping $prog: All tasks finished."
 }
 
 stop () {
@@ -97,6 +108,7 @@ stop () {
 
 _stop() {
   if [[ -f $LOCKFILE ]]; then
+    echo $"Stopping $prog: Service waiting for tasks to finish."
     echo -n $"Stopping $prog: "
     mkdir -p $(dirname $KILLER)
     touch $KILLER
