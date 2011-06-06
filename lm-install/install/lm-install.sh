@@ -325,6 +325,7 @@ function lm_rm_runtime()
 {
   rm -rf /var/beah/*
   rm -rf /tmp/beah-fakelc-logs/*
+  rm -rf /var/run/beah
 }
 
 function ls_egg()
@@ -458,6 +459,7 @@ function lm_clean_test()
   rm -f /tmp/beah-fakelc*.out /var/log/beah-fakelc*.log /tmp/var/log/rhts_task*.log
   rm -rf /tmp/beah-fakelc-logs
   #lm_rm_runtime
+  rm -rf /var/run/beah
   rm -rf /var/beah/beah_fakelc*
   rm -rf /var/beah/rhts_task_*
   rm -rf /tmp/beah-fakelc-logs/*
