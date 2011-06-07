@@ -60,6 +60,32 @@ heartbeat() {
   true
 }
 
+ensure_chkconfig_on() {
+  local level= service=$1
+  shift
+  local levels="$*"
+  for level in $levels; do
+    if ! chkconfig --level $level $service; then
+      chkconfig --level $level $service on
+      chkconfig --level $level $service || return 1
+    fi
+  done
+  true
+}
+
+WARN_ISSUED=/var/beah/rhts-compat.warning
+
+warn() {
+  if [[ ! -f $WARN_ISSUED ]]; then
+    touch $WARN_ISSUED
+    if [[ -f $WARN_ISSUED ]]; then
+      echo -n "" | rhts-report-result $1 WARN - ${2:-0}
+      return
+    fi
+  fi
+  echo -n "" | rhts-report-result $1/WARN Pass - ${2:-0}
+}
+
 check_compat() {
   # "check rhts-compat is runing. setup and reboot if not"
   local compat_reboot_counter=/var/beah/rhts-compat.reboot
@@ -68,15 +94,16 @@ check_compat() {
     return
   else
     # if the service is not running and is scheduled to run: wait first...
-    if chkconfig --level 345 rhts-compat; then
+    if chkconfig rhts-compat; then
       local i=0
       for i in $(seq 1 30); do
         sleep 4
         if service rhts-compat status; then
+          ensure_chkconfig_on rhts-compat 3 4 5
           echo 0 > $compat_reboot_counter
           return
         fi
-        if ! chkconfig --level 345 rhts-compat; then
+        if ! chkconfig rhts-compat; then
           echo "I do not like this! Someone's changing chairs under my ...!"
           break
         fi
@@ -86,7 +113,7 @@ check_compat() {
     if [[ ${compat_reboot_count:-0} -lt 1 ]]; then
       if echo 1 > $compat_reboot_counter; then
         if chkconfig --add rhts-compat && \
-            chkconfig --level 345 rhts-compat on; then
+            ensure_chkconfig_on rhts-compat 3 4 5; then
           echo "The rhts-compat service is set up. Rebooting..."
           echo "Optionally run 'service rhts-compat start' and kill rhts-reboot process."
           echo "Do not press C-c as adviced, please."
@@ -95,22 +122,25 @@ check_compat() {
           # in case we got here:
           local answ=$?
           echo "Wow, it escaped from infinite loop! Try 'ps -ef | grep -i copperfield'..."
-          echo -n "" | rhts-report-result rhts-compat/reboot-failed WARN - $answ
+          warn rhts-compat/reboot-failed $answ
         else
           echo "WARNING: Can not set the rhts-compat service."
-          echo -n "" | rhts-report-result rhts-compat/counter WARN - 0
+          warn rhts-compat/service 0
         fi
       else
         echo "WARNING: could not write to '$compat_reboot_counter'."
-        echo -n "" | rhts-report-result rhts-compat/counter WARN - 0
+        warn rhts-compat/counter 0
+        ls -l $compat_reboot_counter
       fi
     else
       echo 2 > $compat_reboot_counter
       echo "WARNING: The rhts-compat service did not come up after reboot."
-      echo -n "" | rhts-report-result rhts-compat/not-running WARN - 0
+      warn rhts-compat/not-running 0
     fi
 
+    echo "What's wrong?"
     chkconfig --list rhts-compat
+    ls -l /etc/init.d/rhts-compat
     return 1
   fi
 }
