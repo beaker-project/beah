@@ -13,7 +13,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.27
+Version: 0.6.28
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -110,6 +110,10 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Tue Jun 07 2011 Marian Csontos <mcsontos@redhat.com> 0.6.28-1
+- 680068 - fail fast - do not repeat yum
+- 711270 - system will reboot in a infinite loop
+
 * Wed Jun 01 2011 Marian Csontos <mcsontos@redhat.com> 0.6.27-1
 - 705026 - Pending launchers causing EWD
 - 706026 - runners: initialize supplementary groups (jstancek@redhat.com)
