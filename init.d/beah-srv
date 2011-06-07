@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # beah-srv:	Start the Beaker Harness server
 #
@@ -35,6 +35,15 @@ LOCKFILE=/var/lock/subsys/$prog
 
 start() {
     [ -f $path ] || exit 5
+    # el3,4,5 do not clean subdirectories on boot. el6 and fedora do.
+    echo -n $"Performing /var/run/beah clean-up"
+    # anything going to R/W into /var/run/beah should go through this!
+    lockfile /var/run/beah.lock
+      # remove files only if beah-rm.lock can be obtained:
+      if lockfile -0 -r 0 /var/run/beah/rm.lock; then
+        find /var/run/beah ! -type d -exec rm -f {} \;
+      fi
+    rm -f /var/run/beah.lock
     echo -n $"Starting $prog: "
     daemon --user $RUN_AS $path "$OPTIONS >> /tmp/$prog.out 2>&1 &" 'echo $!' ">$PIDFILE"
     RETVAL=$?
