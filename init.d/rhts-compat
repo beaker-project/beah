@@ -58,6 +58,7 @@ function rhts_compat_main() {
     return $?
   fi
   echo $$ > $PIDFILE
+  mkdir -p $(dirname $THELOCK) &> /dev/null
   touch $THELOCK
   shopt -s nullglob
   while true; do
