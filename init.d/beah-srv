@@ -36,11 +36,12 @@ LOCKFILE=/var/lock/subsys/$prog
 start() {
     [ -f $path ] || exit 5
     # el3,4,5 do not clean subdirectories on boot. el6 and fedora do.
-    echo -n $"Performing /var/run/beah clean-up"
     # anything going to R/W into /var/run/beah should go through this!
+    echo $"$prog: Waiting for lock."
     lockfile /var/run/beah.lock
       # remove files only if beah-rm.lock can be obtained:
       if lockfile -0 -r 0 /var/run/beah/rm.lock; then
+        echo $"$prog: Performing /var/run/beah clean-up"
         find /var/run/beah ! -type d -exec rm -f {} \;
       fi
     rm -f /var/run/beah.lock

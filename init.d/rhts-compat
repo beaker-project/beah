@@ -48,30 +48,38 @@ function rhts_error() {
 
 export -f rhts_finish rhts_error
 
-function rhts_compat_main() {
-  local file=
+function enter_lock()
+{
   # el3,4,5 do not clean subdirectories on boot. el6 and fedora do.
-  echo -n $"Performing /var/run/beah clean-up"
   # anything going to R/W into /var/run/beah should go through this!
-  lockfile /var/run/beah.lock
+  echo $"$prog: Waiting for lock."
+  lockfile /var/run/beah.lock || { echo "ERROR: Can not obtain the lock!" >&2; exit 1; }
     # remove files only if beah-rm.lock can be obtained:
     if lockfile -0 -r 0 /var/run/beah/rm.lock; then
+      echo $"$prog: Performing /var/run/beah clean-up"
       find /var/run/beah ! -type d -exec rm -f {} \;
     fi
   rm -f /var/run/beah.lock
-  echo $"NOTE: This process runs in foreground."
-  echo $"Use 'service $prog stop' from another terminal to stop it."
-  echo $"It will not stop immediately but only after running tasks are processed."
+}
+
+function rhts_compat_main() {
+  local file=
+  # remove the $KILLER file ASAP:
   if [[ -f $KILLER ]]; then
     echo $"INFO: $prog: Removing existing kill file '$KILLER'."
     rm -f $KILLER
   fi
-  if status; then
-    echo $"INFO: $prog: service is running already."
-    return 0
-  fi
+  enter_lock
+  # it was over, but service was started anyway. let's pretend everything is
+  # allright:
+  rm -f /var/run/beah/rhts-compat.over &> /dev/null
+  # service is running already:
+  _try && return 0
+  echo $"NOTE: This process runs in foreground."
+  echo $"Use 'service $prog stop' from another terminal to stop it."
+  echo $"It will not stop immediately but only after running tasks are processed."
   echo $$ > $PIDFILE
-  touch $LOCKFILE
+  #touch $LOCKFILE
   shopt -s nullglob
   while true; do
     if [[ -f $KILLER ]]; then
@@ -92,8 +100,89 @@ function rhts_compat_main() {
     done
     sleep 10
   done
-  rm -f $LOCKFILE
+  #rm -f $LOCKFILE
   rm -f $PIDFILE
+  touch /var/run/beah/rhts-compat.over
+}
+
+_try() {
+  # If the loop is still active make sure it will stay alive.
+  # This does not start new instance.
+  if real_status; then
+    if [[ -f $KILLER ]]; then
+      rm -f $KILLER &> /dev/null
+      sleep 5
+    fi
+    if real_status; then
+      echo $"INFO: $prog: service is running already."
+      return 0
+    fi
+  fi
+  false
+}
+
+try() {
+  # no, this does not require the lock.
+  if _try; then
+    return
+  fi
+  echo $"INFO: $prog: service is dead. Restart please."
+  false
+}
+
+_all_is_over() {
+  # make sure this is used behind the enter_lock!
+  [[ -f /var/run/beah/rhts-compat.over ]]
+}
+
+is_help() { [[ $1 == -h || $1 == --help ]]; }
+
+do_help() {
+  if is_help $1; then
+    cat
+    exit 0
+  fi
+}
+
+wait_try() {
+  do_help $1 <<END
+Usage: wait_try [-h|--help] [SECONDS]
+
+Wait for service to come up for up to SECONDS seconds. 120 is default.
+If the service is not scheduled to run in current runlevel return immediately.
+
+Return Values:
+ 0 - service is running now
+ 1 - service is scheduled to run but timeout expired
+ 2 - service is not scheduled to run or is over alreday
+
+END
+  enter_lock
+  if [[ $1 == -f || $1 == --force ]]; then
+    local force=$1
+  fi
+  # service has finished:
+  _all_is_over && return 2
+  # service is running:
+  _try && return 0
+  # it is not scheduled to run:
+  chkconfig $prog || return 2
+  # wait!
+  local i=0 wait_sec=${1:-120}
+  while (( i++ < wait_sec )); do
+    # disabled while waiting: reenable when force is used!
+    if ! chkconfig $prog; then
+      if [[ -n $force ]]; then
+        chkconfig --level 345 $prog on # TODO: does it make sense here?
+      else
+        return 2
+      fi
+    fi
+    # is it running?
+    _try && return 0
+    sleep 1
+  done
+  return 1
 }
 
 start() {
@@ -104,11 +193,20 @@ start() {
 
 wait_stop() {
   _stop || return 1
+  # _stop creates the killer file and when the loop exits or the service is
+  # "restarted" the file is removed:
   while [[ -f $KILLER ]]; do
-    sleep 60
+    sleep 5
   done
-  echo " [OK]"
-  echo $"Stopping $prog: All tasks finished."
+  sleep 5
+  if real_status; then
+    echo " [FAIL]"
+    echo $"The service was restarted while waiting for tasks to finish."
+    false
+  else
+    echo " [OK]"
+    echo $"Stopping $prog: All tasks finished."
+  fi
 }
 
 stop () {
@@ -116,15 +214,14 @@ stop () {
 }
 
 _stop() {
-  if [[ -f $LOCKFILE ]]; then
+  #if [[ -f $LOCKFILE ]]; then
+  if real_status; then
     echo $"Stopping $prog: Service waiting for tasks to finish."
     echo -n $"Stopping $prog: "
     mkdir -p $(dirname $KILLER)
     touch $KILLER
-    true
   else
-    echo "$prog is not not running. [FAIL]"
-    false
+    echo -n $"$prog is not running "
   fi
 }
 
@@ -134,61 +231,121 @@ restart() {
 }
 
 condrestart(){
-  [ -e $LOCKFILE ] && restart
+  #[ -e $LOCKFILE ] && restart
+  apparent_status && restart
   return 0
 }
 
-status() {
+real_status() {
+  do_help $1 <<END
+real_status - the real status of the "service".
+
+This is different from the status reported to outer world. real_status takes
+into account any existing pid- and lock-files and ignores existence of killer
+file.
+
+END
   if [ -e $PIDFILE ]; then
     local pid=`cat $PIDFILE`
-    if [[ -z $pid ]]; then
-      # not running, pidfile exists
-      return 1
-    elif ps -p $pid &> /dev/null; then
-      if ps -wwo command -p $pid --no-headers | grep 'rhts-compat' >/dev/null; then
-        if [ -e $KILLER ]; then
-          # killer exists, will exit when tasks are done.
-          return 3
-        else
-          # running
-          return 0
-        fi
-      fi
+    if [[ -n $pid ]] && ps -wwo command -p $pid --no-headers | grep 'rhts-compat' >/dev/null; then
+      return 0
     fi
     # not running, pidfile exists
     return 1
-  elif [ -e $LOCKFILE ]; then
-    # not running, lockfile exists
-    return 2
+  #elif [ -e $LOCKFILE ]; then
+  #  # not running, lockfile exists
+  #  return 2
   else
     # not running
     return 3
   fi
 }
 
+apparent_status() {
+  do_help $1 <<END
+apparent_status - the apparent status of the "service".
+
+This is same sa real_status but reflects presence of killer file.
+
+END
+  real_status
+  local stat=$?
+  if [[ $stat == 0 ]]; then
+    if [ -e $KILLER ]; then
+      echo $"NOTE: The $prog has been stopped but is still waiting for tasks to finish."
+      return 3
+    else
+      # running
+      return 0
+    fi
+  fi
+}
+
+status() {
+  do_help $1 <<END
+status - status the service reports to outer world.
+
+Discard any existing lockfile and pidfile info: newer init is checking for
+pending LOCK files and may refuse to start the service. The service MUST
+start!
+
+END
+  if apparent_status; then
+    return 0
+  else
+    # pretend it's not running.
+    return 3
+  fi
+}
+
+[[ -n $BEAH_DEBUG ]] && set -x
 # See how we were called.
-case "$1" in
+command=$1
+shift
+case "$command" in
   start)
-    start
+    start "$@"
+    RETVAL=$?
     ;;
   stop)
-    stop
+    stop "$@"
+    RETVAL=$?
     ;;
   status)
     #status $prog
-    status
+    status "$@"
     RETVAL=$?
     ;;
   restart|force-reload)
-    restart
+    restart "$@"
+    RETVAL=$?
     ;;
   condrestart|try-restart)
-    condrestart
+    condrestart "$@"
+    RETVAL=$?
     ;;
   reload)
     ;;
+  # Non-standard extensions:
+  wait_stop)
+    wait_stop "$@"
+    RETVAL=$?
+    ;;
+  real_status)
+    real_status "$@"
+    RETVAL=$?
+    ;;
+  try)
+    try "$@"
+    RETVAL=$?
+    ;;
+  wait_try)
+    wait_try "$@"
+    RETVAL=$?
+    ;;
+  # And finally some help:
   usage|*)
-    echo $"Usage: $0 {start|stop|status|restart|condrestart|reload|force-reload|usage}"
+    echo $"Usage: $0 {start|stop|status|restart|condrestart|reload|force-reload|usage|real_status|try|wait_try} [OPTIONS]"
     ;;
 esac
 exit $RETVAL

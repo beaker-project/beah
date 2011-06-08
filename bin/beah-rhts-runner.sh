@@ -76,7 +76,9 @@ ensure_chkconfig_on() {
 WARN_ISSUED=/var/beah/rhts-compat.warning
 
 warn() {
-  if [[ ! -f $WARN_ISSUED ]]; then
+  # we do not want to have the results spoiled by this, but want it reported
+  # anyway!
+  if false; then # && [[ ! -f $WARN_ISSUED ]]; then
     touch $WARN_ISSUED
     if [[ -f $WARN_ISSUED ]]; then
       echo -n "" | rhts-report-result $1 WARN - ${2:-0}
@@ -89,28 +91,27 @@ warn() {
 check_compat() {
   # "check rhts-compat is runing. setup and reboot if not"
   local compat_reboot_counter=/var/beah/rhts-compat.reboot
-  if service rhts-compat status; then
+  if service rhts-compat try; then
+    # ignore if following fails - it's running now
+    ensure_chkconfig_on rhts-compat 3 4 5
     echo 0 > $compat_reboot_counter
     return
   else
-    # if the service is not running and is scheduled to run: wait first...
     if chkconfig rhts-compat; then
-      local i=0
-      for i in $(seq 1 30); do
-        sleep 4
-        if service rhts-compat status; then
-          ensure_chkconfig_on rhts-compat 3 4 5
-          echo 0 > $compat_reboot_counter
-          return
-        fi
-        if ! chkconfig rhts-compat; then
-          echo "I do not like this! Someone's changing chairs under my ...!"
-          break
-        fi
-      done
+      # if the service is not running and is scheduled to run: wait first...
+      if service rhts-compat wait_try 120; then
+        # ignore if following fails - it's running now
+        ensure_chkconfig_on rhts-compat 3 4 5
+        echo 0 > $compat_reboot_counter
+        return
+      fi
+      if ! chkconfig rhts-compat; then
+        echo "I do not like this! Someone's changing chairs under my ...!"
+      fi
     fi
     local compat_reboot_count=$(cat $compat_reboot_counter)
     if [[ ${compat_reboot_count:-0} -lt 1 ]]; then
+      # service is not running. Having one attempt to start on boot!
       if echo 1 > $compat_reboot_counter; then
         if chkconfig --add rhts-compat && \
             ensure_chkconfig_on rhts-compat 3 4 5; then
@@ -140,7 +141,12 @@ check_compat() {
 
     echo "What's wrong?"
     chkconfig --list rhts-compat
-    ls -l /etc/init.d/rhts-compat
+    local file= opt=
+    for file in /etc/init.d/rhts-compat /etc/rc*.d/*rhts-compat; do
+      for opt in -l -Z; do
+        ls $opt $file
+      done
+    done
     return 1
   fi
 }
@@ -155,7 +161,7 @@ run_here() {
 stop_compat() {
   chkconfig rhts-compat
   local compat_scheduled=$?
-  chkconfig rhts-compat off
+  chkconfig --level 12345 rhts-compat off
   # turn compat service off:
   if [[ $compat_scheduled == 0 ]]; then
     # if service was scheduled to start wait - it may be starting right
@@ -210,7 +216,8 @@ run_compat() {
     # TODO "set traps"
     # - on kill: kill launcher, remove pid file. Shall we remove launcher here?
 
-    # "run until killed"
+    # Waiting to get killed. Nothing interesting ahead.
+    set +x
     while true; do
       heartbeat
       sleep 300
@@ -227,6 +234,7 @@ main() {
   if [[ -f /etc/profile.d/task-overrides-rhts.sh ]]; then
     source /etc/profile.d/task-overrides-rhts.sh
   fi
+  [[ -n $BEAH_DEBUG ]] && set -x
   if [[ -z $RHTS_OPTION_COMPATIBLE ]]; then
     if [[ -z $RHTS_OPTION_COMPAT_SERVICE ]]; then
       stop_compat

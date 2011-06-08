@@ -103,5 +103,6 @@ main() {
 if [[ -f /etc/profile.d/task-overrides-rhts.sh ]]; then
   source /etc/profile.d/task-overrides-rhts.sh
 fi
+[[ -n $BEAH_DEBUG ]] && set -x
 main "$@"
 
