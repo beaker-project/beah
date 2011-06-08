@@ -35,7 +35,7 @@ fi
 
 path="$BEAH_INSTALL_ROOT/bin/$prog"
 PIDFILE=/var/run/${prog}.pid
-LOCKFILE=/var/lock/subsys/$prog
+THELOCK=/var/beah/lock/$prog
 
 start() {
     [ -f $path ] || exit 5
@@ -45,7 +45,7 @@ start() {
     echo
     echo "$prog running as process `cat $PIDFILE`"
     if test $RETVAL = 0; then
-        touch $LOCKFILE
+        touch $THELOCK
     fi
     return $RETVAL
 }
@@ -59,7 +59,7 @@ stop() {
     fi
     RETVAL=$?
     echo
-    rm -f $LOCKFILE
+    rm -f $THELOCK
     return $RETVAL
 }
 
@@ -69,7 +69,7 @@ restart() {
 }
 
 condrestart(){
-	[ -e $LOCKFILE ] && restart
+	[ -e $THELOCK ] && restart
 	return 0
 }
 

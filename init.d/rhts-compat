@@ -28,7 +28,7 @@ fi
 # DO NOT CHANGE THESE VARIABLES WITHOUT GOOD REASON:
 
 PIDFILE=$BEAH_ROOT/var/run/${prog}.pid
-LOCKFILE=$BEAH_ROOT/var/lock/subsys/$prog
+THELOCK=$BEAH_ROOT/var/beah/lock/$prog
 
 LAUNCHERS="$BEAH_ROOT/var/run/beah/rhts-compat/launchers"
 KILLER="/mnt/testarea/rhts-compat-end"
@@ -58,7 +58,7 @@ function rhts_compat_main() {
     return $?
   fi
   echo $$ > $PIDFILE
-  touch $LOCKFILE
+  touch $THELOCK
   shopt -s nullglob
   while true; do
     if [[ -f $KILLER ]]; then
@@ -73,7 +73,7 @@ function rhts_compat_main() {
     done
     sleep 10
   done
-  rm -f $LOCKFILE
+  rm -f $THELOCK
   rm -f $PIDFILE
 }
 
@@ -96,7 +96,7 @@ stop () {
 }
 
 _stop() {
-  if [[ -f $LOCKFILE ]]; then
+  if [[ -f $THELOCK ]]; then
     echo -n $"Stopping $prog: "
     mkdir -p $(dirname $KILLER)
     touch $KILLER
@@ -113,7 +113,7 @@ restart() {
 }
 
 condrestart(){
-  [ -e $LOCKFILE ] && restart
+  [ -e $THELOCK ] && restart
   return 0
 }
 
@@ -128,8 +128,8 @@ status() {
     else
       return 1
     fi
-  elif [ -e $LOCKFILE ]; then
-    return 2
+  #elif [ -e $THELOCK ]; then
+  #  return 2
   else
     return 3
   fi
