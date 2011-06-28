@@ -13,7 +13,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.28
+Version: 0.6.29
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -110,6 +110,9 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Tue Jun 28 2011 Marian Csontos <mcsontos@redhat.com> 0.6.29-1
+- 711270 - improvements in rhts-compat
+
 * Tue Jun 07 2011 Marian Csontos <mcsontos@redhat.com> 0.6.28-1
 - 680068 - fail fast - do not repeat yum
 - 711270 - system will reboot in a infinite loop
