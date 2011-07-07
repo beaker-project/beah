@@ -1405,6 +1405,7 @@ class BeakerLCBackend(SerializingBackend):
     def __init__(self):
         self.conf = config.get_conf('beah-backend')
         self.hostname = self.conf.get('DEFAULT', 'HOSTNAME')
+        self.recipe_id = int(self.conf.get('DEFAULT', 'RECIPEID'))
         self.digest_method = self.conf.get('DEFAULT', 'DIGEST')
         self.name = self.conf.get('DEFAULT', 'NAME')
         self.waiting_for_lc = False
@@ -1625,8 +1626,11 @@ class BeakerLCBackend(SerializingBackend):
             d = defer.succeed(recipe)
         else:
             self.waiting_for_lc = True
-            d = self.proxy.callRemote('get_recipe', self.hostname) \
-                    .addCallback(self.store_recipe)
+            if self.recipe_id >= 0:
+                args = {'recipe_id': self.recipe_id}
+            else:
+                args = {'system_name': self.hostname}
+            d = self.proxy.callRemote('get_my_recipe', args).addCallback(self.store_recipe)
         return d.addCallback(self.handle_recipe_xml)
 
     def store_recipe(self, recipe_xml):
@@ -1894,6 +1898,12 @@ def beakerlc_opts(opt, conf):
     opt.add_option("--digest", metavar="DIGEST_METHOD",
             action="callback", callback=digest_cb, type='string',
             help="Use DIGEST_METHOD for checksums.")
+    def recipeid_cb(option, opt_str, value, parser):
+        tmp = int(value) # must be an integer
+        conf['RECIPEID'] = value
+    opt.add_option("--recipeid", metavar="RECIPEID",
+            action="callback", callback=recipeid_cb, type='string',
+            help="Use the RECIPEID to get the recipe.")
     return opt
 
 def defaults():
@@ -1913,6 +1923,7 @@ def defaults():
             'LAB_CONTROLLER':lc,
             'COBBLER_SERVER':cs,
             'HOSTNAME':os.getenv('HOSTNAME'),
+            'RECIPEID':'-1',
             'DIGEST':'no-digest',
             'RPC_TIMEOUT':'60',
             'RECIPE_UPLOAD_LIMIT':'0',
@@ -1984,6 +1995,7 @@ def test_configure():
     #conf.write(sys.stdout)
     assert conf.has_option('DEFAULT', 'NAME')
     assert conf.has_option('DEFAULT', 'LAB_CONTROLLER')
+    assert conf.has_option('DEFAULT', 'RECIPEID')
     assert conf.has_option('DEFAULT', 'HOSTNAME')
     assert conf.has_option('DEFAULT', 'INTERFACE')
     assert conf.has_option('DEFAULT', 'PORT')

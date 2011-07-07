@@ -178,6 +178,14 @@ def print_(obj):
     log.info("%s", obj)
     return obj
 
+def do_get_my_recipe(fname, system_name=None, recipe_id=None):
+    log.info("%s(system_name=%r, recipe_id=%r)", fname, system_name, recipe_id)
+    if recipe_id:
+        return print_(get_recipe_xml(id=recipe_id))
+    if system_name:
+        return print_(get_recipe_xml(fqdn=system_name))
+    raise NotImplementedError
+
 def do_get_recipe(fname, fqdn):
     log.info("%s(fqdn=%r)", fname, fqdn)
     return print_(get_recipe_xml(fqdn=fqdn))
@@ -673,6 +681,9 @@ class LCHandler(xmlrpc.XMLRPC):
             return d
         else:
             return value
+
+    def xmlrpc_get_my_recipe(self, request):
+        return self.Return(do_get_my_recipe("get_my_recipe", **request))
 
     def xmlrpc_get_recipe(self, fqdn):
         return self.Return(do_get_recipe("get_recipe", fqdn))
