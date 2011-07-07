@@ -13,7 +13,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.29
+Version: 0.6.30
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -110,6 +110,9 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Thu Jul 07 2011 Marian Csontos <mcsontos@redhat.com> 0.6.30-1
+- bz718313 - use recipe_id to query the recipe
+
 * Tue Jun 28 2011 Marian Csontos <mcsontos@redhat.com> 0.6.29-1
 - 711270 - improvements in rhts-compat
 
