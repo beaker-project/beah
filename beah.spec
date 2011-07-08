@@ -14,7 +14,7 @@
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
 Version: 0.6.30
-Release: 1%{?dist}
+Release: 2%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -112,6 +112,9 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Fri Jul 08 2011 Marian Csontos <mcsontos@redhat.com> 0.6.30-2
+- bz719623 - missing dependency (lockfile)
+
 * Thu Jul 07 2011 Marian Csontos <mcsontos@redhat.com> 0.6.30-1
 - bz718313 - use recipe_id to query the recipe
 
