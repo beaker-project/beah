@@ -22,6 +22,8 @@ Group: Development/Tools
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 Prefix: %{_prefix}
 BuildArch: noarch
+# NOTE: lockfile seems to be the only *lock* available on all RHELs.
+Requires: procmail
 Requires: python%{?_rhel3}
 Requires: python%{?_rhel3}-setuptools
 Requires: python%{?_rhel3}-simplejson
