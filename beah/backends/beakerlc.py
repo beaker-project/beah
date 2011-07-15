@@ -748,14 +748,14 @@ class BeakerLinkCounter(object):
         if limit > 0 and amt > limit:
             if self.link_warn < 2:
                 self.owner.parent_task().send_result('warn', 'link_limit', amt,
-                        "%s has reached link limit!" % self.owner.name())
+                        "%s has reached link limit! (%s > %s)" % (self.owner.name(), amt, limit))
                 self.link_warn = 2
                 sd['link_limit'] = 2
             return False
         limit = self.limits[0]
         if limit > 0 and amt > limit and self.link_warn < 1:
             self.owner.parent_task().send_result('warn', 'link_limit/soft', amt,
-                    "%s has reached soft link limit!" % self.owner.name())
+                    "%s has reached soft link limit! (%s > %s)" % (self.owner.name(), amt, limit))
             self.link_warn = 1
             sd['link_limit'] = 1
         return True
@@ -807,13 +807,13 @@ class BeakerUploadCounter(object):
         limit = self.upload_limits[1]
         if limit > 0 and amt > limit:
             if self.upload_warn < 2:
-                self.owner.parent_task().send_result('warn', 'upload_limit', amt, "%s has reached upload limit!" % self.owner.name())
+                self.owner.parent_task().send_result('warn', 'upload_limit', amt, "%s has reached upload limit! (%s > %s)" % (self.owner.name(), amt, limit))
                 self.upload_warn = 2
                 sd['upload_warn'] = 2
             return False
         limit = self.upload_limits[0]
         if limit > 0 and amt > limit and self.upload_warn < 1:
-            self.owner.parent_task().send_result('warn', 'upload_limit/soft', amt, "%s has reached soft upload limit!" % self.owner.name())
+            self.owner.parent_task().send_result('warn', 'upload_limit/soft', amt, "%s has reached soft upload limit! (%s > %s)" % (self.owner.name(), amt, limit))
             self.upload_warn = 1
             sd['upload_warn'] = 1
         return True
@@ -822,13 +822,13 @@ class BeakerUploadCounter(object):
         limit = self.size_limits[1]
         if limit > 0 and size_total > limit:
             if self.size_warn < 2:
-                self.owner.parent_task().send_result('warn', 'size_limit', size_total, "%s has reached size limit!" % self.owner.name())
+                self.owner.parent_task().send_result('warn', 'size_limit', size_total, "%s has reached size limit! (%s > %s)" % (self.owner.name(), size_total, limit))
                 self.size_warn = 2
                 self.owner.stored_data['size_warn'] = 2
             return False
         limit = self.size_limits[0]
         if limit > 0 and size_total > limit and self.size_warn < 1:
-            self.owner.parent_task().send_result('warn', 'size_limit/soft', size_total, "%s has reached soft size limit!" % self.owner.name())
+            self.owner.parent_task().send_result('warn', 'size_limit/soft', size_total, "%s has reached soft size limit! (%s > %s)" % (self.owner.name(), size_total, limit))
             self.size_warn = 1
             self.owner.stored_data['size_warn'] = 1
         return True
