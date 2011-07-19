@@ -13,8 +13,8 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.30
-Release: 2%{?dist}
+Version: 0.6.31
+Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -112,6 +112,10 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Tue Jul 19 2011 Marian Csontos <mcsontos@redhat.com> 0.6.31-1
+- bz722288 - report bytes transferred
+- bz722387 - soft limits ignored
+
 * Fri Jul 08 2011 Marian Csontos <mcsontos@redhat.com> 0.6.30-2
 - bz719623 - missing dependency (lockfile)
 
