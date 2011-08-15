@@ -16,21 +16,27 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+import os
 from twisted.internet import reactor
+from beah import config
 from beah.wires.internals.twserver import start_server
 
-def main_srv():
+def main_srv(conf=None):
     """\
 This is a Controller server.
 
 Type <Ctrl-C> to exit. Alternatively issue a kill command from cmd_backend.
 """
-    return start_server()
+    return start_server(conf=conf)
 
 def main():
+    from beah.core import debug
+    config.beah_conf()
+    conf = config.get_conf('beah')
+    debug.setup(os.getenv("BEAH_SRV_DEBUGGER"), conf.get('DEFAULT', 'NAME'))
     print main_srv.__doc__
-    main_srv()
-    reactor.run()
+    main_srv(conf=conf)
+    debug.runcall(reactor.run)
 
 if __name__ == '__main__':
     main()

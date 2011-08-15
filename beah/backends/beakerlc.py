@@ -1950,42 +1950,14 @@ def configure():
             defaults=defaults(), overrides=config.backend_opts(option_adder=beakerlc_opts))
 
 
-def breakpoint():
-    pass
-def runcall(callable, *args, **kwargs):
-    callable(*args, **kwargs)
-dbg = os.getenv("BEAH_BEAKER_DEBUGGER")
-if dbg == "pdb":
-    import pdb
-    def runcall(callable, *args, **kwargs):
-        return pdb.runcall(callable, *args, **kwargs)
-    def breakpoint():
-        return pdb.set_trace()
-elif dbg == "profile":
-    try:
-        import cProfile as profile
-    except ImportError:
-        import profile
-    def runcall(callable, *args, **kwargs):
-        profiler = profile.Profile()
-        try:
-            profiler.runcall(callable, *args, **kwargs)
-        finally:
-            profiler.dump_stats('/tmp/beah-beaker-backend.profile')
-            profiler.print_stats()
-            #profiler.sort_stats( 'calls', 'cumulative' )
-            #profiler.print_stats()
-
-#elif dbg in ("rpdb2", "winpdb"):
-#    import rpdb2
-#    rpdb2.start_embedded_debugger('w7F!stH!5')
-
-
 def main():
+    from beah.core import debug
     configure()
+    conf = config.get_conf('beah-backend')
+    debug.setup(os.getenv("BEAH_BEAKER_DEBUGGER"), conf.get('DEFAULT', 'NAME'))
     log_handler()
     start_beaker_backend()
-    runcall(reactor.run)
+    debug.runcall(reactor.run)
 
 def test_configure():
     configure()
