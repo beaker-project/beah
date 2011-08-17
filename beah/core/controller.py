@@ -163,52 +163,75 @@ class Controller(object):
         log.debug("Controller: proc_evt(..., %r)", evt)
         self.log_event(task, evt)
         evev = evt.event()
-        if evev == 'introduce':
-            task_id = evt.arg('task_id')
-            task.task_id = task_id
-            task.origin['source'] = "socket"
-            task.origin['id'] = task_id
-            if not self.find_task(task_id):
-                log.error("Controller: No task %s", task_id)
-            return
-        elif evev in ['variable_set', 'variable_get', 'variables']:
-            handle = evt.arg('handle', '')
-            dest = evt.arg('dest', '')
-            if handle == '' and localhost(dest):
-                if evev == 'variable_set':
-                    self.proc_local_variable_set(evt)
-                elif evev == 'variables':
-                    task.proc_cmd(command.answer(evt.id(), self.proc_local_variables(evt)))
-                else:
-                    key = evt.arg('key')
-                    if self.runtime.vars.has_key(key):
-                        value = self.runtime.vars[key]
-                        task.proc_cmd(command.variable_value(key, value,
-                            handle=handle, dest=dest))
-                    else:
-                        task.proc_cmd(command.variable_value(key, None,
-                            handle=handle, error="Undefined variable.", dest=dest))
-                return
-            else:
-                if evev == 'variables':
-                    s = repr(("command.answer", evt.id()))
-                    self.__waiting_tasks[s] = (evt, [task])
-                elif evev == 'variable_get':
-                    key = evt.arg('key')
-                    s = repr(("command.variable_value", key, handle, dest))
-                    if self.__waiting_tasks.has_key(s):
-                        _, l = self.__waiting_tasks[s]
-                        if task not in l:
-                            l.append(task)
-                            log.debug("Controller.__waiting_tasks=%r", self.__waiting_tasks)
-                        return
-                    _, l = self.__waiting_tasks[s] = (evt, [task])
-                    log.debug("Controller.__waiting_tasks=%r", self.__waiting_tasks)
-        # controller - spawn_task
+        handler = getattr(self, "proc_evt_"+evev, None)
+        if handler:
+            try:
+                if handler(task, evt):
+                    return
+            except:
+                self.handle_exception("Handling %s raised an exception." %
+                        evt.event())
         orig = evt.origin()
         if not orig.has_key('id'):
             orig['id'] = task.task_id
         self.send_evt(evt, to_all=(evev in ('flush',)))
+
+    def proc_evt_introduce(self, task, evt):
+        """Process introduce event."""
+        task_id = evt.arg('task_id')
+        task.task_id = task_id
+        task.origin['source'] = "socket"
+        task.origin['id'] = task_id
+        if not self.find_task(task_id):
+            log.error("Controller: No task %s", task_id)
+        return True
+
+    def proc_evt_variable_set(self, task, evt):
+        """Process variable_set event."""
+        handle = evt.arg('handle', '')
+        dest = evt.arg('dest', '')
+        if handle == '' and localhost(dest):
+            self.proc_local_variable_set(evt)
+            return True
+        else:
+            pass
+
+    def proc_evt_variable_get(self, task, evt):
+        """Process variable_get event."""
+        handle = evt.arg('handle', '')
+        dest = evt.arg('dest', '')
+        if handle == '' and localhost(dest):
+            key = evt.arg('key')
+            if self.runtime.vars.has_key(key):
+                value = self.runtime.vars[key]
+                task.proc_cmd(command.variable_value(key, value,
+                    handle=handle, dest=dest))
+            else:
+                task.proc_cmd(command.variable_value(key, None,
+                    handle=handle, error="Undefined variable.", dest=dest))
+            return True
+        else:
+            key = evt.arg('key')
+            s = repr(("command.variable_value", key, handle, dest))
+            if self.__waiting_tasks.has_key(s):
+                _, l = self.__waiting_tasks[s]
+                if task not in l:
+                    l.append(task)
+                    log.debug("Controller.__waiting_tasks=%r", self.__waiting_tasks)
+                return True
+            _, l = self.__waiting_tasks[s] = (evt, [task])
+            log.debug("Controller.__waiting_tasks=%r", self.__waiting_tasks)
+
+    def proc_evt_variables(self, task, evt):
+        """Process variables event."""
+        handle = evt.arg('handle', '')
+        dest = evt.arg('dest', '')
+        if handle == '' and localhost(dest):
+            task.proc_cmd(command.answer(evt.id(), self.proc_local_variables(evt)))
+            return True
+        else:
+            s = repr(("command.answer", evt.id()))
+            self.__waiting_tasks[s] = (evt, [task])
 
     def send_evt(self, evt, to_all=False):
         #cmd_str = "%s\n" % json.dumps(evt)
