@@ -20,6 +20,7 @@ from twisted.internet import reactor
 from twisted.internet.protocol import ProcessProtocol, ReconnectingClientFactory
 from beah.wires.internals import twadaptors, twmisc
 from beah import config
+from beah.core import event
 from beah.misc import dict_update, jsonenv
 import logging
 import os
@@ -34,6 +35,12 @@ class TaskStdoutProtocol(ProcessProtocol):
         self.task_protocol = task_protocol or twadaptors.TaskAdaptor_JSON
         self.task = None
         self.controller = None
+        self.master = None
+
+    def set_master(self):
+        self.master = self.controller.get_master(self.task_id)
+        self.master.timeout_handler = TimeoutHandler(self)
+        self.master.killer = Killer(self)
 
     def connectionMade(self):
         log.info("%s:connectionMade", self.__class__.__name__)
@@ -42,6 +49,7 @@ class TaskStdoutProtocol(ProcessProtocol):
         self.task.send_cmd = lambda obj: self.transport.write(self.task.format(obj))
         self.task.task_id = self.task_id
         self.task.set_controller(self.controller)
+        self.set_master()
         self.controller.task_started(self.task)
 
     def outReceived(self, data):
@@ -54,9 +62,34 @@ class TaskStdoutProtocol(ProcessProtocol):
         log.info("%s:processExited(%s)", self.__class__.__name__, reason)
         self.transport.closeStdin()
 
+    def release(self):
+        if self.master.timeout_handler is not None:
+            self.master.timeout_handler.release()
+            self.master.timeout_handler = None
+        if self.master.killer is not None:
+            self.master.killer.release()
+            self.master.killer = None
+
+
     def processEnded(self, reason):
         log.info("%s:processEnded(%s)", self.__class__.__name__, reason)
         self.controller.task_finished(self.task, rc=twmisc.reason2rc(reason))
+        self.release()
+
+    def kill(self, signal='TERM', message=''):
+        log.debug("%s:kill(%r, %r)", self.__class__.__name__, signal, message)
+        self.transport.signalProcess(signal)
+        evt = event.lwarning("Sending %s signal. Reason: %s" % (signal, message))
+        self.task.proc_input(evt)
+
+    def die(self, message):
+        log.debug("%s:die(%r)", self.__class__.__name__, message)
+        evt = event.warning("Giving Up. Reason: %s" % message)
+        self.task.proc_input(evt)
+        evt = event.end(self.task_id, -1)
+        self.task.proc_input(evt)
+        self.release()
+
 
 def Spawn(host, port, proto=None, socket=''):
     def spawn(controller, backend, task_info, env, args):
@@ -141,3 +174,93 @@ def start_task(conf, task, host=None, port=None,
     if port != '':
         return reactor.connectTCP(host, int(port), factory)
     raise EnvironmentError('Either socket or port must be given.')
+
+
+def _cancel_delayed_call(instance, attr):
+    """Stops and clears delayed call."""
+    if instance and attr:
+        delayed_call = getattr(instance, attr)
+        if delayed_call is not None:
+            if delayed_call.active():
+                delayed_call.cancel()
+            setattr(instance, attr, None)
+
+
+class TimeoutHandler(object):
+
+    def __init__(self, task_protocol):
+        self.task_protocol = task_protocol
+        self.delayed_call = None
+
+    def set_timeout(self, timeout):
+        if timeout <= 0:
+            self.stop()
+        else:
+            self.start(timeout)
+
+    def stop(self):
+        log.debug("%s:stop()", self.__class__.__name__)
+        _cancel_delayed_call(self, "delayed_call")
+
+    def start(self, timeout):
+        log.debug("%s:start(%s)", self.__class__.__name__, timeout)
+        if self.delayed_call is not None:
+            self.delayed_call.reset(timeout)
+        else:
+            self.delayed_call = reactor.callLater(timeout, self.kill)
+
+    def kill(self):
+        log.debug("%s:kill()", self.__class__.__name__)
+        _cancel_delayed_call(self, "delayed_call")
+        self.task_protocol.kill(message='Timeout has expired.')
+
+    def release(self):
+        self.stop()
+        self.task_protocol = None
+
+
+class Killer(object):
+
+    """
+    Handler for kill event.
+
+    Class' kill method is used by controller to handle the event.
+
+    This implementation attempts to send SIGTERM first and after further
+    {TIMEOUT} seconds SIGKILL. If the process still runs we give up and let
+    task_protocol handle the situation.
+
+    """
+
+    SIGNALS = ['TERM', 'KILL']
+    TIMEOUT = 10
+
+    def __init__(self, task_protocol):
+        self.task_protocol = task_protocol
+        self.signal = 0
+        self.delayed_call = None
+
+    def kill(self, message=None):
+        """The main entry point."""
+        log.debug("%s:kill()", self.__class__.__name__)
+        _cancel_delayed_call(self, "delayed_call")
+        if self.signal < len(self.SIGNALS):
+            self.task_protocol.kill(signal=self.SIGNALS[self.signal],
+                    message=message)
+            self.signal += 1
+            self.delayed_call = reactor.callLater(self.TIMEOUT, self.kill, message)
+        else:
+            # giving up!
+            self.task_protocol.die("Process can not be killed.")
+
+    def stop(self):
+        """Stop kill in progress releasing delayed calls."""
+        log.debug("%s:stop()", self.__class__.__name__)
+        self.signal = 0
+        _cancel_delayed_call(self, "delayed_call")
+
+    def release(self):
+        """Release resources."""
+        self.stop()
+        self.task_protocol = None
+
