@@ -567,7 +567,7 @@ class Event(list):
 
     def task_id(self):
         evev = self.event()
-        if evev in ('start', 'end', 'completed'):
+        if evev in ('start', 'end', 'completed', 'introduce'):
             tid = self.arg('task_id')
         elif evev == 'echo':
             tid = self.arg('cmd_id')
