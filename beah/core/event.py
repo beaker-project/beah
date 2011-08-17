@@ -71,7 +71,7 @@ def end(task_id, rc, origin={}, timestamp=None):
 def completed(task_id, success, origin={}, timestamp=None):
     """
     Task was fully handled by the originating backend.
-    
+
     """
     return Event('completed', origin, timestamp, task_id=task_id, success=success)
 
@@ -84,9 +84,26 @@ def introduce(task_id, origin={}, timestamp=None):
             task_id=task_id)
 
 def query_watchdog(origin={}, timestamp=None):
+    """
+    Get watchdog's value in seconds.
+
+    This is maintained by an external monitor, likely through a backend.
+
+    """
     return Event('query_watchdog', origin, timestamp)
 
 def extend_watchdog(timeout, origin={}, timestamp=None):
+    """
+    Set watchdog.
+
+    NOTE: Watchdog is not a hard timeout: this is a message to external
+    monitor, which is responsible to take an action. Use timeout to define
+    a hard limit.
+
+    Parameters:
+    - timeout - estimated time in seconds.
+
+    """
     return Event('extend_watchdog', origin, timestamp, timeout=timeout)
 
 def abort(type, target=None, message=None, origin={}, timestamp=None):
