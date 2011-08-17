@@ -427,17 +427,21 @@ function lm_fakelc()
 function lm_stop()
 {
   service beah-beaker-backend stop
+  chkconfig --level 345 beah-beaker-backend off
   service beah-watchdog-backend stop
+  chkconfig --level 345 beah-watchdog-backend off
   service beah-fwd-backend stop
-  if [[ -n "$FAKELC_SERVICE" ]]; then
-    service beah-fakelc stop
-  else
-    sleep 2
-    if [[ -n "$LM_FAKELC" ]]; then
+  chkconfig --level 345 beah-fwd-backend off
+  service beah-fakelc stop
+  chkconfig --level 345 beah-fakelc off
+  if [[ -n "$LM_FAKELC" ]]; then
+    if [[ -f /tmp/beah-fakelc.pid && -n "$(cat /tmp/beah-fakelc.pid)" ]]; then
+      sleep 2
       kill -2 $(cat /tmp/beah-fakelc.pid)
     fi
   fi
   service beah-srv stop
+  chkconfig --level 345 beah-srv off
 }
 
 function lm_clean()
@@ -481,9 +485,11 @@ function lm_restart_test()
 function lm_start_()
 {
   rm -rf /var/cache/rhts
+  chkconfig --level 345 beah-srv on
   service beah-srv start
   if [[ -z "$NO_FAKELC" ]]; then
     if [[ -n "$FAKELC_SERVICE" ]]; then
+      chkconfig --level 345 beah-fakelc on
       service beah-fakelc start
     else
       if [[ -n "$LM_FAKELC" ]]; then
@@ -493,8 +499,13 @@ function lm_start_()
       fi
     fi
   fi
-  service beah-watchdog-backend start
+  if [[ -z "$NO_WATCHDOG" ]]; then
+    chkconfig --level 345 beah-watchdog-backend on
+    service beah-watchdog-backend start
+  fi
+  chkconfig --level 345 beah-fwd-backend on
   service beah-fwd-backend start
+  chkconfig --level 345 beah-beaker-backend on
   service beah-beaker-backend start
 }
 
@@ -553,24 +564,19 @@ function lm_chkconfig_add()
 {
   if ! chkconfig beah-srv; then
     chkconfig --add beah-srv
-    chkconfig --level 345 beah-srv on
   fi
   if ! chkconfig beah-watchdog-backend; then
     chkconfig --add beah-watchdog-backend
-    chkconfig --level 345 beah-watchdog-backend on
   fi
   if ! chkconfig beah-beaker-backend; then
     chkconfig --add beah-beaker-backend
-    chkconfig --level 345 beah-beaker-backend on
   fi
   if ! chkconfig beah-fwd-backend; then
     chkconfig --add beah-fwd-backend
-    chkconfig --level 345 beah-fwd-backend on
   fi
   if [[ -z $NO_FAKELC && -n $FAKELC_SERVICE ]]; then
     if ! chkconfig beah-fakelc; then
       chkconfig --add beah-fakelc
-      chkconfig --level 345 beah-fakelc on
     fi
   else
     if chkconfig beah-fakelc; then
