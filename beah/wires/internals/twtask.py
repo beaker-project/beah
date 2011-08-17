@@ -50,10 +50,13 @@ class TaskStdoutProtocol(ProcessProtocol):
     def errReceived(self, data):
         self.task.lose_item(data)
 
+    def processExited(self, reason):
+        log.info("%s:processExited(%s)", self.__class__.__name__, reason)
+        self.transport.closeStdin()
+
     def processEnded(self, reason):
         log.info("%s:processEnded(%s)", self.__class__.__name__, reason)
         self.controller.task_finished(self.task, rc=twmisc.reason2rc(reason))
-        self.task.set_controller()
 
 def Spawn(host, port, proto=None, socket=''):
     def spawn(controller, backend, task_info, env, args):

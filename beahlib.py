@@ -306,6 +306,17 @@ class BeahTask(IBeahSection):
     def flush(self):
         return self.send(event.flush())
 
+    def set_timeout(self, timeout):
+        return self.send(event.set_timeout(timeout))
+
+    def suicide(self, message):
+        return self.send(event.kill(message))
+
+    kill = suicide
+
+    def end(self, exit_code=0):
+        return self.send(event.end(self.id(), exit_code))
+
     def _attach(self, file):
         pass
 

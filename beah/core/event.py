@@ -68,6 +68,33 @@ def end(task_id, rc, origin={}, timestamp=None):
     """Event generated when task finished"""
     return Event('end', origin, timestamp, task_id=task_id, rc=rc)
 
+
+def set_timeout(timeout, origin={}, timestamp=None):
+    """
+    Set a timeout.
+
+    If the task does not finish within {timeout} seconds, controller issues a
+    warning and kills the task.
+
+    Parameters:
+    - timeout - timeout in seconds. When <= 0, timeout is removed.
+
+    """
+    return Event('set_timeout', origin, timestamp, timeout=timeout)
+
+
+def kill(message='', origin={}, timestamp=None):
+    """
+    Kill a task.
+
+    This unconditionally kills a task.
+
+    By default SIGTERM and after timeout SIGKILL are used.
+
+    """
+    return Event('kill', origin, timestamp, message=message)
+
+
 def completed(task_id, success, origin={}, timestamp=None):
     """
     Task was fully handled by the originating backend.

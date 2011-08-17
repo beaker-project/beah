@@ -72,6 +72,8 @@ class MasterTask(object):
         self.done = False
         self.exit_code = 0
         self.details = {}
+        self.killer = None
+        self.timeout_handler = None
 
     def dump(self, indent='', verbose=False):
         if self.get_done():
@@ -99,6 +101,27 @@ class MasterTask(object):
         task_info = self.runtime.tasks.get(self.task_id, {})
         task_info.update({'done': done, 'exit_code': exit_code})
         self.runtime.tasks[self.task_id] = task_info
+
+    def kill(self, message):
+        if self.killer is not None:
+            self.killer.kill(message)
+        else:
+            log.warning("No killer for task %s", self.task_id)
+
+    def set_timeout(self, timeout):
+        if self.timeout_handler is not None:
+            self.timeout_handler.set_timeout(timeout)
+        else:
+            log.warning("No timeout_handler for task %s", self.task_id)
+
+    def release(self):
+        if self.killer is not None:
+            self.killer.release()
+            self.killer = None
+        if self.timeout_handler is not None:
+            self.timeout_handler.release()
+            self.timeout_handler = None
+
 
 ################################################################################
 # Controller class:
@@ -280,6 +303,25 @@ class Controller(object):
         # Returning now as the event is not necessary any more.
         return True
 
+    def proc_evt_end(self, task, evt):
+        """Process end event."""
+        log.info("Task '%s' has explicitly requested to send end.", task.task_id)
+        self.task_finished(task, evt.arg('rc'), evt=evt)
+        # Returning now as the event is re-sent by task_finished method.
+        return True
+
+    def proc_evt_set_timeout(self, task, evt):
+        """Process set_timeout event."""
+        master = self.get_master(task.task_id)
+        if master:
+            master.set_timeout(evt.arg('timeout'))
+
+    def proc_evt_kill(self, task, evt):
+        """Process kill event."""
+        master = self.get_master(task.task_id)
+        if master:
+            master.kill(evt.arg('message', None))
+
     def proc_evt_variable_set(self, task, evt):
         """Process variable_set event."""
         handle = evt.arg('handle', '')
@@ -344,9 +386,10 @@ class Controller(object):
         self.add_task(task)
         self.generate_evt(event.start(task.task_id))
 
-    def task_finished(self, task, rc):
-        self.generate_evt(event.end(task.task_id, rc))
+    def task_finished(self, task, rc, evt=None):
+        self.generate_evt(evt or event.end(task.task_id, rc))
         self.remove_task(task)
+        task.set_controller()
         master = self.get_master(task.task_id)
         if master:
             master.set_done(True, rc)

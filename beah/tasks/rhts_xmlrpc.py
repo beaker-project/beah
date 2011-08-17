@@ -102,6 +102,7 @@ class RHTSTask(protocol.ProcessProtocol):
         self.main.task_stderr(data)
 
     def processExited(self, reason):
+        self.transport.closeStdin()
         self.main.task_exited(reason)
 
     def processEnded(self, reason):
@@ -507,8 +508,12 @@ class RHTSMain(object):
                         )
                 self.send_evt(evt)
             log.info("quitting...")
-            reactor.callLater(1, reactor.stop)
+            self.bye(exitCode)
         self.__done = True
+
+    def bye(self, rc):
+        self.send_evt(event.set_timeout(30))
+        reactor.callLater(1, reactor.stop)
 
     def __controller_output(self, data):
         self.controller.sendLine(data)
