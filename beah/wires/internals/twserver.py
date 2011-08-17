@@ -27,7 +27,6 @@ from twisted.internet import protocol
 from twisted.internet import reactor
 import logging
 import os
-import sys
 
 log = logging.getLogger('beah')
 
@@ -107,6 +106,7 @@ def start_server(conf=None, backend_host=None, backend_port=None,
     controller = Controller(spawn or Spawn(task_host, task_port, socket=task_socket))
     controller.runtime = runtimes.ShelveRuntime(conf.get('CONTROLLER', 'RUNTIME_FILE_NAME'))
     controller.runtime.vars = runtimes.TypeDict(controller.runtime, 'vars')
+    controller.runtime.tasks = runtimes.TypeDict(controller.runtime, 'tasks')
     def on_killed():
         if not controller.backends:
             reactor.stop()

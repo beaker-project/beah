@@ -31,6 +31,75 @@ from beah.system import Executable
 ################################################################################
 log = logging.getLogger('beah')
 
+
+################################################################################
+# MasterTask:
+################################################################################
+class MasterTask(object):
+
+    """
+    Class keeping task's status and common task data.
+
+    Use make_new to create a new instance.
+
+    """
+
+    def make_new(cls, task_id, runtime, make_new=False):
+        """
+        Make a new instance of MasterTask from runtime.
+
+        make_new - if True allows creating a new object from scratch, otherwise
+                   None is returned when no data exist in runtime.
+        """
+        t = runtime.tasks.get(task_id, None)
+        if t is None and not make_new:
+            instance = None
+        else:
+            instance = cls(task_id, runtime)
+            if t:
+                # get defaults from runtime:
+                instance.done = t.get('done', False)
+                instance.exit_code = t.get('exit_code', 0)
+            else:
+                # write defaults to runtime
+                instance.set_done(False,  0)
+        return instance
+    make_new = classmethod(make_new)
+
+    def __init__(self, task_id, runtime):
+        self.task_id = task_id
+        self.runtime = runtime
+        self.done = False
+        self.exit_code = 0
+        self.details = {}
+
+    def dump(self, indent='', verbose=False):
+        if self.get_done():
+            status = "Finished(exit_code=%s)" % (self.get_exit_code(),)
+        else:
+            status = "Running"
+        answ = "%s%s: %s\n" % (indent, self.task_id, status)
+        if verbose:
+            if self.details:
+                answ += "%s  %s\n" % (indent, self.details)
+        return answ
+
+    def update_details(self, details):
+        self.details.update(details)
+
+    def get_done(self):
+        return self.done
+
+    def get_exit_code(self):
+        return self.exit_code
+
+    def set_done(self, done, exit_code):
+        self.done = done
+        self.exit_code = exit_code
+        task_info = self.runtime.tasks.get(self.task_id, {})
+        task_info.update({'done': done, 'exit_code': exit_code})
+        self.runtime.tasks[self.task_id] = task_info
+
 ################################################################################
 # Controller class:
 ################################################################################
@@ -51,8 +120,9 @@ class Controller(object):
 
     def __init__(self, spawn_task, on_killed=None):
         self.spawn_task = spawn_task
-        self.tasks = []
+        self.tasks = [] # list of connected tasks
         self.backends = []
+        self.masters = {} # task objects
         self.out_backends = []
         self.conf = {}
         self.killed = False
@@ -82,8 +152,16 @@ class Controller(object):
         if task and not (task in self.tasks):
             if 'origin' not in dir(task):
                 task.origin = {}
-            if not task.origin.has_key('id'):
-                task.origin['id'] = getattr(task, 'task_id', None)
+            task_id = getattr(task, 'task_id', None)
+            origin_id = task.origin.get('id', None)
+            if origin_id is not None:
+                if task_id is None:
+                    task.task_id = origin_id
+                elif task_id != origin_id:
+                    log.error("Task %r: origin id (%r) and task_id (%r) do not match. Setting to origin id.", task, origin_id, task_id)
+                    task.task_id = origin_id
+            else:
+                task.task_id = task.origin['id'] = task_id
             self.tasks.append(task)
             return True
 
@@ -97,6 +175,25 @@ class Controller(object):
             if (task.task_id == task_id):
                 return task
         return None
+
+    def get_master(self, task_id, make_new=False):
+        master = self.masters.get(task_id, None)
+        if master is None:
+            master = MasterTask.make_new(task_id, self.runtime, make_new=make_new)
+            if master is not None:
+                self.masters[task_id] = master
+        return master
+
+    def set_task(self, task, evt):
+        if task.task_id is None:
+            task_id =  evt.task_id()
+            if task_id:
+                task.task_id = task.origin['id'] = task_id
+                return True
+            else:
+                return False
+        else:
+            return False
 
     def proc_local_variable_set(self, evt):
         key = evt.arg('key')
@@ -178,12 +275,9 @@ class Controller(object):
 
     def proc_evt_introduce(self, task, evt):
         """Process introduce event."""
-        task_id = evt.arg('task_id')
-        task.task_id = task_id
+        self.set_task(task, evt)
         task.origin['source'] = "socket"
-        task.origin['id'] = task_id
-        if not self.find_task(task_id):
-            log.error("Controller: No task %s", task_id)
+        # Returning now as the event is not necessary any more.
         return True
 
     def proc_evt_variable_set(self, task, evt):
@@ -253,6 +347,9 @@ class Controller(object):
     def task_finished(self, task, rc):
         self.generate_evt(event.end(task.task_id, rc))
         self.remove_task(task)
+        master = self.get_master(task.task_id)
+        if master:
+            master.set_done(True, rc)
         log.info("Task %s has finished.", task.task_id)
         log_flush(log)
 
@@ -347,18 +444,28 @@ class Controller(object):
     def proc_cmd_config(self, backend, cmd, echo_evt):
         self.conf.update(cmd.args())
 
-    def proc_cmd_run(self, backend, cmd, echo_evt):
-        task_info = dict(cmd.arg('task_info'))
-        task_id = cmd.id()
+    # REFACTOR: This should be a class
+    def run_task(self, backend, task_info, task_env, task_args, echo_evt):
+        task_id = task_info['id']
+        master = self.get_master(task_id, make_new=True)
+        master.update_details({'info': task_info, 'env': task_env, 'args': task_args})
+        if master.get_done():
+            echo_evt.args()['rc'] = ECHO.EXCEPTION
+            echo_evt.args()['message'] = 'Task %r finished, exit code %s.' % (task_id, master.get_exit_code())
+            return
         if self.find_task(task_id) is not None:
             echo_evt.args()['rc'] = ECHO.DUPLICATE
             echo_evt.args()['message'] = 'The task with id == %r is already running.' % task_id
             return
+        self.spawn_task(self, backend, task_info, task_env, task_args)
+
+    def proc_cmd_run(self, backend, cmd, echo_evt):
+        task_info = dict(cmd.arg('task_info'))
+        task_id = cmd.id()
         task_info['id'] = task_id
-        # FIXME!!! save task_info
         task_env = dict(cmd.arg('env') or {})
         task_args = list(cmd.arg('args') or [])
-        self.spawn_task(self, backend, task_info, task_env, task_args)
+        self.run_task(backend, task_info, task_env, task_args, echo_evt)
 
     def proc_cmd_run_this(self, backend, cmd, echo_evt):
         # FIXME: This looks dangerous! Is future BE filter enough? Disable!
@@ -372,7 +479,7 @@ class Controller(object):
         # FIXME!!! save task_info
         task_env = dict(cmd.arg('env') or {})
         task_args = list(cmd.arg('args') or [])
-        self.spawn_task(self, backend, task_info, task_env, task_args)
+        self.run_task(backend, task_info, task_env, task_args, echo_evt)
 
     def proc_cmd_kill(self, backend, cmd, echo_evt):
         # FIXME: are there any running tasks? - expects kill --force
@@ -401,6 +508,13 @@ class Controller(object):
             answ += "None\n"
 
         answ += "\n== Tasks ==\n"
+        if self.masters:
+            for master in self.masters.values():
+                answ += master.dump(indent='', verbose=True) + "\n"
+        else:
+            answ += "None\n"
+
+        answ += "\n=== Connections ===\n"
         if self.tasks:
             for t in self.tasks:
                 answ += "%s\n" % t
