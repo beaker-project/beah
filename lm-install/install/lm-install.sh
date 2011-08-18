@@ -325,7 +325,7 @@ function lm_rm_runtime()
 {
   rm -rf /var/beah/*
   rm -rf /tmp/beah-fakelc-logs/*
-  rm -rf /var/run/beah
+  rm -rf /var/run/beah*
 }
 
 function ls_egg()
