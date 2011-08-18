@@ -44,6 +44,9 @@ class MasterTask(object):
 
     """
 
+    _VERBOSE = ('__init__', 'update_details', 'get_done', 'get_exit_code',
+            'set_done', 'kill', 'set_timeout', 'release',)
+
     def make_new(cls, task_id, runtime, make_new=False):
         """
         Make a new instance of MasterTask from runtime.

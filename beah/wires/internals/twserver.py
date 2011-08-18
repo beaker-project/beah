@@ -19,7 +19,7 @@
 from beah.wires.internals.twmisc import twisted_logging
 from beah.wires.internals.twadaptors import BackendAdaptor_JSON, TaskAdaptor_JSON
 from beah.wires.internals.twtask import Spawn
-from beah.core.controller import Controller
+from beah.core.controller import Controller, MasterTask
 from beah.misc import runtimes, make_log_handler, make_class_verbose, str2log_level, ensuredir, parse_bool
 from beah.misc.log_this import log_this
 from beah import config
@@ -85,6 +85,7 @@ def start_server(conf=None, backend_host=None, backend_port=None,
     if parse_bool(config.get_conf('beah').get('CONTROLLER', 'DEVEL')):
         print_this = log_this(log.debug, True)
         make_class_verbose(Controller, print_this)
+        make_class_verbose(MasterTask, print_this)
 
     # RUN:
     backend_host = backend_host or conf.get('BACKEND', 'INTERFACE')
