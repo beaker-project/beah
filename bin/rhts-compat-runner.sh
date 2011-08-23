@@ -71,11 +71,11 @@ main() {
   else
     echo "INFO: $0: No launcher. Executed manually?"
   fi
+  [[ -f "$shenv" ]] || die 1 "No such env.file: '$shenv'"
+  source $shenv || die 1 "Errors while sourcing '$shenv'"
   if [[ -z $RUNNER_PID ]]; then
     echo "WARNING: $0: No runner. Executed manually?"
   fi
-  [[ -f "$shenv" ]] || die 1 "No such env.file: '$shenv'"
-  source $shenv || die 1 "Errors while sourcing '$shenv'"
 
   # TODO "set traps"
   # this shall
