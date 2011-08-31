@@ -503,12 +503,29 @@ def beah_opts_aux(opt, conf, args=None):
 def beah_opts(args=None):
     """Create a parser and parse options for beah-server."""
     conf = {}
-    conf, rest = beah_opts_aux(beah_opt(OptionParser(), conf), conf, args=args)
+    opt = beah_opt(OptionParser(), conf)
+    conf, rest = beah_opts_aux(opt, conf, args=args)
     if rest:
         opt.print_help()
         raise exceptions.RuntimeError('Program accepts no positional arguments.')
     return conf
 
+
+def backend_opt_ex(conf=None, option_adder=None):
+    """
+    Build option parser for backend.
+
+    Arguments:
+    conf -- dictionary holding parsed data
+    option_adder -- additional OptionParser extender
+
+    """
+    if conf is None:
+        conf = {}
+    opt = backend_opt(OptionParser(), conf)
+    if option_adder is not None:
+        opt = option_adder(opt, conf)
+    return conf, opt
 
 def backend_opts_ex(args=None, option_adder=None):
     """
@@ -518,10 +535,7 @@ def backend_opts_ex(args=None, option_adder=None):
     option_adder -- additional OptionParser extender
 
     """
-    conf = {}
-    opt = backend_opt(OptionParser(), conf)
-    if option_adder is not None:
-        opt = option_adder(opt, conf)
+    conf, opt = backend_opt_ex(option_adder=option_adder)
     conf, rest = beah_opts_aux(opt, conf, args=args)
     return conf, rest
 
@@ -536,7 +550,8 @@ def backend_opts(args=None, option_adder=None):
     option_adder -- additional OptionParser extender
 
     """
-    conf, rest = backend_opts_ex(args, option_adder)
+    conf, opt = backend_opt_ex(option_adder=option_adder)
+    conf, rest = beah_opts_aux(opt, conf, args=args)
     if rest:
         opt.print_help()
         raise exceptions.RuntimeError('Program accepts no positional arguments.')
