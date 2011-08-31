@@ -27,9 +27,7 @@ Requires: procmail
 Requires: python%{?_rhel3}
 Requires: python%{?_rhel3}-setuptools
 Requires: python%{?_rhel3}-simplejson
-Requires: python%{?_rhel3}-twisted-core
 Requires: python%{?_rhel3}-twisted-web
-Requires: python%{?_rhel3}-zope-interface
 # We need these for EL4 and EL5.
 # RHEL3 python26 includes these, but since its a versioned package doesn't provide them.
 %if "0%{?dist}" != "0"
@@ -43,6 +41,12 @@ Requires(preun): initscripts
 Requires(postun): initscripts
 BuildRequires: python%{?_py_dev}-devel
 BuildRequires: python%{?_rhel3}-setuptools
+BuildRequires: python%{?_rhel3}-simplejson
+BuildRequires: python%{?_rhel3}-twisted-web
+%if "0%{?dist}" != "0"
+BuildRequires: python-hashlib
+BuildRequires: python-uuid
+%endif
 
 %description
 Beah - Test Harness.
@@ -67,6 +71,9 @@ Powered by Twisted.
 %install
 rm -rf $RPM_BUILD_ROOT
 %{__python} setup.py install --optimize=1 --skip-build --root $RPM_BUILD_ROOT
+
+%check
+trial beah
 
 %clean
 rm -rf $RPM_BUILD_ROOT
