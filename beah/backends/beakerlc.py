@@ -1357,7 +1357,7 @@ class BeakerRecipe(BeakerTask):
             reactor.callLater(60, backend.on_idle)
             return
         task_id = task_data['task_env']['TASKID']
-        task_data['task_env']['LAB_CONTROLLER'] = config.get_conf('beah-backend').get('DEFAULT', 'COBBLER_SERVER')
+        task_data['task_env']['LAB_CONTROLLER'] = self.backend().conf.get('DEFAULT', 'COBBLER_SERVER')
         run_cmd, _ = self.__tasks_by_id.get(task_id, (None, None))
         if not run_cmd:
             task_name = task_data['task_env']['TASKNAME'] or None
@@ -2003,9 +2003,10 @@ def defaults():
             })
     return d
 
-def configure():
+
+def configure(args=None):
     config.backend_conf(env_var='BEAH_BEAKER_CONF', filename='beah_beaker.conf',
-            defaults=defaults(), overrides=config.backend_opts(option_adder=beakerlc_opts))
+            defaults=defaults(), overrides=config.backend_opts(args=args, option_adder=beakerlc_opts))
 
 
 def main():
