@@ -468,6 +468,17 @@ import stat
 import errno
 from beah.misc import digests
 
+
+class BX(Exception):
+    """Stub to keep code compatible with rhts/beaker version"""
+    pass
+
+
+def _(string):
+    """Stub to keep code compatible with rhts/beaker version"""
+    return string
+
+
 def safe_int(n, default=None):
     try:
         return int(n)
@@ -491,6 +502,7 @@ def ensuredir(directory):
         if not os.path.isdir(directory):
             #something else must have gone wrong
             raise
+
 
 class Uploader:
     def __init__(self, basepath):
