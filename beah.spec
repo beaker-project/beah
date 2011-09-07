@@ -13,7 +13,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.31
+Version: 0.6.32
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -112,6 +112,11 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Wed Sep 07 2011 Marian Csontos <mcsontos@redhat.com> 0.6.32-1
+- Bug 683184 - [Beaker][Harness] External Watchdog killing "finished" recipes
+  - Added set_timeout and kill events.
+- Fixed misplaced false positive warning
+
 * Tue Jul 19 2011 Marian Csontos <mcsontos@redhat.com> 0.6.31-1
 - bz722288 - report bytes transferred
 - bz722387 - soft limits ignored
