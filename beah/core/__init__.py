@@ -40,13 +40,39 @@ def esc_name(name):
     return ''.join([(c.isalnum() and c) or (c=='_' and '__') or '_%x' % ord(c)
             for c in name])
 
+
+def prettyprint_list(list_, last_join="or"):
+    """
+    Format list.
+
+    Example:
+    >>> prettyprint_list(["An apple", "two pears", "three oranges."], last_join="and")
+    'An apple, two pears and three oranges.'
+
+    """
+    if not list_:
+        return ""
+    if len(list_) == 1:
+        return str(list_[0])
+    l = list([str(item) for item in list_])
+    return ", ".join(l[:-1]) + " %s " % last_join + l[-1]
+
+
 def check_type(name, value, type_, allows_none=False):
+    """Check value is of type type_ or None if allows_none is True."""
     if isinstance(value, type_):
         return
     if allows_none and value is None:
         return
-    raise exceptions.TypeError('%r not permitted as %s. Has to be %s%s.' \
-            % (value, name, type_.__name__, allows_none and " or None" or ""))
+    if isinstance(type_, tuple):
+        types = list([t.__name__ for t in type_])
+    else:
+        types = [type_.__name__]
+    if allows_none:
+        types.append("None")
+    raise exceptions.TypeError('%r not permitted as %s. Has to be %s.' \
+            % (value, name, prettyprint_list(types)))
+
 
 def make_addict(d):
 
