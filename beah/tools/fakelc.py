@@ -99,7 +99,7 @@ def conf_main(conf, args):
         job_id = 100 + randint(0, 99)
         conf.setdefault('job_id', job_id)
     else:
-        conf['job_id'] = recipeset_id
+        conf['job_id'] = job_id
     recipeset_id = opts.recipeset_id
     if recipeset_id is None:
         recipeset_id = job_id*100 + randint(0, 99)
