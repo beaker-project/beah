@@ -3,9 +3,51 @@
 #
 # chkconfig: - 99 99
 # description:  This service is used in rhts-compat mode.
-#
-# Tihs service should run after all other services are up, as it is running in
-# foreground to get access to console just like original RHTS system used.
+
+usage() {
+  echo $"Usage: $0 {start|stop|status|restart|condrestart|reload|force-reload|usage|help|real_status|try|wait_try} [OPTIONS]"
+}
+
+help() {
+  usage
+  cat<<END
+
+NOTE: This is not a classical service.
+This service should run after all other services are up, as it is running in
+foreground to get access to console just like original RHTS system used.
+
+== Commands ==
+
+Starting the service multiple times have no effect and the start command just
+returns 0 exit code if the service is already running.
+
+To reuse the service while it is still running and to avoid starting it
+anew use try instead of start.
+
+To wait for the service scheduled to start or to reuse while running use
+wait_try.
+
+Stopping the service does not kill the service immediately but does create a
+kill-file whose presence is taken into account only after all tasks finished
+and after grace period to avoid rebooting the machine when service is not
+needed for only short periods of time.
+
+To wait for full stop use wait_stop instead of stop.
+
+The status command returns an apparent status, to get real status use
+real_status.
+
+== Lockfile ==
+
+As the service uses completely different flow than proper service LOCKFILE is
+deemed at least useless.
+
+The lack of LOCKFILE does affect process of changing runlevels which does
+call stop only when there is lockfile present. But as stop has no effect
+this does not affect the service.
+
+END
+}
 
 # Source function library.
 . /etc/rc.d/init.d/functions
@@ -344,8 +386,18 @@ case "$command" in
     RETVAL=$?
     ;;
   # And finally some help:
-  usage|*)
-    echo $"Usage: $0 {start|stop|status|restart|condrestart|reload|force-reload|usage|real_status|try|wait_try} [OPTIONS]"
+  usage)
+    usage
+    exit 0
+    ;;
+  help)
+    help
+    exit 0
+    ;;
+  *)
+    echo "Command '$command' not recognized." >&2
+    usage >&2
+    exit 1
     ;;
 esac
 exit $RETVAL
