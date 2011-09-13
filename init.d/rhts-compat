@@ -30,7 +30,7 @@ fi
 # DO NOT CHANGE THESE VARIABLES WITHOUT GOOD REASON:
 
 PIDFILE=$BEAH_ROOT/var/run/${prog}.pid
-THELOCK=$BEAH_ROOT/var/beah/lock/$prog
+LOCKFILE=$BEAH_ROOT/var/lock/subsys/$prog
 
 LAUNCHERS="$BEAH_ROOT/var/run/beah/rhts-compat/launchers"
 KILLER="/mnt/testarea/rhts-compat-end"
@@ -79,8 +79,7 @@ function rhts_compat_main() {
   echo $"Use 'service $prog stop' from another terminal to stop it."
   echo $"It will not stop immediately but only after running tasks are processed."
   echo $$ > $PIDFILE
-  mkdir -p $(dirname $THELOCK) &> /dev/null
-  touch $THELOCK
+  #touch $LOCKFILE
   shopt -s nullglob
   while true; do
     if [[ -f $KILLER ]]; then
@@ -101,7 +100,7 @@ function rhts_compat_main() {
     done
     sleep 10
   done
-  rm -f $THELOCK
+  #rm -f $LOCKFILE
   rm -f $PIDFILE
   touch /var/run/beah/rhts-compat.over
 }
@@ -215,6 +214,7 @@ stop () {
 }
 
 _stop() {
+  #if [[ -f $LOCKFILE ]]; then
   if real_status; then
     echo $"Stopping $prog: Service waiting for tasks to finish."
     echo -n $"Stopping $prog: "
@@ -231,6 +231,7 @@ restart() {
 }
 
 condrestart(){
+  #[ -e $LOCKFILE ] && restart
   apparent_status && restart
   return 0
 }

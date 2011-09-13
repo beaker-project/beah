@@ -33,7 +33,7 @@ export HOSTNAME=${HOSTNAME:-`/bin/hostname`}
 
 path="$BEAH_INSTALL_ROOT/bin/$prog"
 PIDFILE=/var/run/${prog}.pid
-THELOCK=/var/beah/lock/$prog
+LOCKFILE=/var/lock/subsys/$prog
 
 start() {
     [ -f $path ] || exit 5
@@ -43,8 +43,7 @@ start() {
     echo
     echo "$prog running as process `cat $PIDFILE`"
     if test $RETVAL = 0; then
-        mkdir -p $(dirname $THELOCK) &> /dev/null
-        touch $THELOCK
+        touch $LOCKFILE
     fi
     return $RETVAL
 }
@@ -58,7 +57,7 @@ stop() {
     fi
     RETVAL=$?
     echo
-    rm -f $THELOCK
+    rm -f $LOCKFILE
     return $RETVAL
 }
 
@@ -68,7 +67,7 @@ restart() {
 }
 
 condrestart(){
-	[ -e $THELOCK ] && restart
+	[ -e $LOCKFILE ] && restart
 	return 0
 }
 
