@@ -1210,7 +1210,7 @@ class BeakerFile(PersistentBeakerObject):
                 path, filename = self.filename()
                 self.stored_data['be:uploading_as'] = (method, id, path, filename)
             rpc = self.proxy().callRemote
-            log.debug("writer for method=%(method)s, id=%(id)s, path=%(path)s, filename=%(filename)s", locals())
+            log.debug("writer for method=%r, id=%r, path=%r, filename=%r", method, id, path, filename)
             def writer(size, digest, offset, data):
                 return rpc(method, id, path, filename, size, digest, str(offset), data)
             self._be_writer = writer
