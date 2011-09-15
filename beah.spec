@@ -13,7 +13,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.32
+Version: 0.6.33
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -112,6 +112,10 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Thu Sep 15 2011 Marian Csontos <mcsontos@redhat.com> 0.6.33-1
+- bz737540 - Harness does not restart the task after reboot
+  - Revert "bz711270 - use non-standard lockfiles"
+
 * Wed Sep 07 2011 Marian Csontos <mcsontos@redhat.com> 0.6.32-1
 - Bug 683184 - [Beaker][Harness] External Watchdog killing "finished" recipes
   - Added set_timeout and kill events.
