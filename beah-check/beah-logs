@@ -11,7 +11,7 @@ if [[ "$1" == "check" ]]; then
   cp /var/log/beah* $dir/var/log/
   grep ': ERROR ' $dir/var/log/beah* | grep -v ': DEBUG ' | beah-check cat-error
   cp -R /var/log/rhts $dir/var/log/
-  tar cvf $file -C $(dirname $dir) $(basename $dir)
+  tar cvzf $file -C $(dirname $dir) $(basename $dir)
   rm -rf $dir
   beah-check cp $file logs.tar.gz
   rm -f $file
