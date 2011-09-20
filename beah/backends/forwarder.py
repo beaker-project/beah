@@ -1,3 +1,5 @@
+# -*- test-case-name: beah.backends.test.test_forwarder -*-
+
 # Beah - Test harness. Part of Beaker project.
 #
 # Copyright (C) 2009 Red Hat, Inc.
@@ -232,33 +234,11 @@ def start_forwarder_backend():
     start_backend(backend)
     return backend
 
-def main():
+def main(args=None):
     config.backend_conf(
             defaults={'NAME':'beah_forwarder_backend'},
-            overrides=config.backend_opts())
+            overrides=config.backend_opts(args=args))
     log_handler()
     start_forwarder_backend()
     reactor.run()
-
-if __name__ == '__main__':
-    from beah.bin.srv import main_srv
-    srv = main_srv()
-
-    class FakeTask(object):
-        origin = {'signature':'FakeTask'}
-        task_id = 'no-id'
-        def proc_cmd(self, cmd):
-            log.debug("FakeTask.proc_cmd(%r)", cmd)
-    t = FakeTask()
-    reactor.callLater(2, srv.proc_evt, t, event.variable_set('say_hi', 'Hello World!'))
-    #reactor.callLater(2.1, srv.proc_evt, t, event.variable_get('say_hi'))
-    reactor.callLater(2.2, srv.proc_evt, t, event.variable_get('say_hi', dest='test.loop'))
-
-    class FakeBackend(object):
-        def proc_evt(self, evt, **kwargs):
-            log.debug("FakeBackend.proc_evt(%r, **%r)", evt, kwargs)
-    b = FakeBackend()
-    reactor.callLater(3, srv.proc_cmd, b, command.kill())
-
-    main()
 

@@ -407,7 +407,8 @@ if __name__ == "__main__":
             print evt
 
         def check(self, evt):
-            self.print_(evt)
+            #self.print_(evt)
+            pass
 
         def __call__(self, evt):
             self.events.append(evt)
@@ -440,11 +441,11 @@ if __name__ == "__main__":
     def check_parent(parent_id):
         sender.all(lambda evt: evt.origin()['parent_id'] == parent_id)
 
-    print "\n== USING THE TASK =="
+    #print "\n== USING THE TASK =="
     t.passed("result/passed", "Hooray!")
     r = t.failed("result/...happens", "...!")
     the_file = os.path.expanduser("~/.vimrc")
-    print the_file
+    #print the_file
     t.upload("TASK.log", the_file)
     r.upload("RESULT.log", the_file)
     o = t.output("stream")
@@ -458,11 +459,11 @@ if __name__ == "__main__":
     rf.upload_chunk(0, 'chunk1\n')
     rf.upload_chunk(0, 'chunk2\n')
     rf.close()
-    print "\n== USING CLONED TASK =="
+    #print "\n== USING CLONED TASK =="
     tc = t.clone(origin=dict(file=__file__, module=__name__))
     tc.linfo("cloned")
     tc.passed("cloned", "Pass!")
-    print "\n== USING SECTION =="
+    #print "\n== USING SECTION =="
     s = t.section("new section")
     check_task(t.id())
     sender.flush()
@@ -472,7 +473,7 @@ if __name__ == "__main__":
     so.write("hello")
     sr = s.passed("section/pass", "Passed!")
     sr.upload("SECTION_RESULT.log", the_file)
-    print "\n== USING SUB-SECTION =="
+    #print "\n== USING SUB-SECTION =="
     ss = s.section("subsection")
     check_task(t.id())
     check_parent(s.id())

@@ -1,3 +1,5 @@
+# -*- test-case-name: beah.core.test.test_core -*-
+
 # Beah - Test harness. Part of Beaker project.
 #
 # Copyright (C) 2009 Red Hat, Inc.
@@ -37,15 +39,6 @@ def esc_name(name):
     # FIXME: is there a built-in?
     return ''.join([(c.isalnum() and c) or (c=='_' and '__') or '_%x' % ord(c)
             for c in name])
-
-def test_esc_name():
-    assert esc_name('') == ''
-    assert esc_name('a') == 'a'
-    assert esc_name('1') == '1'
-    assert esc_name('_') == '__'
-    assert esc_name('-') == '_%x' % ord('-')
-    assert esc_name('a_b') == 'a__b'
-    assert esc_name('a-b') == 'a_%xb' % ord('-')
 
 def check_type(name, value, type_, allows_none=False):
     if isinstance(value, type_):
@@ -104,21 +97,3 @@ def make_addict(d):
 
 addict = make_addict(dict)
 
-def test_addict():
-    ad = addict()
-    d = dict()
-    ad[None] = 'a'
-    ad['a'] = None
-    d['b'] = ad['b'] = 'c'
-    ad.update(c=None, d='e')
-    d.update(d='e')
-    ad.update({None: 'e', 'e': None, 'f': 'g'})
-    d.update({'f': 'g'})
-    assert ad == dict(b='c', d='e', f='g')
-    assert ad == d
-    ad = addict(a=None, b='c')
-    assert ad == dict(b='c')
-
-if __name__ == '__main__':
-    test_esc_name()
-    test_addict()
