@@ -1,3 +1,5 @@
+# -*- test-case-name: beah.misc.test.test_runtimes -*-
+
 # Beah - Test harness. Part of Beaker project.
 #
 # Copyright (C) 2010 Marian Csontos <mcsontos@redhat.com>
@@ -337,97 +339,4 @@ class ShelveRuntime(DictRuntime):
 
     def sync(self, type=None):
         self.dict_.sync()
-
-
-if __name__ == '__main__':
-
-    class TestRuntime(ShelveRuntime):
-        def __init__(self, fname):
-            ShelveRuntime.__init__(self, fname)
-            self.vars = TypeDict(self, 'var')
-            self.files = TypeDict(self, 'file')
-            self.queue = TypeList(self, 'queue')
-
-    TESTDB='.test-runtime.db.tmp'
-    tr = TestRuntime(TESTDB)
-    tr.tasks = TypeDict(tr, 'tasks')
-    tr.tqueue = TypeList(tr, 'testqueue')
-    tr.addict = TypeAddict(tr, 'addict')
-    tr.vars['var1'] = 'Hello'
-    tr.vars['var2'] = 'World'
-    tr.vars['var3'] = '!'
-    tr.vars.update(x=1, y=2, d=dict(en="Hi", cz="Ahoj", sk="Ahoj"))
-    tr.files['f1'] = dict(name='file/f1', id='f1')
-    tr.files['f2'] = dict(name='file/f2', id='f2')
-    tr.files['f3'] = dict(name='file/f3', id='f3')
-    del tr.files['f3']
-    tr.tasks['1'] = 'task1'
-    tr.tasks['2'] = 'task2'
-    while len(tr.queue) > 0:
-        tr.queue.pop()
-    assert len(tr.queue) == 0
-    tr.queue.append('first')
-    tr.queue.extend(['second', 'third', 'fourth'])
-    tr.queue += 'fifth'
-    assert tr.queue == ['first', 'second', 'third', 'fourth', 'fifth']
-    assert tr.queue != ['first', 'second', 'third', 'fourth']
-    assert tr.queue != ['first', 'second', 'third', 'fourth', 'fifth', 'sixth']
-    tr.queue[0] = '1st'
-    tr.queue[4] = '5th'
-    assert tr.queue == ['1st', 'second', 'third', 'fourth', '5th']
-    tr.queue[-5] = 'First'
-    tr.queue[-1] = 'Fifth'
-    assert tr.queue == ['First', 'second', 'third', 'fourth', 'Fifth']
-    tr.queue.check()
-    tr.tqueue.extend([0, 1, 2, 3])
-    del tr.tqueue[3]
-    del tr.tqueue[-1]
-    del tr.tqueue[0]
-    del tr.tqueue[0]
-    assert tr.tqueue == []
-    tr.tqueue.check()
-    tr.addict[None] = 'b'
-    tr.addict['a'] = None
-    tr.addict['b'] = 'c'
-    tr.addict.update(dict(c=None, d='e'))
-    assert not tr.addict.has_key('a')
-    assert tr.addict['b'] == 'c'
-    assert not tr.addict.has_key('c')
-    assert tr.addict['d'] == 'e'
-    tr.close()
-
-    tr = TestRuntime(TESTDB)
-    tr.tasks = TypeDict(tr, 'tasks')
-    tr.tqueue = TypeList(tr, 'testqueue')
-    tr.addict = TypeAddict(tr, 'addict')
-    print "\n== vars =="
-    for k in tr.vars.keys():
-        print "%r: %r" % (k, tr.vars[k])
-    print "\n== files =="
-    for k in tr.files.keys():
-        print "%r: %r" % (k, tr.files[k])
-    print "\n== tasks =="
-    for k in tr.tasks.keys():
-        print "%r: %r" % (k, tr.tasks[k])
-    print "\n== queue =="
-    for ix, v in enumerate(tr.queue):
-        print "[%r]: %r" % (ix, v)
-    assert tr.vars['var1'] == 'Hello'
-    assert tr.vars['var2'] == 'World'
-    assert tr.vars['var3'] == '!'
-    assert tr.vars['x'] == 1
-    assert tr.vars['y'] == 2
-    assert tr.vars['d']['en'] == 'Hi'
-    assert tr.files['f1'] == dict(name='file/f1', id='f1')
-    assert tr.files['f2'] == dict(name='file/f2', id='f2')
-    assert tr.files.get('f3', None) == None
-    assert tr.tasks['1'] == 'task1'
-    assert tr.tasks['2'] == 'task2'
-    assert tr.queue == ['First', 'second', 'third', 'fourth', 'Fifth']
-    assert tr.tqueue == []
-    assert not tr.addict.has_key('a')
-    assert tr.addict['b'] == 'c'
-    assert not tr.addict.has_key('c')
-    assert tr.addict['d'] == 'e'
-    tr.close()
 
