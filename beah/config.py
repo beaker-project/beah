@@ -53,6 +53,7 @@ Basic Usage:
     beaker_backend_conf = config.get_config('beaker-backend')
     if beaker_backend_conf.conf.get('CONTROLLER', 'LOG'):
         pass
+
 """
 
 
@@ -74,6 +75,7 @@ class _ConfigParserFix(ConfigParser):
     The problem is that optionxform is not applied consistently to keys.
 
     Using str.upper for optionxform, as uppercase keys are used in beah.
+
     """
     def __init__(self, defaults={}, optionxformf=str.upper):
         self.optionxform = optionxformf
@@ -96,6 +98,26 @@ class _Config(object):
     _configs = {}
 
     def __init__(self, id, conf_env_var, conf_filename, defaults, opts):
+        """
+        Configuration builder.
+
+        This object takes multiple sources of configuration options and builds a
+        single configuration dictionary - the conf instance variable.
+
+        This also keeps track of active configurations and prevents two
+        configurations with same id.
+
+        Arguments:
+        id -- configuration id used to obtain active configuration.
+        conf_env_var -- name of environment variable containing configuration file name
+        conf_filename -- configuration file's basename
+        defaults -- dictionary with default values.
+        opts -- dictionary containing parsed command line options (and
+                environment variables)
+
+        defaults' and opts' keys are in the form NAME or SECTION.NAME
+
+        """
         if self._configs.has_key(id):
             raise exceptions.RuntimeError('configuration already defined')
         self.id = id
@@ -109,10 +131,24 @@ class _Config(object):
             self._configs[id] = self
 
     def _remove(id):
+        """Remove configuration instance with given id."""
         del _Config._configs[id]
     _remove = staticmethod(_remove)
 
     def print_conf(conf, raw=False, defaults={}, show_defaults=False):
+        """
+        Print a configuration.
+
+        This does not show values which are same as default ones.
+
+        Arguments:
+        conf -- ConfigParser object
+        raw -- print raw values when True. Otherwise print interpolated values
+               with %(NAME)s values expanded.
+        defaults -- default values
+        show_defaults -- when true show defaults.
+
+        """
         if show_defaults and defaults:
             print "defaults=dict("
             for key, value in defaults.items():
@@ -144,6 +180,19 @@ class _Config(object):
     print_conf = staticmethod(print_conf)
 
     def print_(self, raw=False, defaults_display='include'):
+        """
+        Print.
+
+        Arguments:
+        - raw -- see print_conf
+        - defaults_display -- whether to display defaults and how to display
+                              them. Permitted values:
+          - include -- display defaults like any other values inline in
+                       appropriate section
+          - exclude -- do not show values same as their default
+          - show, extra -- display default values separately
+
+        """
         print "\n=== %s ===" % self.id
         if defaults_display:
             defaults_display = defaults_display.lower()
@@ -162,9 +211,11 @@ class _Config(object):
                 show_defaults=show_defaults)
 
     def _conf_opt(self):
+        """Access value of command line option for passing config.file."""
         return self.opts.get(self.conf_env_var, '')
 
     def upd_conf(conf, dict, warn_section=False):
+        """Update conf with [SECTION.]NAME pairs found in dict."""
         for (sec_name, value) in dict.items():
             sec_name_pair = _Config.parse_conf_name(sec_name)
             if not sec_name_pair:
@@ -182,6 +233,12 @@ class _Config(object):
     upd_conf = staticmethod(upd_conf)
 
     def read_conf(self):
+        """
+        Update configuration from available sources.
+
+        This includes rereading configuration files.
+
+        """
         conf = _ConfigParserFix()
         self.upd_conf(conf, self.defaults, warn_section=False)
         fn = self._get_conf_file(self._conf_opt())
@@ -198,7 +255,7 @@ class _Config(object):
         self.conf = conf
 
     def parse_conf_name(name):
-        """Parses configuration name in form [SECTION.]NAME."""
+        """Parse configuration name in form [SECTION.]NAME."""
         if isinstance(name, (tuple, list)):
             if len(name) == 1:
                 return ('DEFAULT', name[0])
@@ -219,9 +276,11 @@ class _Config(object):
         return None
 
     def _conf_runtime(self, opt=None):
+        """Make a list of conf.files coming from options and environment."""
         return [opt, os.environ.get(self.conf_env_var, None)]
 
     def _conf_files(self):
+        """Make a list of conf.files."""
         conf_list = []
         if self.conf_filename:
             if os.environ.has_key('HOME'):
@@ -245,15 +304,25 @@ class _Config(object):
         raise exceptions.Exception("Could not find configuration file.")
 
     def has_config(id):
+        """Check whether an instance with given id exists."""
         return _Config._configs.get(id, None)
     has_config = staticmethod(has_config)
 
     def get_config(id):
+        """Find an instance with given id."""
         return _Config._configs[id]
     get_config = staticmethod(get_config)
 
 
 class _BeahConfig(_Config):
+
+    """
+    beah specific extension of _Config class.
+
+    This overrides lookup paths for configuration files and provides methods
+    for building _Config instances (beah_conf and backend_conf).
+
+    """
 
     _VERBOSE = ('_conf_files', '_get_conf_file', ('beah_conf', staticmethod),
             ('backend_conf', staticmethod))
@@ -273,10 +342,23 @@ class _BeahConfig(_Config):
             return ''
 
     def beah_conf(opts, id='beah'):
+        """
+        Build a _BeahConfig object for beah-server.
+
+        Arguments:
+        opts -- parsed command line options
+        """
         return _BeahConfig(id, 'BEAH_CONF', 'beah.conf', beah_defaults(), opts)
     beah_conf = staticmethod(beah_conf)
 
     def backend_conf(id, conf_env_var, conf_filename, defaults, opts):
+        """
+        Build a _BeahConfig object for backends.
+
+        This will look-up BACKEND section in beah-server configuration file to
+        override defaults.
+
+        """
         conf2 = {'BEAH_CONF': opts.get('BEAH_CONF', '')}
         conf = _BeahConfig.beah_conf(conf2, id=None).conf
         defs = dict(conf.items('BACKEND', raw=True))
@@ -286,10 +368,12 @@ class _BeahConfig(_Config):
 
 
 def get_conf(id):
+    """Get ConfigParser object by id."""
     return _Config.get_config(id).conf
 
 
 def defaults():
+    """Default common configuration options."""
     return dict(
             LOG='Warning',
             ROOT='',
@@ -303,6 +387,7 @@ def defaults():
 
 
 def beah_defaults():
+    """Default configuration options specific for controller."""
     d = defaults()
     d.update({
             'CONTROLLER.NAME':'beah',
@@ -322,16 +407,51 @@ def beah_defaults():
 
 
 def backend_defaults():
+    """Default configuration options specific for backend."""
     return {}
 
 
 def beah_conf(overrides=None, args=None):
+    """
+    Main beah-server configuration routine.
+
+    This parses command line options, environment, configuration file and
+    default options with decreasing priority in that order and returns a single
+    _BeahConfig object.
+
+    Configurartion file's location may be affected by command line options or
+    environment.
+
+    Arguments:
+    overrides - parsed configuration dictionary. This overrides args.
+    args - list of command line arguments. sys.argv will be used when None.
+
+    """
     if overrides is None:
         overrides = beah_opts(args)
     return _BeahConfig.beah_conf(overrides)
 
 
 def backend_conf(env_var=None, filename=None, defaults={}, overrides={}):
+    """
+    Main backend configuration routine.
+
+    This requires command line options to be already parsed and passed in in
+    overrides dictionary.
+
+    This parses overrides, environment, configuration file and default options
+    with decreasing priority in that order and returns a single _BeahConfig
+    object.
+
+    Configurartion file's location may be affected by overrides or environment.
+
+    Arguments:
+    env_var -- name of environment variable containing configuration file name
+    filename -- configuration file's basename
+    defaults -- defaults
+    overrides - parsed configuration dictionary
+
+    """
     return _BeahConfig.backend_conf('beah-backend', env_var, filename,
             defaults, overrides)
 
@@ -341,6 +461,7 @@ def _get_config(id):
 
 
 def proc_verbosity(opts, conf):
+    """Process verbose/quiet options and set appropriate log level."""
     if opts.verbose is not None or opts.quiet is not None:
         verbosity = int(opts.verbose or 0) - int(opts.quiet or 0)
     else:
@@ -357,6 +478,17 @@ def proc_verbosity(opts, conf):
 
 
 def beah_opts_aux(opt, conf, args=None):
+    """
+    Parse positional arguments using option parser opt into conf.
+
+    This handles additional options (verbosity) and BEAH_DEVEL env.variable.
+
+    Arguments:
+    opt -- OptionParser
+    conf -- dictionary holding parsed data
+    args -- list holding positional arguments. Use sys.argv when None.
+
+    """
     if args is None:
         args = sys.argv[1:]
     # Process environment:
@@ -369,6 +501,7 @@ def beah_opts_aux(opt, conf, args=None):
 
 
 def beah_opts(args=None):
+    """Create a parser and parse options for beah-server."""
     conf = {}
     conf, rest = beah_opts_aux(beah_opt(OptionParser(), conf), conf, args=args)
     if rest:
@@ -378,6 +511,13 @@ def beah_opts(args=None):
 
 
 def backend_opts_ex(args=None, option_adder=None):
+    """
+    Parse options and positional arguments for backend.
+
+    Arguments:
+    option_adder -- additional OptionParser extender
+
+    """
     conf = {}
     opt = backend_opt(OptionParser(), conf)
     if option_adder is not None:
@@ -387,6 +527,15 @@ def backend_opts_ex(args=None, option_adder=None):
 
 
 def backend_opts(args=None, option_adder=None):
+    """
+    Parse options for backend.
+
+    Use backend_opts_ex for backends accepting positional arguments.
+
+    Arguments:
+    option_adder -- additional OptionParser extender
+
+    """
     conf, rest = backend_opts_ex(args, option_adder)
     if rest:
         opt.print_help()
@@ -396,7 +545,16 @@ def backend_opts(args=None, option_adder=None):
 
 def default_opt(opt, conf, kwargs):
     """
-    Parser for common options.
+    Extend option parser opt to handle common options.
+
+    Arguments:
+    opt -- OptionParser
+    conf -- dictionary holding parsed data
+
+    Keyword Arguments:
+    type -- type of configuration to update (one of 'beah', 'backend' or 'task').
+            This affects which keys get set by the parser.
+
     """
     opt.disable_interspersed_args()
     def config_cb(option, opt_str, value, parser):
@@ -439,6 +597,18 @@ def default_opt(opt, conf, kwargs):
 
 
 def beah_be_opt(opt, conf, kwargs):
+    """
+    Extend option parser opt to handle common backend-related options.
+
+    Arguments:
+    opt -- OptionParser
+    conf -- dictionary holding parsed data
+
+    Keyword Arguments:
+    type -- type of configuration to update (one of 'beah' or 'backend').
+            This affects which keys get set by the parser.
+
+    """
     def interface_cb(option, opt_str, value, parser):
         # FIXME!!! check value
         if kwargs['type'] == 'beah':
@@ -475,6 +645,18 @@ def beah_be_opt(opt, conf, kwargs):
 
 
 def beah_t_opt(opt, conf, kwargs):
+    """
+    Extend option parser opt to handle common task-related options
+
+    Arguments:
+    opt -- OptionParser
+    conf -- dictionary holding parsed data
+
+    Keyword Arguments:
+    type -- type of configuration to update (one of 'beah' or 'task').
+            This affects which keys get set by the parser.
+
+    """
     def interface_cb(option, opt_str, value, parser):
         # FIXME!!! check value
         if kwargs['type'] == 'beah':
@@ -508,7 +690,12 @@ def beah_t_opt(opt, conf, kwargs):
 
 def beah_opt(opt, conf, kwargs=None):
     """
-    Parser for beah-server
+    Extend option parser opt to handle beah-server options.
+
+    Arguments:
+    opt -- OptionParser
+    conf -- dictionary holding parsed data
+
     """
     kwargs = dict(kwargs or {})
     kwargs['type'] = 'beah'
@@ -520,7 +707,12 @@ def beah_opt(opt, conf, kwargs=None):
 
 def backend_opt(opt, conf, kwargs=None):
     """
-    Parser for backends
+    Extend option parser opt to handle backend options.
+
+    Arguments:
+    opt -- OptionParser
+    conf -- dictionary holding parsed data
+
     """
     kwargs = dict(kwargs or {})
     kwargs['type'] = 'backend'
