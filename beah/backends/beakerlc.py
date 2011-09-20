@@ -1778,14 +1778,14 @@ class BeakerLCBackend(SerializingBackend):
             raise exceptions.RuntimeError("No abort type specified.")
         task = evt.task
         task.flush()
-        id = task.id
+        id_ = task.beaker_id
         target = evt.arg('target', None)
         d = None
         msg = evt.arg('msg', '')
         if msg:
-            msg = " aborted by task %s: %s" % (id, msg)
+            msg = " aborted by task %s: %s" % (id_, msg)
         else:
-            msg = " aborted by task %s" % (id,)
+            msg = " aborted by task %s" % (id_,)
         if type == 'recipeset':
             target = self.find_recipeset_id(target)
             if target is not None:
@@ -1801,7 +1801,7 @@ class BeakerLCBackend(SerializingBackend):
         elif type == 'task':
             target = self.find_task_id(target)
             if target is not None:
-                if target != task.beaker_id:
+                if target != id_:
                     log.warning("Can abort only currently running task.")
                     return
                 if task.has_finished():
