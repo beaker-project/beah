@@ -77,13 +77,23 @@ class _ConfigParserFix(ConfigParser):
     Using str.upper for optionxform, as uppercase keys are used in beah.
 
     """
-    def __init__(self, defaults={}, optionxformf=str.upper):
+    def __init__(self, defaults=None, optionxformf=str.upper):
         self.optionxform = optionxformf
         defs = {}
         if defaults:
             for key, value in defaults.items():
                 defs[self.optionxform(key)] = value
         ConfigParser.__init__(self, defs)
+
+
+class NoConfFile(Exception):
+    """Exception raised when none of listed config files can be found."""
+    pass
+
+
+class ConfigurationExists(Exception):
+    """Exception raised when configuration with given id already exists."""
+    pass
 
 
 class _Config(object):
@@ -119,7 +129,7 @@ class _Config(object):
 
         """
         if self._configs.has_key(id):
-            raise exceptions.RuntimeError('configuration already defined')
+            raise ConfigurationExists('Configuration %r already defined.' % id)
         self.id = id
         self.conf_env_var = conf_env_var
         self.conf_filename = conf_filename
@@ -135,7 +145,7 @@ class _Config(object):
         del _Config._configs[id]
     _remove = staticmethod(_remove)
 
-    def print_conf(conf, raw=False, defaults={}, show_defaults=False):
+    def print_conf(conf, raw=False, defaults=None, show_defaults=False):
         """
         Print a configuration.
 
@@ -149,6 +159,8 @@ class _Config(object):
         show_defaults -- when true show defaults.
 
         """
+        if defaults is None:
+            defaults = {}
         if show_defaults and defaults:
             print "defaults=dict("
             for key, value in defaults.items():
@@ -301,7 +313,7 @@ class _Config(object):
                     return conf_file
         if no_file:
             return ''
-        raise exceptions.Exception("Could not find configuration file.")
+        raise NoConfFile("Could not find configuration file.")
 
     def has_config(id):
         """Check whether an instance with given id exists."""
@@ -338,7 +350,7 @@ class _BeahConfig(_Config):
     def _get_conf_file(self, opt=None):
         try:
             return _Config._get_conf_file(self, opt=opt)
-        except:
+        except NoConfFile:
             return ''
 
     def beah_conf(opts, id='beah'):
@@ -419,7 +431,7 @@ def beah_conf(overrides=None, args=None):
     default options with decreasing priority in that order and returns a single
     _BeahConfig object.
 
-    Configurartion file's location may be affected by command line options or
+    Configuration file's location may be affected by command line options or
     environment.
 
     Arguments:
@@ -432,7 +444,7 @@ def beah_conf(overrides=None, args=None):
     return _BeahConfig.beah_conf(overrides)
 
 
-def backend_conf(env_var=None, filename=None, defaults={}, overrides={}):
+def backend_conf(env_var=None, filename=None, defaults=None, overrides=None):
     """
     Main backend configuration routine.
 
@@ -443,7 +455,7 @@ def backend_conf(env_var=None, filename=None, defaults={}, overrides={}):
     with decreasing priority in that order and returns a single _BeahConfig
     object.
 
-    Configurartion file's location may be affected by overrides or environment.
+    Configuration file's location may be affected by overrides or environment.
 
     Arguments:
     env_var -- name of environment variable containing configuration file name
@@ -453,7 +465,7 @@ def backend_conf(env_var=None, filename=None, defaults={}, overrides={}):
 
     """
     return _BeahConfig.backend_conf('beah-backend', env_var, filename,
-            defaults, overrides)
+            defaults or {}, overrides or {})
 
 
 def _get_config(id):
