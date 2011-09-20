@@ -214,9 +214,9 @@ class _Config(object):
         """Access value of command line option for passing config.file."""
         return self.opts.get(self.conf_env_var, '')
 
-    def upd_conf(conf, dict, warn_section=False):
-        """Update conf with [SECTION.]NAME pairs found in dict."""
-        for (sec_name, value) in dict.items():
+    def upd_conf(conf, dict_, warn_section=False):
+        """Update conf with [SECTION.]NAME pairs found in dict_."""
+        for (sec_name, value) in dict_.items():
             sec_name_pair = _Config.parse_conf_name(sec_name)
             if not sec_name_pair:
                 print >> sys.stderr, "--- WARNING: Can not parse %r." % sec_name
