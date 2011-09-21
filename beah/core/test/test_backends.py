@@ -9,11 +9,11 @@ class TestCmdOnlyBackend(unittest.TestCase):
     def testMain(self):
 
         class FakeController(object):
-            def __init__(self, expected=None):
-                self.expected = expected
-            def proc_cmd(self, backend, cmd):
-                if not cmd.same_as(self.expected):
-                    self.failUnlessEqual(cmd, self.expected)
+            def __init__(self2, expected=None):
+                self2.expected = expected
+            def proc_cmd(self2, backend, cmd):
+                if not cmd.same_as(self2.expected):
+                    self.failUnlessEqual(cmd, self2.expected)
 
         be = backends.CmdOnlyBackend()
         be.set_controller(FakeController(command.no_output()))
