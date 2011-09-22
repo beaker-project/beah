@@ -306,7 +306,7 @@ gpgcheck=0
             else:
                 found = matcher(task.task_node)
         if not found:
-            raise RaiseException('Could not find original task %s' % prev_task)
+            raise LookupError('Could not find original task %s' % prev_task)
 
     def find_task(self, task_spec, collect_env=False):
         matcher = TaskParser.matcher(task_spec)

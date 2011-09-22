@@ -119,7 +119,7 @@ def start_backend(backend, host=None, port=None,
     elif port != '':
         return reactor.connectTCP(host, int(port), backend_factory)
     else:
-        raise exceptions.Exception('Either socket or port must be configured.')
+        raise EnvironmentError('Either socket or port must be configured.')
 
 ################################################################################
 # TEST:

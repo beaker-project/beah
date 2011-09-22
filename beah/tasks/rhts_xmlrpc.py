@@ -661,7 +661,7 @@ class RHTSMain(object):
 
     def error(self, msg):
         log.error(msg)
-        evt = event.error(message=msg)
+        evt = event.lerror(message=msg)
         self.send_evt(evt)
 
 

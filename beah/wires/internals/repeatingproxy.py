@@ -437,12 +437,12 @@ if __name__ == '__main__':
     testr6(7, False, None)
     try:
         testr6(8, False, 0)
-        raise Error("Failure was expected.")
+        raise Exception("Failure was expected.")
     except AssertionError:
         pass
     try:
         testr6(8, True, None)
-        raise Error("Failure was expected.")
+        raise Exception("Failure was expected.")
     except AssertionError:
         pass
 

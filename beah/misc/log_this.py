@@ -64,7 +64,7 @@ def __print_func(s):
 print_this = log_this(__print_func)
 
 def __print_stderr_func(s):
-    print >> stderr, s
+    print >> sys.stderr, s
 
 print_stderr_this = log_this(__print_stderr_func)
 

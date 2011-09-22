@@ -9,6 +9,7 @@ from twisted.internet import reactor
 from beah.core import event, command
 from beah.core.constants import ECHO
 from beah.wires.internals.twmisc import JSONProtocol
+from beah.misc import format_exc
 
 class ExampleController(JSONProtocol):
 
@@ -73,7 +74,7 @@ class EchoController(ExampleController):
                 echo_evt = handler(cmd, event.echo(cmd, ECHO.OK,
                     origin=self.origin()))
             except:
-                echo_evt = proc_exception(cmd, event.echo(cmd, ECHO.EXCEPTION,
+                echo_evt = self.proc_exception(cmd, event.echo(cmd, ECHO.EXCEPTION,
                     origin=self.origin(), exception=format_exc()))
         if echo_evt:
             self.send_cmd(echo_evt)

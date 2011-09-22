@@ -439,7 +439,7 @@ def do_task_result(fname, task_id, result_type, path, score, summary):
         result = rec_args.get(ix, "Pass")
         if RESULT_TYPE_.count(result) == 0 \
             or (RESULT_TYPE_.count(result_type) > 0 \
-                    and RESULT_TYPE_.find(result) < RESULT_TYPE_.find(result_type)):
+                    and RESULT_TYPE_.index(result) < RESULT_TYPE_.index(result_type)):
             rec_args[ix]=result_type
         result_id = "%s%s%.2d" % (task_id, time.strftime("%H%M%S"), randint(0, 99))
         add_result(task_id, result_id)

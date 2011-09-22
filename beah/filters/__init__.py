@@ -248,7 +248,7 @@ if __name__ == '__main__':
     for str in ['\n', '[\n', '}\n', '"\n', '()\n', '1a', 'a']:
         try:
             test(str)
-            raise exceptions.Error("String passed, should have failed.", str)
+            raise Exception("String passed, should have failed.", str)
         except:
             print "%r Failed as expected" % str
             pass
