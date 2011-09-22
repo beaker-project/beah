@@ -1,3 +1,5 @@
+# -*- test-case-name: beah.backends.test.test_beakerlc -*-
+
 # Beah - Test harness. Part of Beaker project.
 #
 # Copyright (C) 2009 Red Hat, Inc.
