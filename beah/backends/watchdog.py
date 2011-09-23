@@ -37,12 +37,12 @@ import os
 import logging
 
 from twisted.internet import reactor
+from twisted.internet.task import LoopingCall
 
 from beah import config
 from beah.core import command, event
 from beah.core.backends import ExtBackend
 from beah.wires.internals.twbackend import start_backend, log_handler
-from beah.wires.internals.twmisc import CallRegularly
 from beah.misc import make_class_verbose, parse_bool
 from beah.misc.log_this import log_this
 from beah.plugins import load_plugins
@@ -339,7 +339,8 @@ def start_watchdog_backend(conf):
     backend = WatchdogBackend(conf=conf, log=log, handlers=handlers)
     query_interval = int(conf.get('DEFAULT', 'QUERY_WATCHDOG'))
     if query_interval > 0:
-        watchdogs_request = CallRegularly(query_interval, backend.query_watchdogs)
+        watchdogs_request = LoopingCall(backend.query_watchdogs)
+        watchdogs_request.start(query_interval, now=False)
         #pylint: disable-msg=E1101
         reactor.addSystemEventTrigger('before', 'shutdown', watchdogs_request.stop)
     # Start a default TCP client:

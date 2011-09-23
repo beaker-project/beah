@@ -196,30 +196,3 @@ def reason2rc(end_reason):
         return end_reason.value.exitCode
 
 
-class CallRegularly(object):
-
-    def __init__(self, interval, func, *args, **kwargs):
-        self.interval = interval
-        self.handle = None
-        self._do_call = lambda: func(*args, **kwargs)
-
-    def make_call(self):
-        if self.handle is not None:
-            if self.handle.active():
-                self.handle.cancel()
-            self.handle = None
-        self._do_call()
-        self.start()
-
-    def start(self):
-        """See make_call."""
-        if self.handle is not None:
-            raise RuntimeError("Sorry, the call is already scheduled!")
-        self.handle = reactor.callLater(self.interval, self.make_call)
-
-    def stop(self):
-        if self.handle is not None:
-            self.handle.cancel()
-            self.handle = None
-
-

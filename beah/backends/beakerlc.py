@@ -63,6 +63,7 @@ from xml.dom import minidom
 
 from twisted.web.xmlrpc import Proxy
 from twisted.internet import reactor, defer
+from twisted.internet.task import LoopingCall
 from twisted.python import failure
 from twisted.web import xmlrpc
 
@@ -1841,21 +1842,6 @@ class BeakerLCBackend(SerializingBackend):
         return id
 
 
-class CallRegularly(object):
-
-    def __init__(self, interval, func, *args, **kwargs):
-        self.interval = interval
-        self.__call__ = lambda: func(*args, **kwargs)
-
-    def make_call(self):
-        self()
-        self.start()
-
-    def start(self):
-        """See make_call."""
-        reactor.callLater(self.interval, self.make_call)
-
-
 def make_runtime(conf):
     runtime = runtimes.ShelveRuntime(conf.get('DEFAULT', 'RUNTIME_FILE_NAME'))
     # override runtime sync to prevent performance hit:
@@ -1932,7 +1918,8 @@ def start_beaker_backend(conf):
     # We do not want flush to happen too often as it hits performance and
     # this should help preventing loosing mind e.g. in case of unexpected
     # panic.
-    CallRegularly(60, backend.flush)
+    flush_regularly = LoopingCall(backend.flush)
+    flush_regularly.start(60, now=False)
 
     # start idling:
     backend.on_idle()
