@@ -500,7 +500,7 @@ class Controller(object):
             echo_evt.args()['message'] = 'Task %r finished, exit code %s.' % (task_id, master.get_exit_code())
             return
         if self.find_task(task_id) is not None:
-            echo_evt.args()['rc'] = ECHO.DUPLICATE
+            #echo_evt.args()['rc'] = ECHO.DUPLICATE
             echo_evt.args()['message'] = 'The task with id == %r is already running.' % task_id
             return
         self.spawn_task(self, backend, task_info, task_env, task_args)
