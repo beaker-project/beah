@@ -482,6 +482,60 @@ function lm_restart_test()
   lm_start_test
 }
 
+function lm_start_debug_srv()
+{
+  rm -rf /var/cache/rhts
+  if [[ -z "$NO_FAKELC" ]]; then
+    if [[ -n "$FAKELC_SERVICE" ]]; then
+      chkconfig --level 345 beah-fakelc on
+      service beah-fakelc start
+    else
+      if [[ -n "$LM_FAKELC" ]]; then
+        beah-fakelc &> /tmp/beah-fakelc.out &
+        echo "$!" > /tmp/beah-fakelc.pid
+        sleep 2
+      fi
+    fi
+  fi
+  if [[ -z "$NO_WATCHDOG" ]]; then
+    chkconfig --level 345 beah-watchdog-backend on
+    service beah-watchdog-backend start
+  fi
+  chkconfig --level 345 beah-fwd-backend on
+  service beah-fwd-backend start
+  chkconfig --level 345 beah-beaker-backend on
+  service beah-beaker-backend start
+  chkconfig --level 345 beah-srv off
+  BEAH_SRV_DEBUGGER=pdb beah-srv
+}
+
+function lm_start_debug_beaker()
+{
+  rm -rf /var/cache/rhts
+  chkconfig --level 345 beah-srv on
+  service beah-srv start
+  if [[ -z "$NO_FAKELC" ]]; then
+    if [[ -n "$FAKELC_SERVICE" ]]; then
+      chkconfig --level 345 beah-fakelc on
+      service beah-fakelc start
+    else
+      if [[ -n "$LM_FAKELC" ]]; then
+        beah-fakelc &> /tmp/beah-fakelc.out &
+        echo "$!" > /tmp/beah-fakelc.pid
+        sleep 2
+      fi
+    fi
+  fi
+  if [[ -z "$NO_WATCHDOG" ]]; then
+    chkconfig --level 345 beah-watchdog-backend on
+    service beah-watchdog-backend start
+  fi
+  chkconfig --level 345 beah-fwd-backend on
+  service beah-fwd-backend start
+  chkconfig --level 345 beah-beaker-backend off
+  BEAH_BEAKER_DEBUGGER=pdb beah-beaker-backend
+}
+
 function lm_start_()
 {
   rm -rf /var/cache/rhts
