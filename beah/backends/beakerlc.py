@@ -1491,6 +1491,7 @@ class BeakerLCBackend(SerializingBackend):
         if task in self._active_tasks:
             raise RuntimeError('The task is already running!')
         self._active_tasks.append(task)
+        self.flush()
 
     def remove_task(self, task):
         if task in self._active_tasks:
