@@ -14,7 +14,7 @@
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
 Version: 0.6.34
-Release: 1%{?dist}
+Release: 2%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -119,11 +119,14 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Sat Oct 01 2011 Marian Csontos <mcsontos@redhat.com> 0.6.34-2
+- Fix spec file: %% should be escaped
+
 * Sat Oct 01 2011 Marian Csontos <mcsontos@redhat.com> 0.6.34-1
 - Write runtime data on new task
 - Bug 737540 - Fix services not added correctly in spec file
 - Use trial for testing
-- Add %check to spec file to run tests when building RPM
+- Add %%check to spec file to run tests when building RPM
 - Fix some errors found by pylint
 - Remove default options from conf.files
 - Fix id's reported to beaker by aborts
