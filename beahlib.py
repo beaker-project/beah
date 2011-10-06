@@ -11,7 +11,7 @@ Usage:
 import sys
 import os
 import socket
-from beah.core import event, new_id
+from beah.core import event, new_id, command
 from beah.core.constants import RC, LOG_LEVEL
 import simplejson as json
 
@@ -33,6 +33,11 @@ think about this:
 
 def a_command(str):
     return command.command(json.loads(str))
+
+
+class BeahError(Exception):
+    """Generic beah error."""
+    pass
 
 
 def check_answ(evt, cmd):
@@ -169,8 +174,15 @@ def _mk_result(rc):
 
 class IBeahLog(object):
 
+    """
+    Interface for objects which accept log events.
+
+    Implementation of this interface must provide send method.
+
+    """
+
     def log(self, log_level, message):
-        return self.send(event.log(message=message, log_level=log_level))
+        return self.send(event.log(message=message, log_level=log_level)) # pylint: disable=E1101
 
     lfatal = _mk_log(LOG_LEVEL.FATAL)
     lcritical = _mk_log(LOG_LEVEL.CRITICAL)
@@ -222,8 +234,17 @@ class IBeahOutput(object):
 
 class IBeahOrigin(object):
 
+    """
+    Interface for objects which may want to update origin of the event.
+
+    Implementation of this interface must either provide _origin instance
+    variable or override origin method.
+
+    """
+
+
     def origin(self):
-        return self._origin
+        return self._origin # pylint: disable=E1101
 
     def update_event(self, evt):
         origin = self.origin()
