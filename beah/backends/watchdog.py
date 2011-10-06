@@ -127,7 +127,7 @@ class Task(object):
         '''Try to read the actual value of watchdog.'''
         if not self.timeout_call:
             if self.backend.send_cmd(command.forward(event.query_watchdog(origin=self.origin))):
-                #pylint: disable-msg=E1101
+                #pylint: disable=E1101
                 self.timeout_call = reactor.callLater(self.QUERY_TIMEOUT, self.query_timeout)
             elif self.watchdog_call is None:
                 # we can not make call to the controller: set expired handler:
@@ -140,7 +140,7 @@ class Task(object):
         for name, handler in self.handlers.iteritems():
             try:
                 handler(self)
-            except: #pylint: disable-msg=W0702
+            except: #pylint: disable=W0702
                 self.backend.log.exception('Handler %r raised an exception.', name)
 
     def on_watchdog(self):
@@ -179,7 +179,7 @@ class Task(object):
         if self.watchdog_call:
             self.watchdog_call.reset(timeout)
         else:
-            self.watchdog_call = reactor.callLater(timeout, self.on_watchdog) #pylint: disable-msg=E1101
+            self.watchdog_call = reactor.callLater(timeout, self.on_watchdog) #pylint: disable=E1101
 
     def set_watchdog(self, watchdog):
         '''Method called on changes to watchdog's value.'''
@@ -341,7 +341,7 @@ def start_watchdog_backend(conf):
     if query_interval > 0:
         watchdogs_request = LoopingCall(backend.query_watchdogs)
         watchdogs_request.start(query_interval, now=False)
-        #pylint: disable-msg=E1101
+        #pylint: disable=E1101
         reactor.addSystemEventTrigger('before', 'shutdown', watchdogs_request.stop)
     # Start a default TCP client:
     backend.initialize()
@@ -400,7 +400,7 @@ def main():
     conf = configure()
     log_handler()
     start_watchdog_backend(conf)
-    #pylint: disable-msg=E1101
+    #pylint: disable=E1101
     reactor.run()
 
 
