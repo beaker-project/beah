@@ -5,6 +5,9 @@
 %global _py_dev 26
 %else
 %global _py_dev 2
+%if "%{?rhel}" != "4"
+%global _pylint pylint --errors-only --output-format=parseable --include-ids=y --reports=n
+%endif
 %endif
 %global _services_restart "beah-fakelc beah-beaker-backend beah-fwd-backend"
 %global _services "beah-srv %{_services_restart}"
@@ -47,6 +50,9 @@ BuildRequires: python%{?_rhel3}-twisted-web
 BuildRequires: python-hashlib
 BuildRequires: python-uuid
 %endif
+%if "%{?_pylint}" != ""
+BuildRequires: pylint
+%endif
 
 %description
 Beah - Test Harness.
@@ -73,7 +79,11 @@ rm -rf $RPM_BUILD_ROOT
 %{__python} setup.py install --optimize=1 --skip-build --root $RPM_BUILD_ROOT
 
 %check
-trial beah
+trial beah || exit 1
+%if "%{?_pylint}" != ""
+%_pylint --ignored-classes=twisted.internet.reactor beah; let "$? & 3" && exit 1
+%_pylint beahlib; let "$? & 3" && exit 1
+%endif
 
 %clean
 rm -rf $RPM_BUILD_ROOT
