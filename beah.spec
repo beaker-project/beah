@@ -6,7 +6,9 @@
 %else
 %global _py_dev 2
 %if "%{?rhel}" != "4"
+%if "%{?rhel}" != "6"
 %global _pylint pylint --errors-only --output-format=parseable --include-ids=y --reports=n
+%endif
 %endif
 %endif
 %global _services_restart "beah-fakelc beah-beaker-backend beah-fwd-backend"
