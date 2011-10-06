@@ -73,12 +73,12 @@ class TestRepeaters(unittest.TestCase):
         check(repeater, 7, False, None)
         try:
             check(repeater, 8, False, 0)
-            raise Error("Failure was expected.")
+            raise Exception("Failure was expected.")
         except AssertionError:
             pass
         try:
             check(repeater, 8, True, None)
-            raise Error("Failure was expected.")
+            raise Exception("Failure was expected.")
         except AssertionError:
             pass
 

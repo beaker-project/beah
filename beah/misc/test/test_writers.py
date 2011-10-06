@@ -64,7 +64,7 @@ class TestCachingWriter(unittest.TestCase):
         self.failUnlessEqual(l, ['012345678', '0123', '012'])
 
 
-class TestWriter(writers.JournallingWriter):
+class FakeWriter(writers.JournallingWriter):
     def __init__(self, ss, l, offs=-1, wroff=lambda x: None):
         self.l = l
         self.wroff = wroff
@@ -112,7 +112,7 @@ class TestJournallingWriter(unittest.TestCase):
         self.ss = StringIO()
         self.ss_expected = StringIO()
 
-        self.wr = TestWriter(self.ss, self.l, -1, wroff)
+        self.wr = FakeWriter(self.ss, self.l, -1, wroff)
         self._test()
         self._test_wr('012345', ['0123'])
         self._test_wr('', [])
@@ -123,7 +123,7 @@ class TestJournallingWriter(unittest.TestCase):
         self.wr.clear()
         self._test()
 
-        self.wr = TestWriter(self.ss, self.l, self.mem.get(), wroff)
+        self.wr = FakeWriter(self.ss, self.l, self.mem.get(), wroff)
         self._test()
 
         self._test_wr('34', [])
