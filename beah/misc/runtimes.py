@@ -337,6 +337,6 @@ class ShelveRuntime(DictRuntime):
             self.dict_.close()
             self.dict_ = None
 
-    def sync(self, type=None):
+    def sync(self, type=None): # pylint: disable=E0202
         self.dict_.sync()
 

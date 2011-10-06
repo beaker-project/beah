@@ -10,6 +10,6 @@ class RPMInstaller(os_linux.ShExecutable):
         self.rpm = rpm
         os_linux.ShExecutable.__init__(self)
 
-    def content(self):
+    def content(self): # pylint: disable=E0202
         self.install_rpm(self.rpm)
 
