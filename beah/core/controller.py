@@ -144,13 +144,14 @@ class Controller(object):
             'proc_cmd_run_this', 'proc_cmd_kill', 'proc_cmd_dump',
             'proc_cmd_no_input', 'proc_cmd_no_output')
 
-    def __init__(self, spawn_task, on_killed=None):
+    def __init__(self, spawn_task, runtime, on_killed=None):
         self.spawn_task = spawn_task
         self.tasks = [] # list of connected tasks
         self.backends = []
         self.masters = {} # task objects
         self.out_backends = []
         self.conf = {}
+        self.runtime = runtime
         self.killed = False
         self.on_killed = on_killed or self.__ON_KILLED
         self.__waiting_tasks = {}

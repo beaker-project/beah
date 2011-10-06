@@ -125,10 +125,11 @@ def serveAnyRequest(cls, by, base=USE_DEFAULT):
     else:
         if not issubclass(cls, base):
             raise exceptions.RuntimeError('%s is not a baseclass of %s' % (base, cls))
+        getter = getattr(base, '_getFunction')
         def _getFunction(self, functionPath):
             """Will return handler for all unhandled requests."""
             try:
-                return base._getFunction(self, functionPath)
+                return getter(self, functionPath)
             except:
                 def tempf(*args):
                     return getattr(self, by)(functionPath, *args)

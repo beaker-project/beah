@@ -4,19 +4,22 @@ from twisted.trial import unittest
 
 from beah.core import backends, command
 
+class FakeController(object):
+
+    def __init__(self, test_case, expected=None):
+        self.expected = expected
+        self.test_case = test_case
+
+    def proc_cmd(self, backend, cmd):
+        if not cmd.same_as(self.expected):
+            self.test_case.failUnlessEqual(cmd, self.expected)
+
 class TestCmdOnlyBackend(unittest.TestCase):
 
     def testMain(self):
 
-        class FakeController(object):
-            def __init__(self2, expected=None):
-                self2.expected = expected
-            def proc_cmd(self2, backend, cmd):
-                if not cmd.same_as(self2.expected):
-                    self.failUnlessEqual(cmd, self2.expected)
-
         be = backends.CmdOnlyBackend()
-        be.set_controller(FakeController(command.no_output()))
+        be.set_controller(FakeController(test_case=self, expected=command.no_output()))
 
         def test(be, input, output):
             be.controller.expected = output

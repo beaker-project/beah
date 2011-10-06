@@ -57,7 +57,7 @@ class LineReceiver(CachingReceiver):
                 return
             (head, self.cache) = line_list
             self.proc_line(head)
-    def proc_line(self, line):
+    def proc_line(self, line): # pylint: disable=E0202
         """Reimplement this in sublcass."""
         pass
     def redir(self, processor):
@@ -72,7 +72,7 @@ class Deserializer(LineReceiver):
         from simplejson import loads
         self.deserializer = deserializer or loads
         LineReceiver.__init__(self, **kwargs)
-    def proc_line(self, line):
+    def proc_line(self, line): # pylint: disable=E0202
         try:
             obj = self.deserializer(line)
         except:
@@ -81,7 +81,7 @@ class Deserializer(LineReceiver):
         self.proc_obj(obj)
     def not_obj(self, line):
         raise
-    def proc_obj(self, obj):
+    def proc_obj(self, obj): # pylint: disable=E0202
         """Reimplement this in sublcass."""
         pass
     def redir(self, processor):
@@ -96,7 +96,7 @@ class ListDeserializer(LineReceiver):
         from simplejson import loads
         self.deserializer = deserializer or loads
         LineReceiver.__init__(self, **kwargs)
-    def proc_line(self, line):
+    def proc_line(self, line): # pylint: disable=E0202
         try:
             obj = self.deserializer(line)
         except:
@@ -111,7 +111,7 @@ class ListDeserializer(LineReceiver):
         raise
     def proc_obj(self, obj):
         raise exceptions.TypeError("Not a list or a tuple", obj)
-    def proc_item(self, item):
+    def proc_item(self, item): # pylint: disable=E0202
         """Reimplement this in sublcass."""
         pass
     def redir(self, processor):

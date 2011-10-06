@@ -105,6 +105,8 @@ class QueryWithTimeoutProtocol(QueryProtocol, TimeoutMixin):
     _VERBOSE = ('connectionMade', 'setTimeout', 'timeoutConnection',
             'connectionLost', 'handleResponseEnd')
 
+    factory = None # Workaround to prevent pylint errors
+
     def connectionMade(self):
         QueryProtocol.connectionMade(self)
         if self.factory.rpc_timeout:

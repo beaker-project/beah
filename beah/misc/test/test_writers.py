@@ -72,9 +72,9 @@ class FakeWriter(writers.JournallingWriter):
     def set_offset(self, offs):
         self.wroff(offs)
         writers.JournallingWriter.set_offset(self, offs)
-    def repr(self, obj):
+    def repr(self, obj): # pylint: disable=E0202
         return "%s" % obj
-    def send(self, data):
+    def send(self, data): # pylint: disable=E0202
         self.l.append(data)
     def clear(self):
         # close without flushing

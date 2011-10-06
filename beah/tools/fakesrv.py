@@ -97,7 +97,7 @@ class VarGetController(EchoController):
     def set_var(self, key, handle, dest, value):
         pass
 
-    def get_var(self, key, handle, dest):
+    def get_var(self, key, handle, dest): # pylint: disable=E0202
         return "SomeValue"
 
     def proc_evt(self, evt):
@@ -172,24 +172,24 @@ def make_controller(args, slow=False):
         raise exceptions.NotImplementedError
     if args[0]=='echo':
         if slow:
-            def make_controller_():
+            def make_controller_echo():
                 c = EchoController()
                 make_slow(c)
                 return c
-            return make_controller_
+            return make_controller_echo
         else:
             return EchoController
     if args[0]=='ignorant':
         return IgnorantController
     if args[0]=='var_const':
         def get_var(key, handle, dest): return args[1]
-        def make_controller_():
+        def make_controller_var_const():
             c = VarGetController()
             c.get_var = get_var
             if slow:
                 make_slow(c)
             return c
-        return make_controller_
+        return make_controller_var_const
     raise exceptions.RuntimeError("unrecognized controller '%s'" % args[0])
 
 def main():

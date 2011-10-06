@@ -24,7 +24,7 @@ def get_data_root():
                 yield os.path.abspath(d)
 
 def main_data_root():
-    print get_data_root().next()
+    print get_data_root().next() # pylint: disable=E1101
 
 def get_file(fname):
     if os.path.isabs(fname):

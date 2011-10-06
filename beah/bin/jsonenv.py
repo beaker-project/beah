@@ -108,7 +108,7 @@ def update_env_json(env, negative_env, envfile):
         new_env = json.load(f)
     finally:
         f.close()
-    for key in new_env.keys():
+    for key in new_env.keys(): # pylint: disable=E1103
         update_env(env, negative_env, key, new_env[key])
 
 

@@ -175,7 +175,7 @@ class TypeList(object):
         it2 = iterable.__iter__()
         while True:
             try:
-                v = it.next()
+                v = it.next() # pylint: disable=E1101
             except exceptions.StopIteration:
                 break
             try:

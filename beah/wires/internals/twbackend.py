@@ -34,14 +34,12 @@ class BackendFactory(ReconnectingClientFactory):
     def __init__(self, backend, controller_protocol, byef=None):
         self.backend = backend
         self._done = False
-        if not byef:
-            def byef(evt):
-                reactor.callLater(1, reactor.stop)
+        byef_ = byef or (lambda evt: reactor.callLater(1, reactor.stop))
         def proc_evt_bye(evt):
             self._done = True
             if backend.controller:
                 backend.controller.transport.loseConnection()
-            byef(evt)
+            byef_(evt)
         backend.proc_evt_bye = proc_evt_bye
         self.controller_protocol = controller_protocol
         # set up ReconnectingClientFactory:

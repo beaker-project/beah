@@ -45,8 +45,8 @@ def make_digest(digest):
     return None
 
 
-__DIGEST_CONSTRUCTOR = {'md5':hashlib.md5, 'sha1':hashlib.sha1,
-        'sha256':hashlib.sha256, 'sha512':hashlib.sha512}
+__DIGEST_CONSTRUCTOR = {'md5':hashlib.md5, 'sha1':hashlib.sha1, # pylint: disable=E1101
+        'sha256':hashlib.sha256, 'sha512':hashlib.sha512}       # pylint: disable=E1101
 
 
 class NoDigest(object):

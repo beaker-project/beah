@@ -92,7 +92,7 @@ class RHTSTask(ShExecutable):
         self.__repof = repof
         ShExecutable.__init__(self)
 
-    def content(self):
+    def content(self): # pylint: disable=E0202
         self.write_line("""
 # read environment:
 if [[ -f /etc/profile.d/task-defaults-rhts.sh ]]; then
@@ -633,7 +633,7 @@ class BeakerObject(object):
         '''Use this to modify object hierarchy. Use with care!'''
         self.parent = parent
 
-    def close(self):
+    def close(self): # pylint: disable=E0202
         self.parent = None
         self.close = lambda: None
 
@@ -764,7 +764,7 @@ class BeakerLinkCounter(object):
             sd['link_limit'] = 1
         return True
 
-    def check_link(self):
+    def check_link(self): # pylint: disable=E0202
         if not self.alive:
             return False
         self.alive = self._check_link() and self.owner.parent.check_link()
@@ -804,7 +804,7 @@ class BeakerUploadCounter(object):
             self.owner = owner
             self.upload_alive = alive
 
-    def check_upload_amount(self, size):
+    def check_upload_amount(self, size): # pylint: disable=E0202
         sd = self.owner.stored_data
         amt = sd.get('upload_total', 0) + size
         sd['upload_total'] = amt
@@ -837,7 +837,7 @@ class BeakerUploadCounter(object):
             self.owner.stored_data['size_warn'] = 1
         return True
 
-    def check_file_size(self, delta):
+    def check_file_size(self, delta): # pylint: disable=E0202
         sd = self.owner.stored_data
         amt = sd.get('size_total', 0) + delta
         sd['size_total'] = amt
@@ -847,7 +847,7 @@ class BeakerUploadCounter(object):
         """Check this instance."""
         return self.check_upload_amount(size) and self.check_file_size(delta)
 
-    def check_upload(self, delta, size):
+    def check_upload(self, delta, size): # pylint: disable=E0202
         if not self.upload_alive:
             return False
         self.upload_alive = (self._check_upload(delta, size) and
@@ -925,7 +925,7 @@ class BeakerTask(PersistentBeakerObject):
         self.check_link = BeakerLinkCounter(self).check_link
         self.on_set_state()
 
-    def close(self):
+    def close(self): # pylint: disable=E0202
         self.writers.close()
         self.writers = None
         self.results.close()
@@ -1204,8 +1204,7 @@ class BeakerFile(PersistentBeakerObject):
         return "file:%s/%s" % self.filename()
 
     def writer(self):
-        writer = getattr(self, '_be_writer', None)
-        if writer is None:
+        if getattr(self, '_be_writer', None) is None:
             if self.stored_data.has_key('be:uploading_as'):
                 method, id, path, filename = self.stored_data['be:uploading_as']
             else:
@@ -1215,10 +1214,10 @@ class BeakerFile(PersistentBeakerObject):
                 self.stored_data['be:uploading_as'] = (method, id, path, filename)
             rpc = self.proxy().callRemote
             log.debug("writer for method=%r, id=%r, path=%r, filename=%r", method, id, path, filename)
-            def writer(size, digest, offset, data):
+            def writer_(size, digest, offset, data):
                 return rpc(method, id, path, filename, size, digest, str(offset), data)
-            self._be_writer = writer
-        return writer
+            self._be_writer = writer_
+        return self._be_writer
 
     def check_offset(self, offset):
         """
@@ -1288,7 +1287,7 @@ class BeakerRecipe(BeakerTask):
         self.recipe_tasks = self.recipe_parser.tasks()
         self.__tasks_by_id = runtimes.TypeDict(backend.runtime, 'tasks_by_id')
 
-    def close(self):
+    def close(self): # pylint: disable=E0202
         self.tasks.close()
         self.tasks = None
         self.recipe_xml = None

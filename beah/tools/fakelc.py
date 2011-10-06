@@ -803,7 +803,7 @@ def recipe_builder(job_id, recipeset_id, recipefile, overrides, fqdn):
         recipe = f.read()
     finally:
         f.close()
-    args['beah_root'] = beah.tools.get_data_root().next()
+    args['beah_root'] = beah.tools.get_data_root().next() # pylint: disable=E1101
     args['beah_py_root'] = beah.tools.get_root()
     args.update(overrides)
     args['job_id'] = job_id

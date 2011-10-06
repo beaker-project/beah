@@ -82,6 +82,10 @@ def make_addict(d):
         Dictionary extension, which filters input.
         """
 
+        # Workaround to prevent pylint errors:
+        get = d.get
+        has_key = d.has_key
+
         def __init__(self, *args, **kwargs):
             tmp = self.flatten(args, kwargs)
             d.__init__(self, tmp)
