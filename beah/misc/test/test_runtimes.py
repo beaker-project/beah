@@ -1,8 +1,11 @@
 # -*- test-case-name: beah.misc.test.test_runtimes -*-
 
+import pprint
+
 from twisted.trial import unittest
 
 from beah.misc import runtimes
+
 
 class TestingRuntime(runtimes.ShelveRuntime):
     def __init__(self, fname):
@@ -10,6 +13,7 @@ class TestingRuntime(runtimes.ShelveRuntime):
         self.vars = runtimes.TypeDict(self, 'var')
         self.files = runtimes.TypeDict(self, 'file')
         self.queue = runtimes.TypeList(self, 'queue')
+
 
 def print_(runtime):
     for attr in ["vars", "files", "tasks"]:
@@ -21,6 +25,17 @@ def print_(runtime):
     print "\n== queue =="
     for ix, v in enumerate(runtime.queue):
         print "[%r]: %r" % (ix, v)
+
+
+def pprint_(runtime):
+    pprint.pprint(runtime.dump(sorted=True))
+
+
+def print_runtime(runtime):
+    print ""
+    print_(runtime)
+    pprint_(runtime)
+
 
 class TestShelveRuntime(unittest.TestCase):
 
@@ -78,7 +93,6 @@ class TestShelveRuntime(unittest.TestCase):
         tr.tasks = runtimes.TypeDict(tr, 'tasks')
         tr.tqueue = runtimes.TypeList(tr, 'testqueue')
         tr.addict = runtimes.TypeAddict(tr, 'addict')
-        #print_(tr)
         assert tr.vars['var1'] == 'Hello'
         assert tr.vars['var2'] == 'World'
         assert tr.vars['var3'] == '!'
@@ -97,6 +111,4 @@ class TestShelveRuntime(unittest.TestCase):
         assert not tr.addict.has_key('c')
         assert tr.addict['d'] == 'e'
         tr.close()
-
-
 

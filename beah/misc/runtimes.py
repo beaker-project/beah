@@ -318,8 +318,11 @@ class DictRuntime(BaseRuntime):
         type = type + '/'
         return [key[tl:] for key in self.dict_.keys() if key[:tl] == type]
 
-    def dump(self):
-        return list([(k, v) for k, v in enumerate(self.dict_)])
+    def dump(self, sorted=False):
+        key_value_list = self.dict_.items()
+        if sorted:
+            key_value_list.sort(key=lambda key_value_tuple: key_value_tuple[0])
+        return key_value_list
 
 
 class ShelveRuntime(DictRuntime):
