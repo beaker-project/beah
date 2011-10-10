@@ -599,6 +599,7 @@ def run_task(runtime, check_task=None, env_overrides=None):
                 if task is None:
                     log.error("task id: %r failed.", task_beaker_id)
                     return
+            runtime.sync()
             thingy = defer.waitForDeferred(backend.send_cmd(run_cmd))
             yield thingy
             thingy.getResult()
@@ -1051,11 +1052,41 @@ class BeakerTask(PersistentBeakerObject):
 
     null_file = NullFile()
 
+    def get_meta(self, attr, default):
+        """
+        Get attr from meta_data or store and return default if not set.
+
+        Check Consistency: If both default and value in meta_data are set, log
+        an error if values do not match.
+
+        Return tuple (found, value) where:
+
+        - found is True if found in meta_data, False if default was stored and
+          returned
+        - value is the return value
+
+        NOTE: When field is not found in meta_data, default is written to
+        runtime and caller is responsible for calling self.write_metadata() to
+        flush meta_data.
+
+        """
+        meta = self.meta_data.get(attr, None)
+        if meta is None:
+            self.meta_data[attr] = default
+            return (False, default)
+        if default and default != meta:
+            log.error("Inconsistent %s: %s in metadata, %s passed.",
+                    attr, meta, default)
+        return (True, meta)
+
     def __init__(self, id, parent, name='', beaker_id=None, deferred=None):
         PersistentBeakerObject.__init__(self, id, parent)
         self.deferred = deferred or defer.Deferred()
-        self._name = name
-        self.beaker_id = beaker_id
+        found_name, self._name = self.get_meta('_name', name)
+        found_id, self.beaker_id = self.get_meta('beaker_id', beaker_id)
+        assert self.beaker_id
+        if not found_name or not found_id:
+            self.write_metadata()
         self.writers = PersistentBeakerContainer(self, BeakerWriter)
         self.results = BeakerContainer(self, BeakerResult)
         self.files = BeakerContainer(self, BeakerFile)
