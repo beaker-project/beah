@@ -89,6 +89,7 @@ def log_handler(log_file_name=None):
     twisted_logging(log, level=logging.WARNING)
     make_log_handler(log, lp, log_file_name, syslog=True,
             console=parse_bool(conf.get('DEFAULT', 'CONSOLE_LOG')))
+    log.setLevel(str2log_level(conf.get('DEFAULT', 'LOG')))
     return log
 
 def start_backend(backend, host=None, port=None,
@@ -110,7 +111,6 @@ def start_backend(backend, host=None, port=None,
             socket = ''
     else:
         socket = ''
-    logging.getLogger('backend').setLevel(str2log_level(conf.get('DEFAULT', 'LOG')))
     backend_factory = BackendFactory(backend, adaptor, byef)
     if socket != '':
         return reactor.connectUNIX(socket, backend_factory)
