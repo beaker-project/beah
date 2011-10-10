@@ -1842,7 +1842,7 @@ class BeakerLCBackend(SerializingBackend):
         return id
 
 
-def make_runtime(conf):
+def make_runtime(conf, verbose=False):
     runtime = runtimes.ShelveRuntime(conf.get('DEFAULT', 'RUNTIME_FILE_NAME'))
     # override runtime sync to prevent performance hit:
     runtime_sync_orig = runtime.sync
@@ -1856,6 +1856,10 @@ def make_runtime(conf):
         """
         if type is None:
             runtime_sync_orig()
+            if verbose:
+                log.debug("runtime.dump: %s" % (runtime.dump(sorted=True),))
+    if verbose:
+        log.debug("runtime.dump: %s" % (runtime.dump(sorted=True),))
     runtime.sync = runtime_sync
     return runtime
 
@@ -1899,11 +1903,13 @@ def make_queue(conf, runtime):
 
 
 def start_beaker_backend(conf):
-    runtime = make_runtime(conf)
-
     verbose = parse_bool(conf.get('DEFAULT', 'DEVEL'))
     if verbose:
         make_verbose()
+
+    # NOTE: use verbose=verbose for runtime debugging. This is disabled by
+    # default, as it may be slow and brief.
+    runtime = make_runtime(conf, verbose=False)
 
     proxy = make_proxy(conf, verbose)
 
