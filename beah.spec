@@ -18,8 +18,8 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.34
-Release: 2%{?dist}
+Version: 0.6.35
+Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -131,6 +131,12 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Tue Oct 11 2011 Marian Csontos <mcsontos@redhat.com> 0.6.35-1
+- Fix errors reported by pylint
+- Mask false positives reported by pylint
+- Add pylint to check phase in the spec
+- Replace incomprehensible scheduling code
+
 * Sat Oct 01 2011 Marian Csontos <mcsontos@redhat.com> 0.6.34-2
 - Fix spec file: %% should be escaped
 
