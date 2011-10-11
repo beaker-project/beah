@@ -61,14 +61,13 @@ import simplejson as json
 import logging
 from xml.dom import minidom
 
-from twisted.web.xmlrpc import Proxy
 from twisted.internet import reactor, defer
 from twisted.internet.task import LoopingCall
 from twisted.python import failure
 from twisted.web import xmlrpc
 
 from beah import config
-from beah.core import command, event, addict
+from beah.core import command, event, addict, new_id
 from beah.core.backends import SerializingBackend
 from beah.core.constants import ECHO, RC, LOG_LEVEL
 from beah.misc import format_exc, dict_update, log_flush, writers, runtimes, \
@@ -83,6 +82,12 @@ from beah.wires.internals.twbackend import start_backend, log_handler
 from beah.wires.internals.twmisc import make_logging_proxy
 
 log = logging.getLogger('backend')
+
+
+################################################################################
+# Scheduling:
+################################################################################
+
 
 class RHTSTask(ShExecutable):
 
@@ -471,6 +476,163 @@ class TaskParser(object):
             return None
 
 
+class NothingToDoException(Exception):
+    """
+    Exception raised when:
+    - scheduler does not have a recipe for the machine
+    - or recipe contains no more jobs.
+    """
+    pass
+
+
+def get_recipe_lc(hostname, recipe_id, proxy):
+    """Get a recipe from LC."""
+    if recipe_id is not None and recipe_id >= 0:
+        args = {'recipe_id': recipe_id}
+    else:
+        args = {'system_name': hostname}
+    return proxy.callRemote('get_my_recipe', args)
+
+
+def get_recipe_cache_or_lc(hostname, recipe_id, runtime, proxy):
+    """Get a recipe from cache or from LC."""
+    recipe_xml = runtime.type_get('variables', 'RECIPE', None)
+    if not recipe_xml:
+        thingy = defer.waitForDeferred(get_recipe_lc(hostname, recipe_id, proxy))
+        yield thingy
+        recipe_xml = thingy.getResult()
+        if recipe_xml:
+            runtime.type_set('variables', 'RECIPE', recipe_xml)
+    yield recipe_xml
+get_recipe_cache_or_lc = defer.deferredGenerator(get_recipe_cache_or_lc)
+
+
+def check_task_online(proxy):
+    """Return function checking task_info against proxy."""
+    def _check_task_online(parsed_task):
+        """Query task status from proxy."""
+        return proxy.callRemote("task_info", "T:%s" % parsed_task.beaker_id) \
+                .addCallback(lambda task_info: not task_info or not task_info.get('is_finished', False))
+    return _check_task_online
+
+
+def simple_recipe(recipe_xml, run_task, hostname, backend):
+    """Parse the XML and run tasks sequentially using task runner run_task."""
+    # this is likely a common task:
+    if not recipe_xml:
+        raise NothingToDoException("Got empty recipe.")
+    recipe_parser = RecipeParser.make(recipe_xml, hostname)
+    if not recipe_parser:
+        raise NothingToDoException("No recipe for %s." % hostname)
+    rs = xml_attr(recipe_parser.recipe_node, 'status')
+    if rs not in ['Running', 'Waiting']:
+        raise NothingToDoException("The recipe has finished.")
+    beaker_id = recipe_parser.beaker_id
+    recipe = BeakerRecipe(backend, beaker_id)
+    backend.start(recipe)
+    recipe_tasks = recipe_parser.tasks()
+    for parsed_task in recipe_tasks:
+        try:
+            task = defer.waitForDeferred(run_task(backend, recipe, parsed_task))
+            yield task
+            result = task.getResult()
+        except NothingToDoException:
+            log.info("Task %r has exitted from recipe.", parsed_task.beaker_id)
+            raise
+        except:
+            log.exception("Encoutnered problem while running task %r.",
+                    parsed_task.beaker_id)
+    raise NothingToDoException("No more tasks in recipe.")
+simple_recipe = defer.deferredGenerator(simple_recipe)
+
+
+def run_task(runtime, check_task=None, env_overrides=None):
+    """Function generator creating a task runner."""
+    def _run_task(backend, recipe, parsed_task):
+        """Check task status and execute it."""
+        task_beaker_id = parsed_task.beaker_id
+        # check status in xml data:
+        task_status = xml_attr(parsed_task.task_node, 'status')
+        if task_status not in ['Waiting', 'Running']:
+            log.debug("task id: %r status: %r", task_beaker_id, task_status)
+            return
+        # check task data:
+        task_data = parsed_task.task_data()
+        if not task_data:
+            log.error("task id: %r having no task data.", task_beaker_id)
+            return
+        task_name = task_data['task_env']['TASKNAME']
+        task_args = {'name': task_name, 'beaker_id': task_beaker_id}
+        # find task by beaker_id...
+        run_cmd, task_uuid = runtime.type_get('tasks_by_id', task_beaker_id, (None, None))
+        if task_uuid:
+            task = recipe.tasks._get(task_uuid, (), task_args)
+        else:
+            task = None
+        # ...and check the local status:
+        if task and task.has_finished():
+            log.debug("task id: %r finished.", task_beaker_id)
+            return
+        try:
+            # try custom check:
+            if check_task is not None:
+                thingy = defer.waitForDeferred(check_task(parsed_task))
+                yield thingy
+                if not thingy.getResult():
+                    log.debug("task id: %r finished.", task_beaker_id)
+                    return
+            log.debug("about to run task(task=%s, task_data=%s)", parsed_task, task_data)
+            if env_overrides:
+                task_data['task_env'].update(env_overrides)
+            # get run cmd:
+            if not run_cmd:
+                run_cmd = command.run(task_data['executable'],
+                        name=task_name,
+                        env=task_data['task_env'],
+                        args=task_data['args'])
+                task_uuid = run_cmd.id()
+                runtime.type_set('tasks_by_id', task_beaker_id, (run_cmd, task_uuid))
+                runtime.sync()
+            # get task
+            if task is None:
+                task = recipe.tasks.make(task_uuid, **task_args)
+                if task is None:
+                    log.error("task id: %r failed.", task_beaker_id)
+                    return
+            runtime.sync()
+            thingy = defer.waitForDeferred(backend.send_cmd(run_cmd))
+            yield thingy
+            thingy.getResult()
+            thingy = defer.waitForDeferred(task.deferred)
+            yield thingy
+            thingy.getResult()
+            if task:
+                task.set_finished()
+        # this is a workaround for yield not working in try:finally: in python
+        # up to 2.4 :-(
+        except:
+            if task:
+                task.set_finished()
+            raise
+    return defer.deferredGenerator(_run_task)
+
+
+def simple_schedule(conf, runtime, proxy, backend):
+    """Get a recipe and run tasks."""
+    hostname = conf.get('DEFAULT', 'HOSTNAME')
+    recipe_id = int(conf.get('DEFAULT', 'RECIPEID'))
+    env_overrides = {'LAB_CONTROLLER': conf.get('DEFAULT', 'COBBLER_SERVER')}
+    task_runner = run_task(runtime, check_task=check_task_online(proxy),
+            env_overrides=env_overrides)
+    return get_recipe_cache_or_lc(hostname, recipe_id, runtime, proxy). \
+            addCallback(simple_recipe, task_runner, hostname, backend)
+
+
+################################################################################
+# Reporting:
+################################################################################
+
+
 def handle_error(result, *args, **kwargs):
     log.warning("Deferred Failed(%r, *%r, **%r)", result, args, kwargs)
     return result
@@ -483,15 +645,6 @@ def jsonln(obj):
 def open_(name, mode):
     pre_open(name)
     return open(name, mode)
-
-
-class NothingToDoException(Exception):
-    """
-    Exception raised when:
-    - scheduler does not have a recipe for the machine
-    - or recipe contains no more jobs.
-    """
-    pass
 
 
 class repeatWithLog(repeatingproxy.repeatWithHandle):
@@ -899,18 +1052,41 @@ class BeakerTask(PersistentBeakerObject):
 
     null_file = NullFile()
 
-    def __init__(self, id, parent, name='', parsed=None):
+    def get_meta(self, attr, default):
+        """
+        Get attr from meta_data or store and return default if not set.
+
+        Check Consistency: If both default and value in meta_data are set, log
+        an error if values do not match.
+
+        Return tuple (found, value) where:
+
+        - found is True if found in meta_data, False if default was stored and
+          returned
+        - value is the return value
+
+        NOTE: When field is not found in meta_data, default is written to
+        runtime and caller is responsible for calling self.write_metadata() to
+        flush meta_data.
+
+        """
+        meta = self.meta_data.get(attr, None)
+        if meta is None:
+            self.meta_data[attr] = default
+            return (False, default)
+        if default and default != meta:
+            log.error("Inconsistent %s: %s in metadata, %s passed.",
+                    attr, meta, default)
+        return (True, meta)
+
+    def __init__(self, id, parent, name='', beaker_id=None, deferred=None):
         PersistentBeakerObject.__init__(self, id, parent)
-        if parsed:
-            self.parsed = parsed
-            self.beaker_id = parsed.beaker_id
-            self._task_data = parsed.task_data()
-            if self._task_data:
-                self._name = name or self._task_data['task_env']['TASKNAME']
-        else:
-            self.parsed = None
-            self.beaker_id = None
-            self._task_data = None
+        self.deferred = deferred or defer.Deferred()
+        found_name, self._name = self.get_meta('_name', name)
+        found_id, self.beaker_id = self.get_meta('beaker_id', beaker_id)
+        assert self.beaker_id
+        if not found_name or not found_id:
+            self.write_metadata()
         self.writers = PersistentBeakerContainer(self, BeakerWriter)
         self.results = BeakerContainer(self, BeakerResult)
         self.files = BeakerContainer(self, BeakerFile)
@@ -933,7 +1109,6 @@ class BeakerTask(PersistentBeakerObject):
         self.files.close()
         self.files = None
         self.check_link = None
-        self.parsed = None
         self.set_completed()
         PersistentBeakerObject.close(self)
 
@@ -987,8 +1162,7 @@ class BeakerTask(PersistentBeakerObject):
         if new_state is None:
             new_state = state
         else:
-            assert new_state >= state
-            if new_state == state:
+            if new_state <= state:
                 return
             self.stored_data['state'] = new_state
             self.write_metadata()
@@ -1033,24 +1207,8 @@ class BeakerTask(PersistentBeakerObject):
     def stop(self, type, msg):
         # type: ('stop'|'abort')
         self.flush()
-        d = self.proxy().callRemote('task_stop', self.beaker_id, type, msg)
-        d.addBoth(self.handle_Stop).addCallback(self.backend().on_idle).addErrback(self.backend().on_lc_failure)
-
-    def handle_Stop(self, result):
-        '''Handler for task_stop XML-RPC return.'''
-        success = not isinstance(result, failure.Failure)
-        if success:
-            log.info('Task %s done. Completely.', self.beaker_id)
-        else:
-            log.error('Task %s done. Stop failed: %s.', self.beaker_id, result)
-        backend = self.backend()
-        backend.send_cmd(command.forward(event.completed(task_id=self.id,
-            origin={'source': backend.name},
-            success=success)))
-        backend.remove_task(self)
-        self.close()
-        log_flush(log)
-        return result
+        self.proxy().callRemote('task_stop', self.beaker_id, type, msg) \
+                .chainDeferred(self.deferred)
 
 
 class BeakerResult(BeakerObject, PersistentItem):
@@ -1069,6 +1227,10 @@ class BeakerResult(BeakerObject, PersistentItem):
     def name(self):
         return self._name
 
+    def make_message(cls, **kwargs):
+        return json.dumps(kwargs)
+    make_message = classmethod(make_message)
+
     def make_object(cls, id, parent, args={}):
         result = cls(id, parent)
         type = result.result_type(args.get('rc', None))
@@ -1076,7 +1238,7 @@ class BeakerResult(BeakerObject, PersistentItem):
                 (parent.name(), id))
         statistics = args.get('statistics') or {}
         score = statistics.get('score', 0)
-        message = args.get('message', '') or parent.backend().mk_msg(args=args)
+        message = args.get('message', '') or cls.make_message(args=args)
         log_msg = '%s:%s: %s score=%s\n' % (type[1], handle, message, score)
         parent.writer('debug/task_log').write(log_msg)
         parent.send_result(type[0], handle, score, message).addCallback(result.handle_Result)
@@ -1256,10 +1418,8 @@ def BeakerFakeFile(fid, parent):
 
 class BeakerRecipe(BeakerTask):
 
-    _VERBOSE = ['_next_task', 'next_task', 'handle_task_info', 'nothing_to_do',
-            'task', 'new_task', 'save_task',] + BeakerTask._VERBOSE
+    _VERBOSE = ['task',] + BeakerTask._VERBOSE
 
-    CACHED_STATUS = False
     METADATA = "recipe"
     UPLOAD_METHOD = 'recipe_upload_file'
     UPLOAD_LIMIT = 'RECIPE_UPLOAD_LIMIT'
@@ -1269,120 +1429,21 @@ class BeakerRecipe(BeakerTask):
     LINK_LIMIT = 'RECIPE_LINK_LIMIT'
     LINK_LIMIT_SOFT = 'RECIPE_LINK_LIMIT_SOFT'
 
-    def __init__(self, backend, recipe_xml):
-        if not recipe_xml:
-            raise self.nothing_to_do(backend, "No recipe for %s.")
-        recipe_parser = RecipeParser.make(recipe_xml, backend.hostname)
-        if not recipe_parser:
-            raise self.nothing_to_do(backend, "No recipe for %s." % backend.hostname)
-        rs = xml_attr(recipe_parser.recipe_node, 'status')
-        if rs not in ['Running', 'Waiting']:
-            raise self.nothing_to_do(backend, "The recipe has finished.")
-        BeakerTask.__init__(self, 'the_recipe', backend)
+    def __init__(self, backend, beaker_id):
+        BeakerTask.__init__(self, 'the_recipe', backend,
+                name='recipe_%s' % beaker_id, beaker_id=beaker_id)
         self.tasks = BeakerContainer(self, BeakerTask)
-        self.recipe_xml = recipe_xml
-        self.recipe_parser = recipe_parser
-        self.beaker_id = recipe_parser.beaker_id
-        # NOTE: BeakerRecipe.recipe_tasks is an iterator not a list!
-        self.recipe_tasks = self.recipe_parser.tasks()
-        self.__tasks_by_id = runtimes.TypeDict(backend.runtime, 'tasks_by_id')
 
     def close(self): # pylint: disable=E0202
         self.tasks.close()
         self.tasks = None
-        self.recipe_xml = None
-        self.recipe_parser = None
         BeakerTask.close(self)
 
     def name(self):
         return 'the_recipe'
 
-    def _next_task(self):
-        for task in self.recipe_tasks:
-            ts = xml_attr(task.task_node, 'status')
-            bid = task.beaker_id
-            if ts not in ['Waiting', 'Running']:
-                log.debug("task id: %r status: %r", bid, ts)
-                continue
-            # get task by beaker_id!
-            (_, id) = self.__tasks_by_id.get(bid, (None, None))
-            if id:
-                t = self.tasks._get(id, (), {'parsed': task})
-            else:
-                t = None
-            if t and t.has_completed():
-                log.debug("task id: %r finished.", bid)
-                continue
-            return task
-        raise self.nothing_to_do(self.backend(), "No more tasks in recipe.")
-
-    def next_task(self, d=None):
-        '''
-        Return next task to run.
-
-        NOTE: May return deferred.
-        '''
-        assert self.recipe_parser
-        task = self._next_task()
-        if getattr(self, 'cached_status', self.CACHED_STATUS):
-            return self.new_task(task)
-        if not d:
-            d = defer.Deferred().addCallback(self.new_task)
-        self.proxy().callRemote("task_info", "T:%s" % task.beaker_id) \
-                .addCallback(self.handle_task_info, task, d) \
-                .addErrback(d.errback)
-        return d
-
-    def handle_task_info(self, task_info, task, d):
-        if task_info and task_info.get('is_finished', False):
-            self.next_task(d)
-        else:
-            d.callback(task)
-
-    def nothing_to_do(self, backend, msg=None):
-        backend.store_recipe(None)
-        self.recipe_xml = None
-        self.recipe_tasks = None
-        if not msg:
-            msg = "Nothing to do..."
-        log.info(msg)
-        return NothingToDoException(msg)
-
     def task(self, id):
         return self.tasks[id]
-
-    def new_task(self, task):
-        task_data = task.task_data()
-        log.debug("new_task(task=%s, task_data=%s)", task, task_data)
-        backend = self.backend()
-        if task_data is None:
-            log.info("* Recipe done. Nothing to do...")
-            backend.schedule_idle(60)
-            return
-        task_id = task_data['task_env']['TASKID']
-        task_data['task_env']['LAB_CONTROLLER'] = self.backend().conf.get('DEFAULT', 'COBBLER_SERVER')
-        run_cmd, _ = self.__tasks_by_id.get(task_id, (None, None))
-        if not run_cmd:
-            task_name = task_data['task_env']['TASKNAME'] or None
-            run_cmd = command.run(task_data['executable'],
-                    name=task_name,
-                    env=task_data['task_env'],
-                    args=task_data['args'])
-            tuuid = run_cmd.id()
-            self.save_task(run_cmd, task_id, task)
-        else:
-            tuuid = run_cmd.id()
-            if self.tasks._get(tuuid, (), {'parsed': task}).has_finished():
-                run_cmd = None
-        backend.on_new_task(task)
-        if run_cmd:
-            backend.send_cmd(run_cmd)
-        backend.add_task(self.tasks[tuuid])
-
-    def save_task(self, run_cmd, tid, task):
-        tuuid = run_cmd.id()
-        self.tasks.make(tuuid, parsed=task)
-        self.__tasks_by_id[tid] = (run_cmd, tuuid)
 
     def send_result(self, result, handle, score=0, message=''):
         result=('recipe_result', self.beaker_id, result, handle, score, message)
@@ -1462,8 +1523,7 @@ class BeakerLCBackend(SerializingBackend):
             'proc_evt_relation', 'proc_evt_file', 'proc_evt_file_meta',
             'proc_evt_file_write', 'proc_evt_abort',
             ]
-    _VERBOSE += ['set_idle', 'on_idle', 'on_lc_failure',
-            '_next_evt', '_pop_evt', 'idle',
+    _VERBOSE += ['set_idle', '_next_evt', '_pop_evt', 'idle',
             ]
 
     WATCHDOG_TOLERANCE = 5 # Account for trip from scheduler to handler
@@ -1471,13 +1531,9 @@ class BeakerLCBackend(SerializingBackend):
     def __init__(self, conf=None, proxy=None, runtime=None, queue=None,
             build_queue=None):
         self.conf = conf
-        self.hostname = self.conf.get('DEFAULT', 'HOSTNAME')        
-        self.recipe_id = int(self.conf.get('DEFAULT', 'RECIPEID'))
         self.digest_method = self.conf.get('DEFAULT', 'DIGEST')
         self.name = self.conf.get('DEFAULT', 'NAME')
-        self.waiting_for_lc = False
         self.runtime = runtime
-        self._active_tasks = []
         self.__commands = {}
         self.recipe = None
         self.__command_callbacks = {}
@@ -1486,22 +1542,9 @@ class BeakerLCBackend(SerializingBackend):
         self.build_queue = build_queue
         SerializingBackend.__init__(self, queue)
 
-    def add_task(self, task):
-        if task in self._active_tasks:
-            raise RuntimeError('The task is already running!')
-        self._active_tasks.append(task)
+    def start(self, recipe):
+        self.recipe = recipe
         self.flush()
-
-    def remove_task(self, task):
-        if task in self._active_tasks:
-            self._active_tasks.remove(task)
-        else:
-            raise RuntimeError('No such task.')
-
-    def active_tasks(self):
-        return self._active_tasks
-
-    def on_new_task(self, task):
         self.build_queue(self)
 
     def check_link(self):
@@ -1531,11 +1574,7 @@ class BeakerLCBackend(SerializingBackend):
             log.info("Connection to controller lost.")
 
     def close(self):
-        if self.scheduled_on_idle:
-            self.scheduled_on_idle.cancel()
-            self.scheduled_on_idle = None
-        self.runtime.close()
-        log.info("Runtime closed.")
+        pass
 
     def flush(self):
         """Flush any memory-cached data to disk."""
@@ -1586,63 +1625,6 @@ class BeakerLCBackend(SerializingBackend):
     def on_error(self, msg, *args, **kwargs):
         self.__on_error("ERROR", msg, traceback.format_stack(), *args, **kwargs)
 
-    def on_idle(self, result=None):
-        self.scheduled_on_idle = None
-        if self.waiting_for_lc:
-            self.on_error("on_idle called with waiting_for_lc already set.")
-            return
-        self.flush()
-        if self.recipe:
-            d = defer.maybeDeferred(self.recipe.next_task)
-        else:
-            d = self.get_recipe().addCallback(self.handle_new_recipe)
-        d.addErrback(self.on_lc_failure)
-
-    def get_recipe(self):
-        recipe = self.runtime.type_get('variables', 'RECIPE', None)
-        if recipe:
-            d = defer.succeed(recipe)
-        else:
-            self.waiting_for_lc = True
-            if self.recipe_id >= 0:
-                args = {'recipe_id': self.recipe_id}
-            else:
-                args = {'system_name': self.hostname}
-            d = self.proxy.callRemote('get_my_recipe', args).addCallback(self.store_recipe)
-        return d.addCallback(self.handle_recipe_xml)
-
-    def store_recipe(self, recipe_xml):
-        self.runtime.type_set('variables', 'RECIPE', recipe_xml)
-        return recipe_xml
-
-    def handle_recipe_xml(self, recipe_xml):
-        log.debug("handle_recipe_xml(%s)", recipe_xml)
-        return BeakerRecipe(self, recipe_xml)
-
-    def handle_new_recipe(self, recipe):
-        self.waiting_for_lc = False
-        # assert self.recipe is None
-        self.recipe = recipe
-        return self.recipe.next_task()
-
-    def schedule_idle(self, delay):
-        self.scheduled_on_idle = reactor.callLater(delay, self.on_idle)
-
-    def on_lc_failure(self, result):
-        self.waiting_for_lc = False
-        if result.check(NothingToDoException):
-            if self.recipe is not None:
-                self.recipe.close()
-                self.recipe = None
-        else:
-            type, value, tb = sys.exc_info()
-            if type:
-                log.error(traceback.format_exception(type, value, tb))
-            else:
-                log.error(traceback.format_tb(result.getTracebackObject()))
-        self.schedule_idle(120)
-        return None
-
     ############################################################################
     # EVENT PROCESSING:
     ############################################################################
@@ -1687,12 +1669,6 @@ class BeakerLCBackend(SerializingBackend):
 
     def proc_evt_end(self, evt):
         evt.task.end(evt.arg("rc", None))
-
-    def query_watchdogs(self):
-        proxy = self.proxy
-        for task in self.active_tasks():
-            d = proxy.callRemote('status_watchdog', task.beaker_id)
-            d.addCallback(self.handle_status_watchdog, task)
 
     def handle_status_watchdog(self, watchdog, task):
         self.send_cmd(command.forward(event.extend_watchdog(
@@ -1826,9 +1802,6 @@ class BeakerLCBackend(SerializingBackend):
                 "WARNING(%s)" % (log_level,))
     log_type = staticmethod(log_type)
 
-    def mk_msg(self, **kwargs):
-        return json.dumps(kwargs)
-
     def find_job_id(self, id):
         return id
 
@@ -1842,6 +1815,11 @@ class BeakerLCBackend(SerializingBackend):
         return id
 
 
+################################################################################
+# Put it all together:
+################################################################################
+
+
 def make_runtime(conf, verbose=False):
     runtime = runtimes.ShelveRuntime(conf.get('DEFAULT', 'RUNTIME_FILE_NAME'))
     # override runtime sync to prevent performance hit:
@@ -1849,10 +1827,10 @@ def make_runtime(conf, verbose=False):
     def runtime_sync(type=None):
         """
         Synchronize the runtime to disk.
-        
+
         Original sync method will be called only when called explicitly
         i.e. with type == None.
-        
+
         """
         if type is None:
             runtime_sync_orig()
@@ -1913,22 +1891,28 @@ def start_beaker_backend(conf):
 
     proxy = make_proxy(conf, verbose)
 
-    backend = BeakerLCBackend(conf=conf, proxy=proxy, runtime=runtime, **make_queue(conf, runtime))
-
-    reactor.addSystemEventTrigger('before', 'shutdown', backend.close)
+    backend = BeakerLCBackend(conf=conf, proxy=proxy, runtime=runtime,
+            **make_queue(conf, runtime))
 
     proxy.on_idle = backend.set_idle
 
+    simple_schedule(conf, runtime, proxy, backend)
+
     # Ensure memory-cache is flushed regularly.
-    # 
+    #
     # We do not want flush to happen too often as it hits performance and
     # this should help preventing loosing mind e.g. in case of unexpected
     # panic.
     flush_regularly = LoopingCall(backend.flush)
     flush_regularly.start(60, now=False)
 
-    # start idling:
-    backend.on_idle()
+    def shutdown():
+        backend.close()
+        runtime.close()
+    reactor.addSystemEventTrigger('before', 'shutdown', shutdown)
+
+
+# TODO: need to start scheduler bit here
 
     # Start a client:
     start_backend(backend)
@@ -1966,6 +1950,7 @@ def beakerlc_opts(opt, conf):
             action="callback", callback=recipeid_cb, type='string',
             help="Use the RECIPEID to get the recipe.")
     return opt
+
 
 def defaults():
     d = config.backend_defaults()
