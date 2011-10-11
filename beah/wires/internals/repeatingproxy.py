@@ -233,7 +233,7 @@ class RepeatingProxy(object):
     def set_timeout(self, timeout):
         self.queryFactory.rpc_timeout = timeout
 
-    def on_idle(self):
+    def on_idle(self): # pylint: disable=E0202
         if self.__on_idle is not None:
             d = self.__on_idle
             self.__on_idle = None
