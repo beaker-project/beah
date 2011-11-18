@@ -11,8 +11,8 @@
 %endif
 %endif
 %endif
-%global _services_restart "beah-fakelc beah-beaker-backend beah-fwd-backend"
-%global _services "beah-srv %{_services_restart}"
+%global _services_restart beah-fakelc beah-beaker-backend beah-fwd-backend
+%global _services beah-srv %{_services_restart}
 
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
