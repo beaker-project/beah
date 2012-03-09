@@ -154,7 +154,7 @@ check_compat() {
 run_here() {
   BEAKERLIB_COMMAND_REPORT_RESULT=/usr/bin/rhts-report-result \
   BEAKERLIB_COMMAND_SUBMIT_LOG=/usr/bin/rhts-submit-log \
-  exec beah-initgroups.py beah-unconfined.sh /usr/bin/rhts-test-runner.sh </dev/null || \
+  exec tortilla run </dev/null || \
       die 1 "Can not run rhts-test-runner.sh"
 }
 

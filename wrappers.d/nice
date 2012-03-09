@@ -1,0 +1,4 @@
+#!/bin/sh -x
+
+WRAP_NEXT=$(tortilla get-next-wrapper $(basename $0))
+/bin/nice -n 1 "$WRAP_NEXT" "$@"

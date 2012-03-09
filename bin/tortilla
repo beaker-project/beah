@@ -1,0 +1,316 @@
+#!/usr/bin/python
+
+import sys, os
+import types
+import glob
+import signal
+from optparse import OptionParser
+
+class TX(Exception):
+    def __init__(self, value, *args):
+        self.value = value % args
+
+    def __str__(self):
+        return repr(self.value)
+
+
+class OrderedWrappers(object):
+    def __init__(self):
+        try:
+            self.__root
+        except AttributeError:
+            self.__root = root = []
+            root[:] = [root, root, None]    # sentinel node
+            self.__map = {}
+
+    def insert_before(self, key, newkey):
+        if key in self.__map:
+            if newkey not in self.__map:
+                root = self.__map[key]
+                link_prev = root[0]
+                link_prev[1] = root[0] = self.__map[newkey] = [link_prev, root, newkey]
+            else:
+                raise TX('%s already in chain' % newkey)
+        else:
+            raise TX('%s not in chain' % key)
+
+    def insert_after(self, key, newkey):
+        if key in self.__map:
+            if newkey not in self.__map:
+                root = self.__map[key]
+                link_next = root[1]
+                link_next[0] = root[1] = self.__map[newkey] = [root, link_next, newkey]
+            else:
+                raise TX('%s already in chain' % newkey)
+        else:
+            raise TX('%s not in chain' % key)
+
+    def replace(self, oldkey, newkey):
+        if oldkey in self.__map:
+            if newkey not in self.__map:
+                link_prev, link_next, key = self.__map.pop(oldkey)
+                link_prev[1] = link_next[0] = self.__map[newkey] = [link_prev, link_next, newkey]
+            else:
+                raise TX('%s already in chain' % newkey)
+        else:
+            raise TX('%s not in chain' % oldkey)
+
+    def append(self, key):
+        ''' Testing '''
+        if key not in self.__map:
+            root = self.__root
+            link_prev = root[0]
+            link_prev[1] = root[0] = self.__map[key] = [link_prev, root, key]
+        else:
+            raise TX('%s already in chain' % key)
+
+    def insert_front(self, key):
+        if key not in self.__map:
+            root = self.__root
+            link_next = root[1]
+            link_next[0] = root[1] = self.__map[key] = [root, link_next, key]
+        else:
+            raise TX('%s already in chain' % key)
+
+    def clear(self):
+        try:
+            for node in self.__map.itervalues():
+                del node[:]
+            root = self.__root
+            root[:] = [root, root, None]
+            self.__map.clear()
+        except AttributeError:
+            pass
+
+    def __getitem__(self, key):
+        ''' Use our map to find the next item '''
+        if key in self.__map:
+            return self.__map[key][1][2]
+
+    def __delitem__(self, key):
+        link_prev, link_next, key = self.__map.pop(key)
+        link_prev[1] = link_next
+        link_next[0] = link_prev
+
+    def first(self):
+        return self.__root[1][2]
+
+    def __iter__(self):
+        root = self.__root
+        curr = root[1]
+        while curr is not root:
+            yield curr[2]
+            curr = curr[1]
+
+
+class Queue(object):
+    def __init__(self, wrapper_dir=None, chain=None):
+        self.orderedWrappers = OrderedWrappers()
+        if os.path.exists(wrapper_dir):
+            self.wrapper_dir = wrapper_dir
+        else:
+            raise TX("%s doesn't exist" % wrapper_dir)
+        self.chain = chain
+        self.read_chain()
+
+    def define_wrapper(self, *args):
+        '''[wrapper]	Create a new wrapper called "wrapper"
+				and read it from stdin '''
+        if not self.valid_wrapper(args[1]):
+            w_file = os.path.join(self.wrapper_dir, 'wrappers.d', args[1])
+            w_handle = open(w_file, 'w')
+            for line in sys.stdin.readlines():
+                w_handle.write(line)
+            w_handle.close()
+            os.chmod(w_file, 0755)
+        else:
+            raise TX('%s is already defined!' % args[1])
+    define_wrapper.exposed = True
+
+    def read_chain(self):
+        ''' Read the chain from disk '''
+        q_file = os.path.join(self.wrapper_dir, 'order.d', self.chain)
+        if os.path.exists(q_file):
+            q_handle = open(q_file)
+            for line in q_handle.readlines():
+                self.orderedWrappers.append(line[:-1])
+            q_handle.close()
+
+    def write_chain(self):
+        ''' Write the chain to disk '''
+        q_file = os.path.join(self.wrapper_dir, 'order.d', self.chain)
+        q_handle = open(q_file, 'w')
+        for wrapper in self.orderedWrappers:
+            q_handle.write('%s\n' % wrapper)
+        q_handle.close()
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        if self.curr in self.orderedWrappers and \
+           self.orderedWrappers[self.curr]:
+            return self.orderedWrappers[self.curr]
+        else:
+            raise StopIteration
+
+    def get_next_wrapper(self, *args):
+        '''[wrapper]	given "wrapper" return the next wrapper in
+				the chain '''
+        self.curr = args[1]
+        try:
+            wrapper = os.path.join(self.wrapper_dir,
+                                   'wrappers.d',
+                                   self.next())
+            print wrapper
+        except StopIteration:
+            print ''
+    get_next_wrapper.exposed = True
+
+    def run(self, *args):
+        '''				Exec first in chain'''
+        first = self.orderedWrappers.first()
+        if first:
+            print "Executing: ", ', '.join([wrapper for wrapper in self.orderedWrappers])
+            wrapper = os.path.join(self.wrapper_dir,
+                                   'wrappers.d',
+                                   first)
+            # Reset signal handlers before exec, see Bug 755407
+            for i in range(1, signal.NSIG):
+                if i in (signal.SIGKILL, signal.SIGSTOP): 
+                    # These two signals (commonly 9 & 19) 
+                    # can't be caught or ignored
+                    continue 
+                try:
+                    signal.signal(i, signal.SIG_DFL)
+                except:
+                    pass
+            os.execvp(wrapper, [wrapper])
+        else:
+            print "No wrappers assigned to the chain"
+            return 1
+    run.exposed = True
+
+    def valid_wrapper(self, wrapper):
+        wrapper_path = os.path.join(self.wrapper_dir,
+                                    'wrappers.d',
+                                    wrapper)
+        if os.path.exists(wrapper_path):
+            return True
+        else:
+            return False
+
+    def list_wrappers(self, *args):
+        '''			List the available wrappers'''
+        w_files = os.path.join(self.wrapper_dir, 'wrappers.d', '*')
+        for wrapper in glob.glob(w_files):
+            print os.path.basename(wrapper)
+    list_wrappers.exposed = True
+
+    def list_chain(self, *args):
+        '''			List the wrappers in this chain in
+				the order they will execute'''
+        for wrapper in self.orderedWrappers:
+            print wrapper
+    list_chain.exposed = True
+
+    def clear(self, *args):
+        '''				Clear the chain of commands'''
+        self.orderedWrappers.clear()
+        self.write_chain()
+    clear.exposed = True
+
+    def append(self, *args):
+        '''[new]			Append wrapper "new" to end of chain'''
+        if self.valid_wrapper(args[1]):
+            self.orderedWrappers.append(args[1])
+            self.write_chain()
+        else:
+            raise TX('%s is not a valid wrapper' % args[1])
+    append.exposed = True
+
+    def insert_front(self, *args):
+        '''[new] 		Insert wrapper "new" in front of chain'''
+        if self.valid_wrapper(args[1]):
+            self.orderedWrappers.insert_front(args[1])
+            self.write_chain()
+        else:
+            raise TX('%s is not a valid wrapper' % args[1])
+    insert_front.exposed = True
+
+    def insert_before(self, *args):
+        '''[wrapper] [new]	Insert wrapper "new" in front of "wrapper"'''
+        if self.valid_wrapper(args[2]):
+            self.orderedWrappers.insert_before(args[1], args[2])
+            self.write_chain()
+        else:
+            raise TX('%s is not a valid wrapper' % args[2])
+    insert_before.exposed = True
+
+    def insert_after(self, *args):
+        '''[wrapper] [new]	Insert wrapper "new" after "wrapper"'''
+        if self.valid_wrapper(args[2]):
+            self.orderedWrappers.insert_after(args[1], args[2])
+            self.write_chain()
+        else:
+            raise TX('%s is not a valid wrapper' % args[2])
+    insert_after.exposed = True
+
+    def replace(self, *args):
+        '''[wrapper] [new]		Replace "wrapper" with wrapper "new"'''
+        if self.valid_wrapper(args[2]):
+            self.orderedWrappers.replace(args[1], args[2])
+            self.write_chain()
+        else:
+            raise TX('%s is not a valid wrapper' % args[2])
+    replace.exposed = True
+
+    def remove(self, *args):
+        '''[wrapper]		Remove "wrapper" from chain'''
+        del self.orderedWrappers[args[1]]
+        self.write_chain()
+    remove.exposed = True
+
+
+def print_help(wrappers, parser):
+    parser.print_help()
+    print "Commands:\n"
+    for item in dir(wrappers):
+        command = getattr(wrappers, item)
+        if getattr(command, 'exposed', False):
+            print item.replace('_', '-'), command.__doc__
+
+def main():
+    if 'WRAPPER_DIR' in os.environ.keys():
+        default_wrapper_dir = os.environ['WRAPPER_DIR']
+    else:
+        default_wrapper_dir = '/var/lib/beah/tortilla'
+    if 'WRAPPER_CHAIN' in os.environ.keys():
+        default_chain = os.environ['WRAPPER_CHAIN']
+    else:
+        default_chain = 'rhts'
+    parser = OptionParser()
+    parser.add_option("-w", "--wrapper-dir",
+                      help="Specify the directory for the wrappers",
+                      default=default_wrapper_dir)
+    parser.add_option("-c", "--chain",
+                      help="Specify which chain",
+                      default=default_chain)
+    (opts, args) = parser.parse_args()
+    wrappers = Queue(wrapper_dir=opts.wrapper_dir,
+                     chain=opts.chain)
+
+    if len(args) != 0:
+        method = getattr(wrappers, args[0].replace('-','_'), None)
+        if method:
+            return method(*args)
+        else:
+            print "Invalid command: %s" % args[0]
+            print_help(wrappers, parser)
+            return 1
+    else:
+        print_help(wrappers, parser)
+        return 0
+
+if __name__ == '__main__':
+    sys.exit(main())

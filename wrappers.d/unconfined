@@ -52,10 +52,10 @@ function runcon_unconfined() {
   fi
 }
 
+WRAP_NEXT=$(tortilla get-next-wrapper $(basename $0))
 if selinuxenabled; then
   echo "-- INFO: selinux enabled: trying to switch context..."
-  runcon_unconfined "$@"
+  runcon_unconfined "$WRAP_NEXT" "$@"
 else
-  exec "$@"
+  exec "$WRAP_NEXT" "$@"
 fi
-

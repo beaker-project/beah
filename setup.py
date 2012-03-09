@@ -129,14 +129,13 @@ setup(
     # FIXME: move this to beah.bin(?)
     scripts=[
         'bin/beat_tap_filter',
-        'bin/beah-rhts-runner.sh',
         'bin/rhts-compat-runner.sh',
         'bin/beah-reboot.sh',
         'bin/beah-check',
         'bin/beah-flush',
         'bin/rhts-flush',
-        'bin/beah-unconfined.sh',
-        'bin/beah-initgroups.py',
+        'bin/beah-rhts-runner.sh',
+        'bin/tortilla',
         ],
     #scripts+=['tests/*'],
     # FIXME: use `grep -R '#!.*python' examples` to find python scripts
@@ -145,6 +144,11 @@ setup(
     namespace_packages=['beah'],
 
     data_files=[
+        ('/var/lib/beah/tortilla/wrappers.d', ['wrappers.d/initgroups', 
+                                          'wrappers.d/unconfined',
+                                          'wrappers.d/nice',
+                                          'wrappers.d/runtest']),
+        ('/var/lib/beah/tortilla/order.d', ['order.d/rhts']),
         ('/etc', ['beah.conf', 'beah_beaker.conf', 'beah_watchdog.conf']),
         ('/etc/init.d', ['init.d/beah-srv', 'init.d/beah-fakelc', 'init.d/beah-beaker-backend', 'init.d/beah-watchdog-backend', 'init.d/beah-fwd-backend', 'init.d/rhts-compat']),
         ('share/beah', ['README', 'COPYING', 'LICENSE']),

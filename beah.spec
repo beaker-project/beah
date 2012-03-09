@@ -94,6 +94,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755, root, root)%{_sysconfdir}/init.d/%{name}*
 %attr(0755, root, root)%{_sysconfdir}/init.d/rhts-compat
 %attr(0755, root, root)%{_bindir}/%{name}*
+%attr(0755, root, root)%{_bindir}/tortilla
 %attr(0755, root, root)%{_bindir}/rhts-compat-runner.sh
 %attr(0755, root, root)%{_bindir}/rhts-flush
 %attr(0755, root, root)%{_bindir}/beat_tap_filter
@@ -107,6 +108,10 @@ rm -rf $RPM_BUILD_ROOT
 %doc %{_datadir}/%{name}/LICENSE
 %{_libexecdir}/%{name}
 %attr(0755, root, root)%{_libexecdir}/%{name}/beah-check/*
+%{_var}/lib/%{name}
+%{_var}/lib/%{name}/tortilla
+%attr(0755, root, root)%{_var}/lib/%{name}/tortilla/wrappers.d/*
+%{_var}/lib/%{name}/tortilla/order.d/*
 
 %post
 for service in %{_services}; do

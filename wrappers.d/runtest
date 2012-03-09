@@ -1,0 +1,11 @@
+#!/bin/sh -x
+WRAP_NEXT=$(tortilla get-next-wrapper $(basename $0))
+/usr/bin/rhts-test-runner.sh
+rc=$?
+if [ -n "$WRAP_NEXT" ]; then
+    "$WRAP_NEXT" --rc=$rc "$@"
+    # Allow next wrapper to eat bad return code if the wrapper writer
+    # needs to do that for some reason.
+    rc=$?
+fi
+exit $rc
