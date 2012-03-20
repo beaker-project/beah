@@ -125,7 +125,7 @@ def serveAnyRequest(cls, by, base=USE_DEFAULT):
     else:
         if not issubclass(cls, base):
             raise exceptions.RuntimeError('%s is not a baseclass of %s' % (base, cls))
-        getter = getattr(base, '_getFunction')
+        getter = getattr(base, 'lookupProcedure', None) or getattr(base, '_getFunction')
         def _getFunction(self, functionPath):
             """Will return handler for all unhandled requests."""
             try:
@@ -135,6 +135,7 @@ def serveAnyRequest(cls, by, base=USE_DEFAULT):
                     return getattr(self, by)(functionPath, *args)
                 return tempf
     cls._getFunction = _getFunction
+    cls.lookupProcedure = _getFunction
 
 
 def make_logging_proxy(proxy):
