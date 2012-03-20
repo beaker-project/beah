@@ -16,7 +16,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.35
+Version: 0.6.36
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -129,6 +129,10 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Tue Mar 20 2012 Bill Peck <bpeck@redhat.com> 0.6.36-1
+- limit pylint to rhel5 (bpeck@redhat.com)
+- bz737540 - missing links to beah-srv in rc.d (mcsontos@redhat.com)
+
 * Tue Oct 11 2011 Marian Csontos <mcsontos@redhat.com> 0.6.35-1
 - Fix errors reported by pylint
 - Mask false positives reported by pylint
