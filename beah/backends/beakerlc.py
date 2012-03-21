@@ -875,6 +875,10 @@ class BeakerWriter(writers.JournallingWriter, BeakerObject, Item):
         journal = open_(jname, "ab+")
         writers.JournallingWriter.__init__(self, journal, offs, capacity=4096, no_split=True)
 
+    def close(self):
+        self.journal.close()
+        writers.JournallingWriter.close(self)
+
     def make_default(cls, id, parent):
         return BeakerWriter(id, parent)
     make_default = classmethod(make_default)
@@ -1129,7 +1133,7 @@ class BeakerTask(PersistentBeakerObject):
     def abort(self, message):
         self.set_finished()
         self.send_result('fail', 'harness/run', 1, message)
-        self.stop('abort', message)
+        return self.stop('abort', message)
 
     def flush(self):
         self.flush_writers()
@@ -1147,7 +1151,7 @@ class BeakerTask(PersistentBeakerObject):
             self.send_result('warn', 'task/exit', score, message)
         else:
             message = 'OK'
-        self.stop('stop', message)
+        return self.stop('stop', message)
 
     def parent_task(self):
         return self
@@ -1207,7 +1211,7 @@ class BeakerTask(PersistentBeakerObject):
     def stop(self, type, msg):
         # type: ('stop'|'abort')
         self.flush()
-        self.proxy().callRemote('task_stop', self.beaker_id, type, msg) \
+        return self.proxy().callRemote('task_stop', self.beaker_id, type, msg) \
                 .chainDeferred(self.deferred)
 
 
@@ -1668,7 +1672,7 @@ class BeakerLCBackend(SerializingBackend):
         evt.task.start()
 
     def proc_evt_end(self, evt):
-        evt.task.end(evt.arg("rc", None))
+        evt.task.end(evt.arg("rc", None)).addBoth(lambda ignored: evt.task.close())
 
     def handle_status_watchdog(self, watchdog, task):
         self.send_cmd(command.forward(event.extend_watchdog(
@@ -1765,7 +1769,7 @@ class BeakerLCBackend(SerializingBackend):
                     return
                 if task.has_finished():
                     return
-                task.stop('abort', "Task"+msg)
+                task.stop('abort', "Task"+msg).addBoth(lambda ignored: task.close())
 
     def proc_evt_result(self, evt):
         r = evt.task.new_result(evt.id(), evt.args())
