@@ -875,7 +875,7 @@ class BeakerWriter(writers.JournallingWriter, BeakerObject, Item):
         journal = open_(jname, "ab+")
         writers.JournallingWriter.__init__(self, journal, offs, capacity=4096, no_split=True)
 
-    def close(self):
+    def close(self): # pylint: disable=E0202
         self.journal.close()
         writers.JournallingWriter.close(self)
 
