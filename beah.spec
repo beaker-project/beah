@@ -91,8 +91,14 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root)
 %config(noreplace) %{_sysconfdir}/%{name}*
+%if 0%{?fedora} >= 16 || 0%{?rhel} >= 7
+%attr(0755, root, root)%{_unitdir}/%{name}*
+%exclude %{_sysconfdir}/init.d
+%else
 %attr(0755, root, root)%{_sysconfdir}/init.d/%{name}*
 %attr(0755, root, root)%{_sysconfdir}/init.d/rhts-compat
+%exclude /usr/lib/systemd
+%endif
 %attr(0755, root, root)%{_bindir}/%{name}*
 %attr(0755, root, root)%{_bindir}/tortilla
 %attr(0755, root, root)%{_bindir}/rhts-compat-runner.sh

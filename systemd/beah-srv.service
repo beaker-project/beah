@@ -1,0 +1,12 @@
+[Unit]
+Description=The Beaker Harness server.
+After=network.target NetworkManager-wait-online.service
+Requires=beah-beaker-backend beah-fwd-backend
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/beah-srv
+ControlGroup=cpu:/
+
+[Install]
+WantedBy=multi-user.target

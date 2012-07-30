@@ -1,0 +1,10 @@
+[Unit]
+Description=The Beaker backend server.
+After=network.target NetworkManager-wait-online.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/beah-beaker-backend
+
+[Install]
+WantedBy=multi-user.target

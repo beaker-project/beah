@@ -1,0 +1,10 @@
+[Unit]
+Description=The Beaker sync server for multi-host jobs
+After=network.target NetworkManager-wait-online.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/beah-fwd-backend
+
+[Install]
+WantedBy=multi-user.target
