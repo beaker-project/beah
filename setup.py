@@ -152,6 +152,7 @@ setup(
         ('/etc', ['beah.conf', 'beah_beaker.conf', 'beah_watchdog.conf']),
         ('/etc/init.d', ['init.d/beah-srv', 'init.d/beah-fakelc', 'init.d/beah-beaker-backend', 'init.d/beah-watchdog-backend', 'init.d/beah-fwd-backend', 'init.d/rhts-compat']),
         ('/usr/lib/systemd/system',['systemd/beah-srv.service', 'systemd/beah-fwd-backend.service', 'systemd/beah-beaker-backend.service']),
+        ('/lib/systemd/system',['systemd/beah-srv.service', 'systemd/beah-fwd-backend.service', 'systemd/beah-beaker-backend.service']),
         ('share/beah', ['README', 'COPYING', 'LICENSE']),
         ] + more_data_files,
     #package_data={

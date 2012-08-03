@@ -53,6 +53,9 @@ BuildRequires: python-uuid
 %if "%{?_pylint}" != ""
 BuildRequires: pylint
 %endif
+%if 0%{?fedora} >= 16 || 0%{?rhel} >= 7
+BuildRequires: systemd-units
+%endif
 
 %description
 Beah - Test Harness.
@@ -94,10 +97,16 @@ rm -rf $RPM_BUILD_ROOT
 %if 0%{?fedora} >= 16 || 0%{?rhel} >= 7
 %attr(0755, root, root)%{_unitdir}/%{name}*
 %exclude %{_sysconfdir}/init.d
+%if "%{_unitdir}" == "/lib/systemd/system"
+%exclude /usr/lib/systemd
+%else
+%exclude /lib/systemd
+%endif
 %else
 %attr(0755, root, root)%{_sysconfdir}/init.d/%{name}*
 %attr(0755, root, root)%{_sysconfdir}/init.d/rhts-compat
 %exclude /usr/lib/systemd
+%exclude /lib/systemd
 %endif
 %attr(0755, root, root)%{_bindir}/%{name}*
 %attr(0755, root, root)%{_bindir}/tortilla
