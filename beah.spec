@@ -16,7 +16,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.38
+Version: 0.6.39
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -140,6 +140,10 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Fri Aug 03 2012 Bill Peck <bpeck@redhat.com> 0.6.39-1
+- tests don't run in root cpu cgroup with systemd (bpeck@redhat.com)
+- tito config for releasing in dist-git (dcallagh@redhat.com)
+
 * Wed Mar 21 2012 Bill Peck <bpeck@redhat.com> 0.6.38-1
 - fix pylint error (bpeck@redhat.com)
 - Fix leaking file-descriptors causing EWD (mcsontos@redhat.com)
