@@ -1148,7 +1148,7 @@ class BeakerTask(PersistentBeakerObject):
             score = int(rc)
         if score != 0:
             message = 'Task adaptor returned non zero exit code. This is likely a harness problem. rc=%s' % rc
-            self.send_result('warn', 'task/exit', score, message)
+            self.send_result('pass', 'task/exit', score, message)
         else:
             message = 'OK'
         return self.stop('stop', message)
