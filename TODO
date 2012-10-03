@@ -20,7 +20,7 @@
  8  rhts-test-runner.sh
     - get and store repository info in /etc/yum.repos.d/
     - check environment
-    - create /tmp/TESTOUT.log - it is required by rhts-abort
+    - create /mnt/testarea/TESTOUT.log - it is required by rhts-abort
     - get the test
     - set environment
     - run the test and capture outputs

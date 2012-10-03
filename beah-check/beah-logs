@@ -5,8 +5,8 @@ if [[ "$1" == "check" ]]; then
   file=$dir.tar.gz
   mkdir $dir/var
   cp -R /var/beah $dir/var/
-  mkdir $dir/tmp
-  cp /tmp/beah* $dir/tmp/
+  mkdir $dir/mnt/testarea
+  cp /mnt/testarea/beah* $dir/mnt/testarea/
   mkdir $dir/var/log
   cp /var/log/beah* $dir/var/log/
   grep ': ERROR ' $dir/var/log/beah* | grep -v ': DEBUG ' | beah-check cat-error

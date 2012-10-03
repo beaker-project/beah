@@ -48,7 +48,7 @@ start() {
         echo $"Network is not managed by NM."
     fi
     echo -n $"Starting $prog: "
-    daemon --user $RUN_AS $path "$OPTIONS >> /tmp/$prog.out 2>&1 &" 'echo $!' ">$PIDFILE"
+    daemon --user $RUN_AS $path "$OPTIONS >> /mnt/testarea/$prog.out 2>&1 &" 'echo $!' ">$PIDFILE"
     RETVAL=$?
     echo
     echo "$prog running as process `cat $PIDFILE`"

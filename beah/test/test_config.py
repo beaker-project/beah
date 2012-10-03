@@ -78,7 +78,7 @@ def _test_conf():
         os.close(fd)
         c = config._BeahConfig('test', '_BEAH_CONF', '_beah.conf',
                 config.beah_defaults(),
-                dict(ROOT='/tmp', LOG='False', DEVEL='True', _BEAH_CONF=fn))
+                dict(ROOT='/mnt/testarea', LOG='False', DEVEL='True', _BEAH_CONF=fn))
         _tst_eq(c._get_conf_file(fn), fn)
         _tst_eq(c._get_conf_file(), '')
         _tst_eq(c._get_conf_file('empty-beah.conf.tmp'), '')
@@ -89,14 +89,14 @@ def _test_conf():
         _tst_eq(test_parse_bool(cfg.get('DEFAULT', 'LOG')), False)
         _tst_eq(cfg.get('BACKEND', 'INTERFACE'), "127.0.0.1")
         _tst_eq(int(cfg.get('BACKEND', 'PORT')), 12432)
-        _tst_eq(cfg.get('DEFAULT', 'ROOT'), "/tmp")
+        _tst_eq(cfg.get('DEFAULT', 'ROOT'), "/mnt/testarea")
 
         cfg.set('DEFAULT', 'LOG', 'True')
         _tst_eq(test_parse_bool(cfg.get('DEFAULT', 'DEVEL')), True)
         _tst_eq(test_parse_bool(cfg.get('DEFAULT', 'LOG')), True)
         _tst_eq(cfg.get('BACKEND', 'INTERFACE'), "127.0.0.1")
         _tst_eq(int(cfg.get('BACKEND', 'PORT')), 12432)
-        _tst_eq(cfg.get('DEFAULT', 'ROOT'), "/tmp")
+        _tst_eq(cfg.get('DEFAULT', 'ROOT'), "/mnt/testarea")
 
         config._Config._remove('test')
     finally:
