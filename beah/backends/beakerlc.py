@@ -210,12 +210,12 @@ def proc_roles(roles, roles_node):
         proc_role(systems, role_node)
 
 
-def find_recipe(node, hostname):
+def find_recipe(node, recipe_id):
     for er in node.getElementsByTagName('recipe'):
-        if xml_attr(er, 'system') == hostname:
+        if xml_attr(er, 'id') == str(recipe_id):
             return er
     for er in node.getElementsByTagName('guestrecipe'):
-        if xml_attr(er, 'system') == hostname:
+        if xml_attr(er, 'id') == str(recipe_id):
             return er
     return None
 
@@ -226,19 +226,19 @@ class RecipeException(Exception):
 
 class RecipeParser(object):
 
-    def make(input_xml, hostname):
+    def make(input_xml, recipe_id):
         """
-        Takes an input XML string and creates recipe for given hostname.
+        Takes an input XML string and creates recipe for given recipe ID.
         """
         root = minidom.parseString(input_xml)
         submitter = None
         for job in root.getElementsByTagName('job'):
             submitter = xml_attr(job, 'owner')
             break
-        recipe = find_recipe(root, hostname)
+        recipe = find_recipe(root, recipe_id)
         if not recipe:
             return None
-        return RecipeParser(recipe, hostname=hostname, submitter=submitter)
+        return RecipeParser(recipe, submitter=submitter)
     make = staticmethod(make)
 
     GUEST_ATTRS = ('system', 'mac_address', 'location', 'guestargs', 'guestname')
@@ -252,7 +252,7 @@ gpgcheck=0
 
 """
 
-    def __init__(self, recipe_node, hostname='', submitter=None):
+    def __init__(self, recipe_node, submitter=None):
 
         recipe_type = self.RECIPE_TYPE.get(recipe_node.tagName, None)
         if not recipe_type:
@@ -272,7 +272,7 @@ gpgcheck=0
                 'DISTRO': xml_attr(recipe_node, 'distro', ''),
                 'FAMILY': xml_attr(recipe_node, 'family', ''),
                 'VARIANT': variant,
-                'HOSTNAME': hostname,
+                # XXX 'HOSTNAME': hostname,
                 'RECIPETYPE': recipe_type,
                 'SUBMITTER': submitter,
                 }
@@ -485,20 +485,17 @@ class NothingToDoException(Exception):
     pass
 
 
-def get_recipe_lc(hostname, recipe_id, proxy):
+def get_recipe_lc(recipe_id, proxy):
     """Get a recipe from LC."""
-    if recipe_id is not None and recipe_id >= 0:
-        args = {'recipe_id': recipe_id}
-    else:
-        args = {'system_name': hostname}
+    args = {'recipe_id': recipe_id}
     return proxy.callRemote('get_my_recipe', args)
 
 
-def get_recipe_cache_or_lc(hostname, recipe_id, runtime, proxy):
+def get_recipe_cache_or_lc(recipe_id, runtime, proxy):
     """Get a recipe from cache or from LC."""
     recipe_xml = runtime.type_get('variables', 'RECIPE', None)
     if not recipe_xml:
-        thingy = defer.waitForDeferred(get_recipe_lc(hostname, recipe_id, proxy))
+        thingy = defer.waitForDeferred(get_recipe_lc(recipe_id, proxy))
         yield thingy
         recipe_xml = thingy.getResult()
         if recipe_xml:
@@ -516,14 +513,14 @@ def check_task_online(proxy):
     return _check_task_online
 
 
-def simple_recipe(recipe_xml, run_task, hostname, backend):
+def simple_recipe(recipe_xml, run_task, recipe_id, backend):
     """Parse the XML and run tasks sequentially using task runner run_task."""
     # this is likely a common task:
     if not recipe_xml:
         raise NothingToDoException("Got empty recipe.")
-    recipe_parser = RecipeParser.make(recipe_xml, hostname)
+    recipe_parser = RecipeParser.make(recipe_xml, recipe_id)
     if not recipe_parser:
-        raise NothingToDoException("No recipe for %s." % hostname)
+        raise NothingToDoException("No recipe for id %s." % recipe_id)
     rs = xml_attr(recipe_parser.recipe_node, 'status')
     if rs not in ['Running', 'Waiting']:
         raise NothingToDoException("The recipe has finished.")
@@ -619,13 +616,12 @@ def run_task(runtime, check_task=None, env_overrides=None):
 
 def simple_schedule(conf, runtime, proxy, backend):
     """Get a recipe and run tasks."""
-    hostname = conf.get('DEFAULT', 'HOSTNAME')
     recipe_id = int(conf.get('DEFAULT', 'RECIPEID'))
     env_overrides = {'LAB_CONTROLLER': conf.get('DEFAULT', 'COBBLER_SERVER')}
     task_runner = run_task(runtime, check_task=check_task_online(proxy),
             env_overrides=env_overrides)
-    return get_recipe_cache_or_lc(hostname, recipe_id, runtime, proxy). \
-            addCallback(simple_recipe, task_runner, hostname, backend)
+    return get_recipe_cache_or_lc(recipe_id, runtime, proxy). \
+            addCallback(simple_recipe, task_runner, recipe_id, backend)
 
 
 ################################################################################
