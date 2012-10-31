@@ -298,7 +298,7 @@ END
   sed -e 's/^DEVEL=.*$/DEVEL=True/' /etc/beah.conf.orig > /etc/beah.conf || true
 }
 
-LM_LOGS="/tmp/beah*.out /var/log/beah*.log /tmp/var/log/rhts_task*.log /var/log/rhts/*"
+LM_LOGS="/mnt/testarea/beah*.out /var/log/beah*.log /mnt/testarea/var/log/rhts_task*.log /var/log/rhts/*"
 function lm_tar_logs()
 {
   tar czf $LM_INSTALL_ROOT/lm-logs-$(date +%Y%m%d-%H%M%S).tar.gz $LM_LOGS
@@ -318,13 +318,13 @@ function lm_results()
 function lm_rm_logs()
 {
   rm -f $LM_LOGS
-  rm -rf /tmp/beah-fakelc-logs
+  rm -rf /mnt/testarea/beah-fakelc-logs
 }
 
 function lm_rm_runtime()
 {
   rm -rf /var/beah/*
-  rm -rf /tmp/beah-fakelc-logs/*
+  rm -rf /mnt/testarea/beah-fakelc-logs/*
   rm -rf /var/run/beah*
 }
 
@@ -435,9 +435,9 @@ function lm_stop()
   service beah-fakelc stop
   chkconfig --level 345 beah-fakelc off
   if [[ -n "$LM_FAKELC" ]]; then
-    if [[ -f /tmp/beah-fakelc.pid && -n "$(cat /tmp/beah-fakelc.pid)" ]]; then
+    if [[ -f /mnt/testarea/beah-fakelc.pid && -n "$(cat /mnt/testarea/beah-fakelc.pid)" ]]; then
       sleep 2
-      kill -2 $(cat /tmp/beah-fakelc.pid)
+      kill -2 $(cat /mnt/testarea/beah-fakelc.pid)
     fi
   fi
   service beah-srv stop
@@ -460,13 +460,13 @@ function lm_clean_test()
 {
   lm_stop_test
   #lm_rm_logs
-  rm -f /tmp/beah-fakelc*.out /var/log/beah-fakelc*.log /tmp/var/log/rhts_task*.log
-  rm -rf /tmp/beah-fakelc-logs
+  rm -f /mnt/testarea/beah-fakelc*.out /var/log/beah-fakelc*.log /mnt/testarea/var/log/rhts_task*.log
+  rm -rf /mnt/testarea/beah-fakelc-logs
   #lm_rm_runtime
   rm -rf /var/run/beah
   rm -rf /var/beah/beah_fakelc*
   rm -rf /var/beah/rhts_task_*
-  rm -rf /tmp/beah-fakelc-logs/*
+  rm -rf /mnt/testarea/beah-fakelc-logs/*
   rm -rf /var/cache/rhts
 }
 
@@ -491,8 +491,8 @@ function lm_start_debug_srv()
       service beah-fakelc start
     else
       if [[ -n "$LM_FAKELC" ]]; then
-        beah-fakelc &> /tmp/beah-fakelc.out &
-        echo "$!" > /tmp/beah-fakelc.pid
+        beah-fakelc &> /mnt/testarea/beah-fakelc.out &
+        echo "$!" > /mnt/testarea/beah-fakelc.pid
         sleep 2
       fi
     fi
@@ -520,8 +520,8 @@ function lm_start_debug_beaker()
       service beah-fakelc start
     else
       if [[ -n "$LM_FAKELC" ]]; then
-        beah-fakelc &> /tmp/beah-fakelc.out &
-        echo "$!" > /tmp/beah-fakelc.pid
+        beah-fakelc &> /mnt/testarea/beah-fakelc.out &
+        echo "$!" > /mnt/testarea/beah-fakelc.pid
         sleep 2
       fi
     fi
@@ -547,8 +547,8 @@ function lm_start_()
       service beah-fakelc start
     else
       if [[ -n "$LM_FAKELC" ]]; then
-        beah-fakelc &> /tmp/beah-fakelc.out &
-        echo "$!" > /tmp/beah-fakelc.pid
+        beah-fakelc &> /mnt/testarea/beah-fakelc.out &
+        echo "$!" > /mnt/testarea/beah-fakelc.pid
         sleep 2
       fi
     fi
@@ -582,7 +582,7 @@ function lm_kill()
     service beah-fakelc stop
   else
     if [[ -n "$LM_FAKELC" ]]; then
-      kill -2 $(cat /tmp/beah-fakelc.pid)
+      kill -2 $(cat /mnt/testarea/beah-fakelc.pid)
     fi
   fi
 }

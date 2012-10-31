@@ -51,8 +51,8 @@ TEMPLATE_DIR=lm-install
 echo "Pre-check of environment variables:"
 ( . ${TEMPLATE_DIR}/install/lm-install.sh --env-check; )
 
-LM_INSTALL_ROOT="${LM_INSTALL_ROOT:-"/tmp/lm-install"}"
-DISTRO_ROOT="${DISTRO_ROOT:-"/tmp/lm-install"}"
+LM_INSTALL_ROOT="${LM_INSTALL_ROOT:-"/mnt/testarea/lm-install"}"
+DISTRO_ROOT="${DISTRO_ROOT:-"/mnt/testarea/lm-install"}"
 
 ################################################################################
 # INIT:
@@ -113,12 +113,12 @@ END
 case "${LM_EXPORT:-bin}" in
   "bz2")
 LM_PACKAGE_FILE=lm-package${BEAH_DEV}.tar.bz2
-LM_PACKAGE=/tmp/$LM_PACKAGE_FILE
+LM_PACKAGE=/mnt/testarea/$LM_PACKAGE_FILE
 tar cjC $DISTRO_ROOT . > $LM_PACKAGE
   ;;
   *)
 LM_PACKAGE_FILE=lm-package${BEAH_DEV}.sh
-LM_PACKAGE=/tmp/$LM_PACKAGE_FILE
+LM_PACKAGE=/mnt/testarea/$LM_PACKAGE_FILE
 cat >${LM_PACKAGE} <<END
 #!/bin/sh
 base64 -d <<DATA_END | tar xjC ${LM_INSTALL_ROOT}

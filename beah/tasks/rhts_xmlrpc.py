@@ -529,7 +529,7 @@ class RHTSMain(object):
         args = [self.SHELL, '-l', '-c', 'exec %s' % self.TEST_RUNNER]
         self.process = reactor.callLater(2, reactor.spawnProcess, self.task,
                 args[0], args=args,
-                env=self.env, path=self.env.get('TESTPATH', '/tmp'))
+                env=self.env, path=self.env.get('TESTPATH', '/mnt/testarea'))
 
     def controller_input(self, cmd):
         # FIXME: process commands on input

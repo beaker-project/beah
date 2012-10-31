@@ -34,7 +34,7 @@ def setup(debugger, name):
                 try:
                     profiler.runcall(a_callable, *args, **kwargs)
                 finally:
-                    profiler.dump_stats('/tmp/%s.profile' % name)
+                    profiler.dump_stats('/mnt/testarea/%s.profile' % name)
                     profiler.print_stats()
                     #profiler.sort_stats( 'calls', 'cumulative' )
                     #profiler.print_stats()

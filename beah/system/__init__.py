@@ -21,7 +21,8 @@ class Executable(object):
         if self.executable:
             self.fd = os.open(self.executable, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
         else:
-            (self.fd, self.executable) = tempfile.mkstemp(suffix=self.suffix)
+            (self.fd, self.executable) = tempfile.mkstemp(suffix=self.suffix,
+                                                          dir='/mnt/testarea')
 
     def write_line(self, line):
         self.__content += line+self.line_end

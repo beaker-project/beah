@@ -1,6 +1,6 @@
 # LM_INSTALL_ROOT - directory on lab machine(LM) where to copy files to.
-# Optional. Defaults to /tmp/lm-install
-#LM_INSTALL_ROOT=/tmp/lm-install
+# Optional. Defaults to /mnt/testarea/lm-install
+#LM_INSTALL_ROOT=/mnt/testarea/lm-install
 
 # LAB_CONTROLLER - address of labcontroller (LC).
 # Optional. Defaults to 127.0.0.1:5222 (on LM)

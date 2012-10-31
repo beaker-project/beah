@@ -163,7 +163,7 @@ higher priority.
 Usage:
 
 On a lab machine:
-1. $ mkdir -p /tmp/lm-install
+1. $ mkdir -p /mnt/testarea/lm-install
    - This is the default. Change LM_INSTALL_ROOT in lm-install-env.sh.
 
 On the machine where beaker/Harness tree exists:
@@ -174,11 +174,11 @@ On the machine where beaker/Harness tree exists:
   used instead of [3, 4].
 
 On a lab machine:
-5. $ cd /tmp/lm-install
+5. $ cd /mnt/testarea/lm-install
 6. $ . lm-package-*.sh
    - Be careful to choose the correct one to be used.
 
-'. /tmp/lm-install/main.sh' can be used anytime to read environment and load
+'. /mnt/testarea/lm-install/main.sh' can be used anytime to read environment and load
 functions. Run lm_main_help and lm_help for more help on available functions.
 
 === Glossary ===

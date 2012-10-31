@@ -171,8 +171,8 @@ function gpwdless()
 }
 BEAH_PRIVATE="$BEAH_PRIVATE $(echo {,g}pwdless)"
 
-export LM_ROOT=/tmp
-export LM_LOGS="/tmp/beah*.out $LM_ROOT/var/log/beah*.log /tmp/var/log/rhts_task*.log"
+export LM_ROOT=/mnt/testarea
+export LM_LOGS="/mnt/testarea/beah*.out $LM_ROOT/var/log/beah*.log /mnt/testarea/var/log/rhts_task*.log"
 function lm_logs()
 {
   vim -o $LM_LOGS
@@ -187,13 +187,13 @@ function lm_results()
 function lm_rm_logs()
 {
   rm -f $LM_LOGS
-  rm -rf /tmp/beah-fakelc-logs
+  rm -rf /mnt/testarea/beah-fakelc-logs
 }
 
 function lm_rm_runtime()
 {
   rm -rf $LM_ROOT/var/beah/*
-  rm -rf /tmp/beah-fakelc-logs/*
+  rm -rf /mnt/testarea/beah-fakelc-logs/*
 }
 
 function lm_clean()
@@ -212,7 +212,7 @@ function launcher()
   {
     local server=log_list
     if ! { gvim --serverlist | grep -i $server; }; then
-      gvim --servername $server --remote /tmp/logs
+      gvim --servername $server --remote /mnt/testarea/logs
       gvim --servername $server --remote-send ":set readonly nomodifiable<CR>gh"
     fi
   }
