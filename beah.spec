@@ -16,7 +16,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.40
+Version: 0.6.41
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -149,6 +149,12 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Tue Nov 06 2012 Dan Callaghan <dcallagh@redhat.com> 0.6.41-1
+- allow task RPMs to be installed from any repo (dcallagh@redhat.com)
+- look up recipes by ID, not hostname (dcallagh@redhat.com)
+- move harness files from under /tmp to /mnt/testarea (bpeck@redhat.com)
+- Change bogus warn result to pass (mcsontos@redhat.com)
+
 * Fri Aug 03 2012 Bill Peck <bpeck@redhat.com> 0.6.40-1
 - spec file fix for f16 (bpeck@redhat.com)
 
