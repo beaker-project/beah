@@ -123,7 +123,7 @@ check_test() {
 }
 _install_test() {
     beahsh extend_watchdog 20m
-    yum -y install --enablerepo=beaker-* "$TESTRPMNAME"
+    yum -y --enablerepo=beaker-* install "$TESTRPMNAME"
 }
 if check_test; then
     beahsh INFO -H wrapper "$TESTRPMNAME is already installed."
