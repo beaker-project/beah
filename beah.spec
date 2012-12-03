@@ -17,7 +17,7 @@
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
 Version: 0.6.42
-Release: 1%{?dist}
+Release: 2%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -149,6 +149,9 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Mon Dec 03 2012 Dan Callaghan <dcallagh@redhat.com> 0.6.42-2
+- fix yum argument order for RHEL3/4 (dcallagh@redhat.com)
+
 * Fri Nov 23 2012 Raymond Mancy <rmancy@redhat.com> 0.6.42-1
 - Always enable beaker repos when installing tests (ncoghlan@redhat.com)
 
