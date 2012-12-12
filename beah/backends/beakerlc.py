@@ -1763,7 +1763,7 @@ class BeakerLCBackend(SerializingBackend):
                 if target != id_:
                     log.warning("Can abort only currently running task.")
                     return
-                if task.has_finished():
+                if task.has_completed():
                     return
                 task.stop('abort', "Task"+msg).addBoth(lambda ignored: task.close())
 
