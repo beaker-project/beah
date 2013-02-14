@@ -7,6 +7,7 @@ Requires=beah-beaker-backend beah-fwd-backend
 Type=simple
 ExecStart=/usr/bin/beah-srv
 ControlGroup=cpu:/
+KillMode=process
 
 [Install]
 WantedBy=multi-user.target
