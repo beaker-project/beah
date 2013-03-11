@@ -17,7 +17,7 @@
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
 Version: 0.6.43
-Release: 1%{?dist}
+Release: 2%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -149,6 +149,9 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Mon Mar 11 2013 Dan Callaghan <dcallagh@redhat.com> 0.6.43-2
+- beah-srv: let systemd kill only the main process (jstancek@redhat.com)
+
 * Mon Jan 14 2013 Nick Coghlan <ncoghlan@redhat.com> 0.6.43-1
 - Return without abort only when task has completed. (asaha@redhat.com)
 
