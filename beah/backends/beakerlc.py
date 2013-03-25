@@ -60,6 +60,10 @@ import hashlib
 import simplejson as json
 import logging
 from xml.dom import minidom
+try:
+    set
+except NameError: # Python 2.3
+    from sets import Set as set
 
 from twisted.internet import reactor, defer
 from twisted.internet.task import LoopingCall
@@ -189,26 +193,6 @@ def xml_first_node(node, tag):
             return n
     return None
 
-def role_empty(role):
-    return not role or role == 'None'
-
-def proc_role(systems, role_node):
-    for system_node in xml_get_nodes(role_node, 'system'):
-        system = xml_attr(system_node, 'value')
-        if system not in systems:
-            systems.append(system)
-
-def proc_roles(roles, roles_node):
-    for role_node in xml_get_nodes(roles_node, 'role'):
-        role = 'RECIPE_MEMBERS'
-        systems = roles.setdefault(role, [])
-        proc_role(systems, role_node)
-        role = xml_attr(role_node, 'value')
-        if role_empty(role) or role == 'RECIPE_MEMBERS':
-            continue
-        systems = roles.setdefault(role, [])
-        proc_role(systems, role_node)
-
 
 def find_recipe(node, recipe_id):
     for er in node.getElementsByTagName('recipe'):
@@ -291,10 +275,6 @@ gpgcheck=0
         self._env['BEAKER_REPOS']=':'.join(self.repos)
 
         self._env['RECIPE_ROLE'] = xml_attr(recipe_node, 'role', '')
-        self.roles = {}
-        for roles_node in xml_get_nodes(recipe_node, 'roles'):
-            proc_roles(self.roles, roles_node)
-            break
 
     def tasks(self, collect_env=False):
         test_order = 1 # internal counter - if prev_task does not have one
@@ -411,13 +391,6 @@ class TaskParser(object):
             answ[xml_attr(p, 'name')]=xml_attr(p, 'value')
         return answ
 
-    def get_roles(self):
-        roles = dict(self.recipe.roles)
-        for roles_node in xml_get_nodes(self.task_node, 'roles'):
-            proc_roles(roles, roles_node)
-            break
-        return roles
-
     def parse(self):
 
         if not self._env:
@@ -441,10 +414,6 @@ class TaskParser(object):
                 self._env['TESTORDER'] = str(8*int(self._env['TESTORDER']) + 4)
             else:
                 self._env['TESTORDER'] = str(8*self.test_order)
-
-            self.roles = self.get_roles()
-            for role_str in self.roles.keys():
-                self._env[role_str]=' '.join(self.roles[role_str])
 
             self.executable = ''
             self.args = []
@@ -513,6 +482,12 @@ def check_task_online(proxy):
     return _check_task_online
 
 
+def get_roles(proxy):
+    def _get_roles(task_id):
+        return proxy.callRemote('get_peer_roles', task_id)
+    return _get_roles
+
+
 def simple_recipe(recipe_xml, run_task, recipe_id, backend):
     """Parse the XML and run tasks sequentially using task runner run_task."""
     # this is likely a common task:
@@ -543,7 +518,7 @@ def simple_recipe(recipe_xml, run_task, recipe_id, backend):
 simple_recipe = defer.deferredGenerator(simple_recipe)
 
 
-def run_task(runtime, check_task=None, env_overrides=None):
+def run_task(runtime, check_task=None, get_roles=None, env_overrides=None):
     """Function generator creating a task runner."""
     def _run_task(backend, recipe, parsed_task):
         """Check task status and execute it."""
@@ -578,6 +553,17 @@ def run_task(runtime, check_task=None, env_overrides=None):
                 if not thingy.getResult():
                     log.debug("task id: %r finished.", task_beaker_id)
                     return
+            # get live roles:
+            if get_roles is not None:
+                thingy = defer.waitForDeferred(get_roles(task_beaker_id))
+                yield thingy
+                roles = thingy.getResult()
+                all_members = set()
+                for role, hostnames in roles.items():
+                    if role and role != 'None':
+                        task_data['task_env'][role] = ' '.join(hostnames)
+                    all_members.update(hostnames)
+                task_data['task_env']['RECIPE_MEMBERS'] = ' '.join(all_members)
             log.debug("about to run task(task=%s, task_data=%s)", parsed_task, task_data)
             if env_overrides:
                 task_data['task_env'].update(env_overrides)
@@ -619,6 +605,7 @@ def simple_schedule(conf, runtime, proxy, backend):
     recipe_id = int(conf.get('DEFAULT', 'RECIPEID'))
     env_overrides = {'LAB_CONTROLLER': conf.get('DEFAULT', 'COBBLER_SERVER')}
     task_runner = run_task(runtime, check_task=check_task_online(proxy),
+            get_roles=get_roles(proxy),
             env_overrides=env_overrides)
     return get_recipe_cache_or_lc(recipe_id, runtime, proxy). \
             addCallback(simple_recipe, task_runner, recipe_id, backend)
