@@ -16,8 +16,8 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.43
-Release: 2%{?dist}
+Version: 0.6.44
+Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -149,6 +149,9 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Fri Apr 05 2013 Dan Callaghan <dcallagh@redhat.com> 0.6.44-1
+- fetch roles at the start of every task (dcallagh@redhat.com)
+
 * Mon Mar 11 2013 Dan Callaghan <dcallagh@redhat.com> 0.6.43-2
 - beah-srv: let systemd kill only the main process (jstancek@redhat.com)
 
