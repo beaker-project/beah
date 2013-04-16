@@ -1,6 +1,6 @@
 [Unit]
 Description=The Beaker sync server for multi-host jobs
-After=network.target NetworkManager-wait-online.service
+After=network.target NetworkManager-wait-online.service time-sync.target
 
 [Service]
 Type=simple

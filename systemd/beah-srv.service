@@ -1,6 +1,6 @@
 [Unit]
 Description=The Beaker Harness server.
-After=network.target NetworkManager-wait-online.service
+After=network.target NetworkManager-wait-online.service time-sync.target
 Requires=beah-beaker-backend beah-fwd-backend
 
 [Service]

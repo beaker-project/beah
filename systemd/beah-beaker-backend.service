@@ -1,6 +1,6 @@
 [Unit]
 Description=The Beaker backend server.
-After=network.target NetworkManager-wait-online.service
+After=network.target NetworkManager-wait-online.service time-sync.target
 
 [Service]
 Type=simple
