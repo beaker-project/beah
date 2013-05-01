@@ -469,7 +469,7 @@ def get_recipe_cache_or_lc(recipe_id, runtime, proxy):
         recipe_xml = thingy.getResult()
         if recipe_xml:
             runtime.type_set('variables', 'RECIPE', recipe_xml)
-    yield recipe_xml
+    yield recipe_xml.encode('utf8')
 get_recipe_cache_or_lc = defer.deferredGenerator(get_recipe_cache_or_lc)
 
 
