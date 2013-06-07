@@ -16,7 +16,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.44
+Version: 0.6.45
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -149,6 +149,13 @@ if [ "$1" -ge "1" ]; then
 fi
 
 %changelog
+* Fri Jun 07 2013 Amit Saha <asaha@redhat.com> 0.6.45-1
+- Merge "recipe XML is really bytes, even though Beaker returns it in an XML-
+  RPC string" (dcallagh@redhat.com)
+- depend on time-sync.target (bpeck@redhat.com)
+- recipe XML is really bytes, even though Beaker returns it in an XML-RPC
+  string (dcallagh@redhat.com)
+
 * Fri Apr 05 2013 Dan Callaghan <dcallagh@redhat.com> 0.6.44-1
 - fetch roles at the start of every task (dcallagh@redhat.com)
 
