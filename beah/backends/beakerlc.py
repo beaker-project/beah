@@ -260,6 +260,11 @@ gpgcheck=0
                 'RECIPETYPE': recipe_type,
                 'SUBMITTER': submitter,
                 }
+
+        if recipe_type == 'guest':
+            machine_recipe_node = recipe_node.parentNode
+            self._env['HYPERVISOR_HOSTNAME'] = xml_attr(machine_recipe_node, 'system')
+
         # The following is necessary for Virtual Workflows:
         self._env['GUESTS'] = '|'.join([
             ';'.join([xml_attr(gr, a, '') for a in self.GUEST_ATTRS])
