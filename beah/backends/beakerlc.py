@@ -563,6 +563,7 @@ def run_task(runtime, check_task=None, get_roles=None, env_overrides=None):
                 thingy = defer.waitForDeferred(get_roles(task_beaker_id))
                 yield thingy
                 roles = thingy.getResult()
+                log.debug('got peer roles: %r' % roles)
                 all_members = set()
                 for role, hostnames in roles.items():
                     if role and role != 'None':
