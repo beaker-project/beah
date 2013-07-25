@@ -12,6 +12,12 @@
 %global _services_restart beah-fakelc beah-beaker-backend beah-fwd-backend
 %global _services beah-srv %{_services_restart}
 
+%if 0%{?fedora} >= 18 || 0%{?rhel} >= 7
+%global with_systemd 1
+%else
+%global with_systemd 0
+%endif
+
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
@@ -37,11 +43,18 @@ Requires: python%{?_rhel3}-twisted-web
 Requires: python-hashlib
 Requires: python-uuid
 %endif
+%if %{with_systemd}
+BuildRequires:          systemd-units
+Requires(post):         systemd
+Requires(pre):          systemd
+Requires(postun):       systemd
+%else
 Requires(post): chkconfig
 Requires(preun): chkconfig
 # This is for /sbin/service
 Requires(preun): initscripts
 Requires(postun): initscripts
+%endif
 BuildRequires: python%{?_py_dev}-devel
 BuildRequires: python%{?_rhel3}-setuptools
 BuildRequires: python%{?_rhel3}-simplejson
@@ -52,9 +65,6 @@ BuildRequires: python-uuid
 %endif
 %if "%{?_pylint}" != ""
 BuildRequires: pylint
-%endif
-%if 0%{?fedora} >= 16 || 0%{?rhel} >= 7
-BuildRequires: systemd-units
 %endif
 
 %description
@@ -94,7 +104,7 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root)
 %config(noreplace) %{_sysconfdir}/%{name}*
-%if 0%{?fedora} >= 16 || 0%{?rhel} >= 7
+%if %{with_systemd}
 %attr(0755, root, root)%{_unitdir}/%{name}*
 %exclude %{_sysconfdir}/init.d
 %if "%{_unitdir}" == "/lib/systemd/system"
@@ -129,24 +139,36 @@ rm -rf $RPM_BUILD_ROOT
 %{_var}/lib/%{name}/tortilla/order.d/*
 
 %post
+%if %{with_systemd}
+%systemd_post %{_services}
+%else
 for service in %{_services}; do
     /sbin/chkconfig --add $service
 done
+%endif
 
 %preun
+%if %{with_systemd}
+%systemd_preun %{_services}
+%else
 if [ $1 = 0 ]; then
     for service in %{_services}; do
         /sbin/service $service stop >/dev/null 2>&1
         /sbin/chkconfig --del $service
     done
 fi
+%endif
 
 %postun
+%if %{with_systemd}
+%systemd_postun_with_restart %{_services_restart}
+%else
 if [ "$1" -ge "1" ]; then
     for service in %{_services_restart}; do
         /sbin/service $service condrestart >/dev/null 2>&1 || :
     done
 fi
+%endif
 
 %changelog
 * Fri Jun 07 2013 Amit Saha <asaha@redhat.com> 0.6.45-1
