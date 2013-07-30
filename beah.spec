@@ -22,7 +22,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.45
+Version: 0.6.46
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -171,6 +171,12 @@ fi
 %endif
 
 %changelog
+* Tue Jul 30 2013 Dan Callaghan <dcallagh@redhat.com> 0.6.46-1
+- fix service scriptlets for systemd (dcallagh@redhat.com)
+- Keep a guest recipe's hypervisor fqdn in an env variable (rmancy@redhat.com)
+- a bit of extra debug logging to help diagnose bug 977586
+  (dcallagh@redhat.com)
+
 * Fri Jun 07 2013 Amit Saha <asaha@redhat.com> 0.6.45-1
 - Merge "recipe XML is really bytes, even though Beaker returns it in an XML-
   RPC string" (dcallagh@redhat.com)
