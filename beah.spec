@@ -23,7 +23,7 @@
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
 Version: 0.6.46
-Release: 1%{?dist}
+Release: 2%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -174,6 +174,10 @@ fi
 %endif
 
 %changelog
+* Tue Oct 01 2013 Dan Callaghan <dcallagh@redhat.com> 0.6.46-2
+- beah does not require procmail (lockfile) on RHEL7 or Fedora
+  (dcallagh@redhat.com)
+
 * Tue Jul 30 2013 Dan Callaghan <dcallagh@redhat.com> 0.6.46-1
 - fix service scriptlets for systemd (dcallagh@redhat.com)
 - Keep a guest recipe's hypervisor fqdn in an env variable (rmancy@redhat.com)
