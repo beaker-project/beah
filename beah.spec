@@ -31,7 +31,7 @@ Group: Development/Tools
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 Prefix: %{_prefix}
 BuildArch: noarch
-%if ! (0%{?fedora} || 0%{?rhel} >= 7)
+%if ! %{with_systemd}
 # /usr/bin/lockfile from procmail is used in initscripts
 # (not required when using systemd)
 Requires: procmail
