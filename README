@@ -1,0 +1,17 @@
+Beah
+----
+
+Beah is the default test harness used with Beaker. See our
+homepage (http://beaker-project.org) for further documentation and   
+information about Beah, Beaker and other related projects.
+
+Source
+------
+
+Git repository: http://git.beaker-project.org/cgit/beah/
+
+Documentation
+-------------
+
+Please see the documentation/ sub-directory. There, you will also find some
+hints on how you can contribute a patch to Beah.
