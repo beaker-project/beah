@@ -522,7 +522,6 @@ def simple_recipe(recipe_xml, run_task, recipe_id, backend):
     raise NothingToDoException("No more tasks in recipe.")
 simple_recipe = defer.deferredGenerator(simple_recipe)
 
-
 def run_task(runtime, check_task=None, get_roles=None, env_overrides=None):
     """Function generator creating a task runner."""
     def _run_task(backend, recipe, parsed_task):
@@ -605,6 +604,17 @@ def run_task(runtime, check_task=None, get_roles=None, env_overrides=None):
             raise
     return defer.deferredGenerator(_run_task)
 
+#https://bugzilla.redhat.com/show_bug.cgi?id=1004381
+def handle_recipe_exception(failure):
+    # trap all exceptions
+    failure.trap(Exception)
+
+    # If it is NothingToDoException
+    if failure.check(NothingToDoException):
+        log.info(failure.getErrorMessage())
+    else:
+        log.error(failure.printTraceback())
+    return
 
 def simple_schedule(conf, runtime, proxy, backend):
     """Get a recipe and run tasks."""
@@ -613,8 +623,10 @@ def simple_schedule(conf, runtime, proxy, backend):
     task_runner = run_task(runtime, check_task=check_task_online(proxy),
             get_roles=get_roles(proxy),
             env_overrides=env_overrides)
-    return get_recipe_cache_or_lc(recipe_id, runtime, proxy). \
-            addCallback(simple_recipe, task_runner, recipe_id, backend)
+    d = get_recipe_cache_or_lc(recipe_id, runtime, proxy)
+    d.addCallback(simple_recipe, task_runner, recipe_id, backend)
+    d.addErrback(handle_recipe_exception)
+    return
 
 
 ################################################################################
