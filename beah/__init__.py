@@ -17,10 +17,11 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 """
-BEAker Harness. Part of Beaker project [http://fedorahosted.org/beaker/wiki].
+BEAker Harness. Part of Beaker project [https://beaker-project.org].
 """
 
 __import__('pkg_resources').declare_namespace(__name__)
+__version__ = '0.6.46'
 
 # FIXME:
 # see beaker/Client/src/beaker/__init__.py:

@@ -1,4 +1,6 @@
 # Makefile for Sphinx documentation
+# so that we can do import beah for the version string
+export PYTHONPATH    = ../
 
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
