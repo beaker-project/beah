@@ -1,0 +1,52 @@
+{% extends "!layout.html" %}
+  <link href="{{ pathto('_static/style.css', 1) }}" rel="stylesheet" type="text/css"/>
+{% block header %}
+<div class="header" lang="en">
+  <div class="body_element">
+    <div class="title">
+      <a href="{{ pathto('../', 1) }}"><img src="{{ pathto('_static/images/logo.png', 1) }}" alt="Beaker" width="110" height="40" /></a>
+    </div>
+    <nav class="menu">
+
+      <a href="{{ pathto('.', 1) }}">Beah</a>
+      <a href="http://beaker-project.org">Beaker</a>
+      <a href="http://beaker-project.org/docs/alternative-harnesses/">Alternative Harnesses</a>
+    </nav>
+  </div>
+</div>
+{% endblock %}
+{% block relbar1 %}{% endblock %}
+{% block relbar2 %}{% endblock %}
+
+{% block content %}
+{%- macro relbar() %}{# copied from themes/basic/layout.html with some hacks #}
+  {% if pagename != 'index' %}
+  <ul class="breadcrumbs">
+    <li><a href="{{ pathto(master_doc) }}">{{ shorttitle|e }}</a></li>
+    {%- for parent in parents %}
+      <li><a href="{{ parent.link|e }}" {% if loop.last %}{{ accesskey("U") }}{% endif %}>{{ parent.title }}</a></li>
+    {%- endfor %}
+  </ul>
+  <ul class="rellinks">
+    {%- for rellink in rellinks|reverse %}
+    <li>
+      <a href="{{ pathto(rellink[0]) }}" title="{{ rellink[1]|striptags|e }}"
+         {{ accesskey(rellink[2]) }}>{{ rellink[3] }}</a>
+    </li>
+    {%- endfor %}
+  </ul>
+  {% endif %}
+{%- endmacro %}
+
+  <div class="main_content" lang="en">    
+  <article class="body_element">
+    {{ self.body() }}
+  </article>
+<nav class="body_element">{{ relbar() }}</nav>
+</div>
+{% endblock %}
+
+<!-- {% block footer %} -->
+<!-- <\!-- XXX make a footer and put it here -\-> -->
+<!-- {% endblock %} -->
+

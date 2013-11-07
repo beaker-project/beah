@@ -5,3 +5,5 @@
 /dist
 /beah.egg-info
 /_trial_temp/
+documentation/_build
+documentation/_static
