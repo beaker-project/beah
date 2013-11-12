@@ -1,44 +1,20 @@
 .. title:: Beah documentation
 
 Beah
-====
+----
 
-Beah is the default test harness used in `Beaker <https://beaker-project.org>`__.
+Beah is the default test harness used in `Beaker
+<https://beaker-project.org>`__. See :ref:`alternative-harnesses` if
+you are interesed in using a different harness and
+:ref:`related-projects` for an alternative test harness
+implementation, *restraint*.
 
-.. container:: resourcesbox
+.. toctree::
+   :maxdepth: 2
 
-   .. raw:: html
-
-      <h3>for users</h3>
-
-   .. toctree::
-      :maxdepth: 1
-
-      userguide
-      glossary
-
-
-.. container:: resourcesbox
-
-   .. raw:: html
-
-      <h3>for administrators</h3>
-
-   .. toctree::
-      :maxdepth: 1
-
-      admin
-
-.. container:: resourcesbox
-
-   .. raw:: html
-
-      <h3>for developers</h3>
-
-   .. toctree::
-      :maxdepth: 1
-
-      devguide
+   glossary
+   admin
+   devguide
 
 Discussions
 ~~~~~~~~~~~

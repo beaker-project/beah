@@ -20,6 +20,9 @@ Twisted framework is used for handling non-blocking I/O operations.
 Modules
 =======
 
+The source code is available in a git repository `here <http://git.beaker-project.org/cgit/beah/>`__. 
+
+
 (Beware: things are not in place.)
 
 ``beah.config``
@@ -110,15 +113,15 @@ The commands supported are:
 
 Controller's log is written to ``[/tmp]/var/log/beah.log``.
 
-Development and Usage in a Lab
+Development and usage in a lab
 ==============================
 
-lm-install.sh script can be used to install harness from working copy on a lab
-machine. This requires either LABM env.variable to be defined or passing lab
-machine's FQDN as an argument
+The :file:`lm-install.sh` script can be used to install harness from
+working copy on a lab machine. This requires either LABM env.variable
+to be defined or passing lab machine's FQDN as an argument
 
-To change settings, change lm-install-env.sh file. As this file is tracked by
-VCS, if lm-install-env.sh.tmp exists in current directory it is used with
+To change settings, change :file:`lm-install-env.sh` file. As this file is tracked by
+VCS, if :file:`lm-install-env.sh.tmp` exists in current directory it is used with
 higher priority.
 
 Usage
@@ -128,7 +131,7 @@ On a lab machine::
 
     $ mkdir -p /mnt/testarea/lm-install
    
-This is the default. Change LM_INSTALL_ROOT in lm-install-env.sh.
+This is the default. Change ``LM_INSTALL_ROOT`` in lm-install-env.sh.
 
 On the machine where beaker/Harness tree exists::
 
@@ -167,15 +170,20 @@ Create a local working branch
 
 Create a branch (say, ``myfeature``): ``git checkout origin/develop -b
 myfeature``. Make your changes and once you are happy, commit the
-changes. If your patch fixes a bug, please include the Bugzilla number as a
-footer line in your commit message.
+changes. If your patch fixes a bug, please include the Red Hat
+Bugzilla number as a footer line in your commit message. For example::
+
+    This commit fixes a minor glitch in how Beah handles
+    errors.
+
+    Bug: 134511
 
 Submitting your patch
 ~~~~~~~~~~~~~~~~~~~~~
 
-Beah and all other projects maintained as part of Beaeker (including
- itself) uses the Gerrit code review tool to manage patches. Push your
- local branch to Gerrit for review::
+Beah and all other projects maintained as part of Beaker uses the
+Gerrit code review tool to manage patches. Push your local branch to
+the Beaker project's `Gerrit instance <http://gerrit.beaker-project.org/>`__ for review:: 
 
-    git push git+ssh://gerrit.beaker-project.org:29418/beah myfeature:refs/for/develop
+    git push git+ssh://gerrit.beaker-project.org:29418/beah  myfeature:refs/for/develop 
 

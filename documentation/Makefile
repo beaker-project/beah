@@ -15,7 +15,7 @@ ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 # the i18n builder cannot share the environment and doctrees with the others
 I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 
-.PHONY: clean html man download_static
+.PHONY: clean html man
 
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
@@ -25,16 +25,7 @@ help:
 clean:
 	rm -rf $(BUILDDIR)/* $(STATICDIR)
 
-# pull style.css and images from beaker's repo
-download_static:
-
-	mkdir -p $(STATICDIR)/images
-	curl -o $(STATICDIR)/style.css http://git.beaker-project.org/cgit/beaker-project.org/plain/style.css
-	curl -o $(STATICDIR)/images/fabric_plaid.png http://git.beaker-project.org/cgit/beaker-project.org/plain/images/fabric_plaid.png
-	curl -o $(STATICDIR)/images/rubber_grip.png http://git.beaker-project.org/cgit/beaker-project.org/plain/images/rubber_grip.png
-	curl -o $(STATICDIR)/images/logo.png http://git.beaker-project.org/cgit/beaker-project.org/plain/images/logo.png
-
-html:	download_static
+html:
 
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo
