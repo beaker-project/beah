@@ -22,8 +22,8 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.46
-Release: 2%{?dist}
+Version: 0.6.47
+Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -174,6 +174,14 @@ fi
 %endif
 
 %changelog
+* Thu Nov 14 2013 Raymond Mancy <rmancy@redhat.com> 0.6.47-1
+- Changes to Documentation (asaha@redhat.com)
+- Add a version string. (asaha@redhat.com)
+- Add a new README and remove build.sh (asaha@redhat.com)
+- Documentation reorganization (asaha@redhat.com)
+- Add an error handler to simple_recipe (asaha@redhat.com)
+- fix RPM conditional on RHEL3 and RHEL4 (dcallagh@redhat.com)
+
 * Tue Oct 01 2013 Dan Callaghan <dcallagh@redhat.com> 0.6.46-2
 - beah does not require procmail (lockfile) on RHEL7 or Fedora
   (dcallagh@redhat.com)
