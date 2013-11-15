@@ -20,6 +20,7 @@ from twisted.web import xmlrpc, server
 from twisted.internet import reactor, protocol, stdio
 from twisted.protocols import basic
 from twisted.internet.defer import Deferred
+from twisted.python.failure import Failure
 import simplejson as json
 import sys
 import os
@@ -640,7 +641,8 @@ class RHTSMain(object):
                 cancel = True
         if cancel:
             self.__waits_for = list([waits for waits in self.__waits_for if waits])
-            d.errback("Timeout")
+            err = RuntimeError("Timeout waiting for RHTS variable")
+            d.errback(Failure(err))
             return True
         return False
 
