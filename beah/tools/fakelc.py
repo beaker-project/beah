@@ -92,7 +92,7 @@ def conf_main(conf, args):
     conf['root'] = opts.root_dir or '/'
     beah.config.proc_verbosity(opts, conf)
     conf['port'] = safe_int(opts.port, 5222)
-    conf['interface'] = opts.interface or ''
+    conf['interface'] = opts.interface or '::1'
     conf['timeout'] = safe_int(opts.timeout, 0)
     job_id = opts.job_id
     if job_id is None:

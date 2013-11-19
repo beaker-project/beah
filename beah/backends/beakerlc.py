@@ -60,6 +60,8 @@ import hashlib
 import simplejson as json
 import logging
 from xml.dom import minidom
+import socket
+import time
 try:
     set
 except NameError: # Python 2.3
@@ -87,6 +89,26 @@ from beah.wires.internals.twmisc import make_logging_proxy
 
 log = logging.getLogger('backend')
 
+class ProxyIPv6(xmlrpc.Proxy):
+
+    def __init__(self, url, **kwargs):
+
+        xmlrpc.Proxy.__init__(self, url, kwargs)
+        # resolve the LC's host/port to IPv6 address
+        # and overrise self.host
+        retries = 0
+        while retries < 5:
+            try:
+                self.host = socket.getaddrinfo(self.host, self.port,
+                                               socket.AF_INET6, 0, socket.SOL_TCP)[0][4][0]
+            except:
+                # IPv6 look up failed
+                log.debug('Failed to look up IPv6 address for LC. Sleeping for 5s')
+                time.sleep(2)
+                retries += 1
+            else:
+                log.info('Resolved IPv6 address of the LC.')
+                break
 
 ################################################################################
 # Scheduling:
@@ -1849,7 +1871,7 @@ def make_runtime(conf, verbose=False):
 
 def make_proxy(conf, verbose):
     url = conf.get('DEFAULT', 'LAB_CONTROLLER')
-    proxy = repeatingproxy.RepeatingProxy(xmlrpc.Proxy(url, allowNone=True))
+    proxy = repeatingproxy.RepeatingProxy(ProxyIPv6(url, allowNone=True))
     if verbose:
         make_logging_proxy(proxy)
         proxy.logging_print = log.debug
@@ -1961,6 +1983,8 @@ def defaults():
     d = config.backend_defaults()
     cs = os.getenv('COBBLER_SERVER', '')
     lc = os.getenv('LAB_CONTROLLER', '')
+
+    #XXX: when is lc not available?
     if not lc:
         if cs:
             lc = 'http://%s:8000/server' % cs

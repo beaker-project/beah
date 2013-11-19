@@ -113,7 +113,7 @@ class ForwarderBackend(ExtBackend):
             # could be used with port number test.loop:11432
             # Modify the dest field to avoid inifinite loop:
             evt.args()['dest'] = host.upper()
-            host = '127.0.0.1'
+            host = '::1'
             port = int(test_loop_port(host) or port)
         cmd = command.forward(event=evt)
         d = self.remote_call(cmd, host, port)

@@ -58,7 +58,7 @@ def mktemppipe():
                 raise
 
 def localhost_(host):
-    return host in ['', 'localhost', 'localhost.localdomain', '127.0.0.1', 'localhost4', 'localhost4.localdomain4']
+    return host in ['', '::1', 'localhost', 'localhost.localdomain', '127.0.0.1', 'localhost4', 'localhost4.localdomain4']
 
 def test_loop_port(host):
     """
