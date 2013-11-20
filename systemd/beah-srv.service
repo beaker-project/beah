@@ -6,7 +6,6 @@ Requires=beah-beaker-backend beah-fwd-backend
 [Service]
 Type=simple
 ExecStart=/usr/bin/beah-srv
-ControlGroup=cpu:/
 KillMode=process
 
 [Install]
