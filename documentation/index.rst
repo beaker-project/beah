@@ -15,6 +15,7 @@ implementation, *restraint*.
    glossary
    admin
    devguide
+   releases
 
 Discussions
 ~~~~~~~~~~~
