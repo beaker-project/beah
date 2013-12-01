@@ -1,6 +1,15 @@
 Releases
 --------
 
+Beah-0.6.48-1
+=============
+
+Changelog
+
+- Add a release note generator
+- ControlGroup configuration option no longer valid.
+- pass exception instance instead of string to Failure
+
 Beah-0.6.47-1
 =============
 

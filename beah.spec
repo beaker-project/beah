@@ -22,7 +22,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.47
+Version: 0.6.48
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -174,6 +174,11 @@ fi
 %endif
 
 %changelog
+* Mon Dec 02 2013 Dan Callaghan <dcallagh@redhat.com> 0.6.48-1
+- Add a release note generator (asaha@redhat.com)
+- ControlGroup configuration option no longer valid. (asaha@redhat.com)
+- pass exception instance instead of string to Failure (dcallagh@redhat.com)
+
 * Thu Nov 14 2013 Raymond Mancy <rmancy@redhat.com> 0.6.47-1
 - Changes to Documentation (asaha@redhat.com)
 - Add a version string. (asaha@redhat.com)
