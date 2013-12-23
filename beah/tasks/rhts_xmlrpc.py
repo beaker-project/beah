@@ -453,7 +453,7 @@ class RHTSMain(object):
         self.variables.setdefault('has_result', False)
 
         # RESULT_SERVER - host:port[/prefixpath]
-        self.env['RESULT_SERVER'] = "%s:%s%s" % ("127.0.0.1", port, "")
+        self.env['RESULT_SERVER'] = "%s:%s%s" % ("::1", port, "")
         self.env.setdefault('DIGEST_METHOD', 'no_digest') # use no digests by default... Seems waste of time on localhost.
         self.env.setdefault('TESTORDER', '123') # FIXME: More sensible default
 
@@ -480,7 +480,7 @@ class RHTSMain(object):
         # FIXME: is return value of any use?
         stdio.StandardIO(self.controller)
         # FIXME: is return value of any use?
-        reactor.listenTCP(port, self.server, interface='127.0.0.1')
+        reactor.listenTCP(port, self.server, interface='::1')
 
     def on_exit(self, exitCode):
         # FIXME! handling!

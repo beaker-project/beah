@@ -60,9 +60,9 @@ class TaskListener(protocol.ServerFactory):
         log.debug('%s: Connected [Done]', self.__class__.__name__)
         return task
 
-def start_server(conf=None, backend_host=None, backend_port=None,
+def start_server(conf=None, backend_host='::1', backend_port=None,
         backend_adaptor=BackendAdaptor_JSON,
-        task_host=None, task_port=None,
+        task_host='::1', task_port=None,
         task_adaptor=TaskAdaptor_JSON, spawn=None):
 
     # CONFIG:

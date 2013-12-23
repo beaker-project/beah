@@ -121,7 +121,7 @@ def make_slow(c, lower=5, upper=15):
         reactor.callLater(randint(lower, upper), c_proc_cmd, cmd)
     c.proc_cmd = proc_cmd
 
-def start_server(port, proto, host='', socket=''):
+def start_server(port, proto, host='::1', socket=''):
     listener = protocol.ServerFactory()
     listener.protocol = proto
     if not port and not socket:
