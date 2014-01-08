@@ -26,6 +26,8 @@ import logging
 import logging.handlers
 import inspect
 import re
+import twisted
+import subprocess
 
 def raiser(exc=exceptions.Exception, *args, **kwargs):
     raise exc(*args, **kwargs)
@@ -330,3 +332,29 @@ def canonical_time(time):
     amount, units = TIME_RE.match(time.lower()).group(1, 2)
     return int(amount)*TIME_UNITS[units]
 
+
+# Check:
+
+# If operating system has IPv6 support
+# IPv6 routing table entries
+# Twisted has IPv6 support
+# Any of the above fails, we return False
+def has_ipv6():
+    # check if system has IPv6 support
+    if not os.path.exists('/proc/net/if_inet6'):
+        return False
+
+    # IPv6 routing table entries
+    p = subprocess.Popen(['ip', '-6', 'route'],
+                         stdout=subprocess.PIPE)
+    out, err = p.communicate()
+    if not out:
+        return False
+
+    # Twisted 12.1+ supports both listenTCP() and connectTCP()
+    # for IPv6, so we check that here
+    vt = (twisted.version.major, twisted.version.minor)
+    if vt < (12,1):
+        return False
+
+    return True

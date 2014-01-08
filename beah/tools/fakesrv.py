@@ -9,7 +9,7 @@ from twisted.internet import reactor
 from beah.core import event, command
 from beah.core.constants import ECHO
 from beah.wires.internals.twmisc import JSONProtocol
-from beah.misc import format_exc
+from beah.misc import format_exc, has_ipv6
 
 class ExampleController(JSONProtocol):
 
@@ -122,6 +122,8 @@ def make_slow(c, lower=5, upper=15):
     c.proc_cmd = proc_cmd
 
 def start_server(port, proto, host='::1', socket=''):
+    if not has_ipv6():
+        host = ''
     listener = protocol.ServerFactory()
     listener.protocol = proto
     if not port and not socket:

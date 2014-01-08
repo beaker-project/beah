@@ -35,7 +35,8 @@ import random
 from beah import config
 from beah.core import event, command
 import beah.misc
-from beah.misc import format_exc, runtimes, make_log_handler, str2log_level, digests, jsonenv
+from beah.misc import format_exc, runtimes, make_log_handler, \
+    str2log_level, digests, jsonenv, has_ipv6
 from beah.wires.internals import twmisc
 from beah.core.constants import RC
 
@@ -453,7 +454,12 @@ class RHTSMain(object):
         self.variables.setdefault('has_result', False)
 
         # RESULT_SERVER - host:port[/prefixpath]
-        self.env['RESULT_SERVER'] = "%s:%s%s" % ("::1", port, "")
+        if has_ipv6():
+            local_server = '::1'
+        else:
+            local_server = '127.0.0.1'
+
+        self.env['RESULT_SERVER'] = "%s:%s%s" % (local_server, port, "")
         self.env.setdefault('DIGEST_METHOD', 'no_digest') # use no digests by default... Seems waste of time on localhost.
         self.env.setdefault('TESTORDER', '123') # FIXME: More sensible default
 
@@ -480,7 +486,7 @@ class RHTSMain(object):
         # FIXME: is return value of any use?
         stdio.StandardIO(self.controller)
         # FIXME: is return value of any use?
-        reactor.listenTCP(port, self.server, interface='::1')
+        reactor.listenTCP(port, self.server, interface=local_server)
 
     def on_exit(self, exitCode):
         # FIXME! handling!

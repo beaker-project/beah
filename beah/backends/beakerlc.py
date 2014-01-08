@@ -77,7 +77,7 @@ from beah.core import command, event, addict, new_id
 from beah.core.backends import SerializingBackend
 from beah.core.constants import ECHO, RC, LOG_LEVEL
 from beah.misc import format_exc, dict_update, log_flush, writers, runtimes, \
-        make_class_verbose, is_class_verbose, pre_open, digests, parse_bool
+        make_class_verbose, is_class_verbose, pre_open, digests, parse_bool, has_ipv6
 from beah.misc.log_this import log_this
 import beah.system
 # FIXME: using rpm's, yum - too much Fedora centric(?)
@@ -1871,7 +1871,12 @@ def make_runtime(conf, verbose=False):
 
 def make_proxy(conf, verbose):
     url = conf.get('DEFAULT', 'LAB_CONTROLLER')
-    proxy = repeatingproxy.RepeatingProxy(ProxyIPv6(url, allowNone=True))
+    # if the system has IPv6 support, connect to the LC over IPv6
+    if has_ipv6():
+        proxy = repeatingproxy.RepeatingProxy(ProxyIPv6(url, allowNone=True))
+    else:
+        proxy = repeatingproxy.RepeatingProxy(xmlrpc.Proxy(url, allowNone=True))
+
     if verbose:
         make_logging_proxy(proxy)
         proxy.logging_print = log.debug

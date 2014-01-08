@@ -20,7 +20,8 @@ from beah.wires.internals.twmisc import twisted_logging
 from beah.wires.internals.twadaptors import BackendAdaptor_JSON, TaskAdaptor_JSON
 from beah.wires.internals.twtask import Spawn
 from beah.core.controller import Controller, MasterTask
-from beah.misc import runtimes, make_log_handler, make_class_verbose, str2log_level, ensuredir, parse_bool
+from beah.misc import runtimes, make_log_handler, make_class_verbose, \
+    str2log_level, ensuredir, parse_bool, has_ipv6
 from beah.misc.log_this import log_this
 from beah import config
 from twisted.internet import protocol
@@ -64,6 +65,11 @@ def start_server(conf=None, backend_host='::1', backend_port=None,
         backend_adaptor=BackendAdaptor_JSON,
         task_host='::1', task_port=None,
         task_adaptor=TaskAdaptor_JSON, spawn=None):
+
+    # IPv6?
+    if not has_ipv6():
+        task_host = ''
+        backend_host = ''
 
     # CONFIG:
     if not conf:

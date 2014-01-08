@@ -31,6 +31,8 @@ Group: Development/Tools
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 Prefix: %{_prefix}
 BuildArch: noarch
+Requires: iproute
+BuildRequires: iproute
 %if ! %{with_systemd}
 # /usr/bin/lockfile from procmail is used in initscripts
 # (not required when using systemd)
