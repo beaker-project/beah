@@ -18,6 +18,7 @@
 
 from twisted.internet import reactor
 from twisted.internet.protocol import ProcessProtocol, ReconnectingClientFactory
+from twisted.internet.error import DNSLookupError, NoRouteError
 from beah.wires.internals import twadaptors, twmisc
 from beah import config
 from beah.core import event
@@ -172,7 +173,11 @@ def start_task(conf, task, host=None, port=None,
     host = host or conf.get('TASK', 'INTERFACE')
     port = port or int(conf.get('TASK', 'PORT'))
     if port != '':
-        return reactor.connectTCP(host, int(port), factory)
+        try:
+            return reactor.connectTCP(host, int(port), factory)
+        except (NoRouteError, DNSLookupError):
+            return reactor.connectTCP('127.0.0.1', int(port), factory)
+
     raise EnvironmentError('Either socket or port must be given.')
 
 

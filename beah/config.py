@@ -67,7 +67,7 @@ import exceptions
 import random
 from ConfigParser import ConfigParser
 from optparse import OptionParser
-from beah.misc import dict_update, has_ipv6
+from beah.misc import dict_update
 
 
 class _ConfigParserFix(ConfigParser):
@@ -403,18 +403,13 @@ def defaults():
 def beah_defaults():
     """Default configuration options specific for controller."""
     d = defaults()
-    if has_ipv6():
-        listen_interface = '::1'
-    else:
-        listen_interface = '127.0.0.1'
-
     d.update({
             'CONTROLLER.NAME':'beah',
             'CONTROLLER.LOG_FILE_NAME':'%(LOG_PATH)s/%(NAME)s.log',
-            'BACKEND.INTERFACE':listen_interface,
+            'BACKEND.INTERFACE':'::1',
             'BACKEND.PORT':'12432',
             'BACKEND.PORT_OPT':'False',
-            'TASK.INTERFACE':listen_interface,
+            'TASK.INTERFACE':'::1',
             'TASK.PORT':'12434'})
     if os.name == 'posix':
         # using PORT as ID, not NAME. NAME could (and should) be different for

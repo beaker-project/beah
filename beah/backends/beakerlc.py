@@ -71,13 +71,12 @@ from twisted.internet import reactor, defer
 from twisted.internet.task import LoopingCall
 from twisted.python import failure
 from twisted.web import xmlrpc
-
 from beah import config
 from beah.core import command, event, addict, new_id
 from beah.core.backends import SerializingBackend
 from beah.core.constants import ECHO, RC, LOG_LEVEL
 from beah.misc import format_exc, dict_update, log_flush, writers, runtimes, \
-        make_class_verbose, is_class_verbose, pre_open, digests, parse_bool, has_ipv6
+        make_class_verbose, is_class_verbose, pre_open, digests, parse_bool
 from beah.misc.log_this import log_this
 import beah.system
 # FIXME: using rpm's, yum - too much Fedora centric(?)
@@ -87,28 +86,10 @@ from beah.wires.internals import repeatingproxy
 from beah.wires.internals.twbackend import start_backend, log_handler
 from beah.wires.internals.twmisc import make_logging_proxy
 
+import twisted
+twisted_version = (twisted.version.major, twisted.version.minor)
+
 log = logging.getLogger('backend')
-
-class ProxyIPv6(xmlrpc.Proxy):
-
-    def __init__(self, url, **kwargs):
-
-        xmlrpc.Proxy.__init__(self, url, kwargs)
-        # resolve the LC's host/port to IPv6 address
-        # and overrise self.host
-        retries = 0
-        while retries < 5:
-            try:
-                self.host = socket.getaddrinfo(self.host, self.port,
-                                               socket.AF_INET6, 0, socket.SOL_TCP)[0][4][0]
-            except:
-                # IPv6 look up failed
-                log.debug('Failed to look up IPv6 address for LC. Sleeping for 5s')
-                time.sleep(2)
-                retries += 1
-            else:
-                log.info('Resolved IPv6 address of the LC.')
-                break
 
 ################################################################################
 # Scheduling:
@@ -1869,12 +1850,71 @@ def make_runtime(conf, verbose=False):
     return runtime
 
 
+def has_ipv6(url):
+
+    """ This function resolves the IPv6 address of the lab controller
+    and then attempts to connect to the proxy port.
+    If one of these fails, we cannot use IPv6
+    """
+
+    # sheer abuse here to get the hostname/port reliably
+    # we can't use  stdlib's urlparse.urlsplit() since 2.4 doesn't
+    # have what we want
+    url = xmlrpc.Proxy(url)
+
+    retries = 0
+    while retries < 5:
+        lc_ipv6 = None
+        try:
+            #XXX: getaddrinfo() is blocking
+            lc_ipv6 = socket.getaddrinfo(url.host, 0,
+                                         socket.AF_INET6, 0, socket.SOL_TCP)[0][4][0]
+        except socket.gaierror:
+            log.info('Failed to look up IPv6 address for LC. Sleeping for 5s')
+            time.sleep(2)
+            retries += 1
+        else:
+            log.info('Resolved IPv6 address of the LC.')
+            break
+
+    if not lc_ipv6:
+        return None
+
+    # can we connect?
+    s = socket.socket(socket.AF_INET6)
+    try:
+        s.connect((lc_ipv6, url.port))
+    except (socket.gaierror, socket.error), e:
+        log.info('Failed to connect to LC over IPv6.')
+        log.exception(str(e))
+        lc_ipv6 = None
+
+    return lc_ipv6
+
+class ProxyIPv6(xmlrpc.Proxy):
+
+    """
+    Until this is resolved:
+    https://twistedmatrix.com/trac/ticket/6870
+    """
+
+    def __init__(self, url, lc_ipv6, **kwargs):
+        xmlrpc.Proxy.__init__(self, url, kwargs)
+        self.host = lc_ipv6
+
 def make_proxy(conf, verbose):
     url = conf.get('DEFAULT', 'LAB_CONTROLLER')
-    # if the system has IPv6 support, connect to the LC over IPv6
-    if has_ipv6():
-        proxy = repeatingproxy.RepeatingProxy(ProxyIPv6(url, allowNone=True))
+    if twisted_version >= (12, 1):
+        lc_ipv6 = has_ipv6(url)
     else:
+        lc_ipv6 = None
+
+    if lc_ipv6:
+        log.info('Communicating to LC over IPv6')
+        proxy = repeatingproxy.RepeatingProxy(ProxyIPv6(url, lc_ipv6, allowNone=True))
+    else:
+        # else fall back to using IPv4
+        log.info('Communicating to LC over IPv4')
         proxy = repeatingproxy.RepeatingProxy(xmlrpc.Proxy(url, allowNone=True))
 
     if verbose:
@@ -1887,7 +1927,6 @@ def make_proxy(conf, verbose):
         proxy.set_timeout(None)
     proxy.serializing = True
     return proxy
-
 
 def make_verbose():
     print_this = log_this(lambda s: log.debug(s), log_on=True)

@@ -20,6 +20,7 @@ from twisted.web import xmlrpc, server
 from twisted.internet import reactor, protocol, stdio
 from twisted.protocols import basic
 from twisted.internet.defer import Deferred
+from twisted.internet.error import CannotListenError
 from twisted.python.failure import Failure
 import simplejson as json
 import sys
@@ -36,7 +37,7 @@ from beah import config
 from beah.core import event, command
 import beah.misc
 from beah.misc import format_exc, runtimes, make_log_handler, \
-    str2log_level, digests, jsonenv, has_ipv6
+    str2log_level, digests, jsonenv
 from beah.wires.internals import twmisc
 from beah.core.constants import RC
 
@@ -453,13 +454,7 @@ class RHTSMain(object):
         self.variables.setdefault('nohup', False)
         self.variables.setdefault('has_result', False)
 
-        # RESULT_SERVER - host:port[/prefixpath]
-        if has_ipv6():
-            local_server = '::1'
-        else:
-            local_server = '127.0.0.1'
 
-        self.env['RESULT_SERVER'] = "%s:%s%s" % (local_server, port, "")
         self.env.setdefault('DIGEST_METHOD', 'no_digest') # use no digests by default... Seems waste of time on localhost.
         self.env.setdefault('TESTORDER', '123') # FIXME: More sensible default
 
@@ -475,18 +470,22 @@ class RHTSMain(object):
         self.env.setdefault('HOME', '/root')
         self.env.setdefault('LANG', 'en_US.UTF-8')
 
-        jsonenv.export_env(env_file, self.env)
-
         # FIXME: should any checks go here?
         # e.g. does Makefile PURPOSE exist? try running `make testinfo.desc`? ...
-
         self.controller = ControllerLink(self)
-        self.task = RHTSTask(self)
-        self.server = RHTSServer(self)
-        # FIXME: is return value of any use?
         stdio.StandardIO(self.controller)
-        # FIXME: is return value of any use?
-        reactor.listenTCP(port, self.server, interface=local_server)
+        self.task = RHTSTask(self)
+
+        try:
+            self.env['RESULT_SERVER'] = "%s:%s%s" % ('::1', port, "")
+            jsonenv.export_env(env_file, self.env)
+            self.server = RHTSServer(self)
+            reactor.listenTCP(port, self.server, interface='::1')
+        except CannotListenError:
+            self.env['RESULT_SERVER'] = "%s:%s%s" % ('127.0.0.1', port, "")
+            jsonenv.export_env(env_file, self.env)
+            self.server = RHTSServer(self)
+            reactor.listenTCP(port, self.server, interface='127.0.0.1')
 
     def on_exit(self, exitCode):
         # FIXME! handling!

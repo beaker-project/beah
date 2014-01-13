@@ -32,12 +32,13 @@ from optparse import OptionParser
 
 from twisted.web import xmlrpc, server
 from twisted.internet import reactor, defer
+from twisted.internet.error import CannotListenError
 
 import beah
 import beah.config
 from beah.wires.internals.twmisc import serveAnyChild, serveAnyRequest, twisted_logging
 from beah import misc
-from beah.misc import log_this, runtimes, has_ipv6
+from beah.misc import log_this, runtimes
 import beah.tools
 
 LOG_PATH = 'var/log'
@@ -92,12 +93,7 @@ def conf_main(conf, args):
     conf['root'] = opts.root_dir or '/'
     beah.config.proc_verbosity(opts, conf)
     conf['port'] = safe_int(opts.port, 5222)
-
-    if has_ipv6():
-        conf['interface'] = opts.interface or '::1'
-    else:
-        conf['interface'] = opts.interface or ''
-
+    conf['interface'] = opts.interface or '::1'
     conf['timeout'] = safe_int(opts.timeout, 0)
     job_id = opts.job_id
     if job_id is None:
@@ -882,7 +878,11 @@ def main():
     lc = LCHandler()
     lc.XMLRPC_TIMEOUT = safe_int(conf['timeout'], 0)
     s = server.Site(lc, None, 60*60*12)
-    reactor.listenTCP(conf['port'], s, interface=conf['interface'])
+    try:
+        reactor.listenTCP(conf['port'], s, interface=conf['interface'])
+    except CannotListenError:
+        reactor.listenTCP(conf['port'], s, interface='')
+
     reactor.addSystemEventTrigger("before", "shutdown", close, log)
     upload_path = os.path.join(var_path, "fakelc-uploads")
     results = Results(var_path, upload_path)

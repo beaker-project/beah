@@ -18,13 +18,13 @@
 
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet import reactor
+from twisted.internet.error import DNSLookupError, NoRouteError
 from beah.wires.internals.twadaptors import ControllerAdaptor_Backend_JSON
 from beah.wires.internals.twmisc import twisted_logging
 from beah import config
 from beah.misc import make_log_handler, str2log_level, localhost_, parse_bool
 
 import os
-import sys
 import logging
 
 ################################################################################
@@ -115,7 +115,10 @@ def start_backend(backend, host=None, port=None,
     if socket != '':
         return reactor.connectUNIX(socket, backend_factory)
     elif port != '':
-        return reactor.connectTCP(host, int(port), backend_factory)
+        try:
+            return reactor.connectTCP(host, int(port), backend_factory)
+        except (NoRouteError, DNSLookupError):
+            return reactor.connectTCP('127.0.0.1', int(port), backend_factory)
     else:
         raise EnvironmentError('Either socket or port must be configured.')
 

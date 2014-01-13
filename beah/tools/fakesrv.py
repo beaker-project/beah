@@ -5,11 +5,12 @@ from random import randint
 
 from twisted.internet import protocol
 from twisted.internet import reactor
+from twisted.internet.error import CannotListenError
 
 from beah.core import event, command
 from beah.core.constants import ECHO
 from beah.wires.internals.twmisc import JSONProtocol
-from beah.misc import format_exc, has_ipv6
+from beah.misc import format_exc
 
 class ExampleController(JSONProtocol):
 
@@ -122,14 +123,15 @@ def make_slow(c, lower=5, upper=15):
     c.proc_cmd = proc_cmd
 
 def start_server(port, proto, host='::1', socket=''):
-    if not has_ipv6():
-        host = ''
     listener = protocol.ServerFactory()
     listener.protocol = proto
     if not port and not socket:
         raise exceptions.Exception('Either port or socket must be provided.')
     if port:
-        reactor.listenTCP(port, listener, interface=host)
+        try:
+            reactor.listenTCP(port, listener, interface=host)
+        except CannotListenError:
+            reactor.listenTCP(port, listener, interface='')
     if socket:
         reactor.listenUNIX(socket, listener)
 
