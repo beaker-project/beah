@@ -363,10 +363,6 @@ class RHTSServer(server.Site):
 
     def startFactory(self):
         server.Site.startFactory(self)
-        # FIXME: waiting for server would be better:
-        # - e.g. send a request and wait until it is served...
-        self.main.server_started()
-
 
 ################################################################################
 # MAIN:
@@ -476,16 +472,25 @@ class RHTSMain(object):
         stdio.StandardIO(self.controller)
         self.task = RHTSTask(self)
 
+        self.env['RESULT_SERVER'] = "%s:%s%s" % ('127.0.0.1', port, "")
+        jsonenv.export_env(env_file, self.env)
+        self.server = RHTSServer(self)
+        reactor.listenTCP(port, self.server, interface='127.0.0.1')
+
         try:
+            ipv4_result_server = self.env['RESULT_SERVER']
+            ipv4_server = self.server
             self.env['RESULT_SERVER'] = "%s:%s%s" % ('::1', port, "")
             jsonenv.export_env(env_file, self.env)
             self.server = RHTSServer(self)
             reactor.listenTCP(port, self.server, interface='::1')
         except CannotListenError:
-            self.env['RESULT_SERVER'] = "%s:%s%s" % ('127.0.0.1', port, "")
+            self.env['RESULT_SERVER'] = ipv4_result_server
             jsonenv.export_env(env_file, self.env)
-            self.server = RHTSServer(self)
-            reactor.listenTCP(port, self.server, interface='127.0.0.1')
+            self.server = ipv4_server
+
+        # Execute rhts-test-runner.sh
+        self.server_started()
 
     def on_exit(self, exitCode):
         # FIXME! handling!

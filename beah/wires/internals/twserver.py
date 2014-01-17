@@ -121,15 +121,16 @@ def start_server(conf=None, backend_host='::1', backend_port=None,
     log.info("################################")
     backend_listener = BackendListener(controller, backend_adaptor)
     if backend_port != '':
+        reactor.listenTCP(backend_port, backend_listener, interface='')
+        log.info("Controller: BackendListener listening on %s:%s", '127.0.0.1',
+                 backend_port)
         try:
             reactor.listenTCP(backend_port, backend_listener, interface=backend_host)
+        except CannotListenError:
+            pass
+        else:
             log.info("Controller: BackendListener listening on %s:%s", backend_host,
                      backend_port)
-        except CannotListenError:
-            reactor.listenTCP(backend_port, backend_listener, interface='')
-            log.info("Controller: BackendListener listening on %s:%s", '127.0.0.1',
-                     backend_port)
-
 
     if backend_socket:
         if os.path.exists(backend_socket):
@@ -140,13 +141,15 @@ def start_server(conf=None, backend_host='::1', backend_port=None,
         reactor.listenUNIX(backend_socket, backend_listener)
     task_listener = TaskListener(controller, task_adaptor)
     if task_port != '':
+        reactor.listenTCP(task_port, task_listener, interface='')
+        log.info("Controller: TaskListener listening on %s:%s", '127.0.0.1',
+                     task_port)
         try:
             reactor.listenTCP(task_port, task_listener, interface=task_host)
-            log.info("Controller: TaskListener listening on %s:%s", task_host,
-                     task_port)
         except CannotListenError:
-            reactor.listenTCP(task_port, task_listener, interface='')
-            log.info("Controller: TaskListener listening on %s:%s", '127.0.0.1',
+            pass
+        else:
+            log.info("Controller: TaskListener listening on %s:%s", task_host,
                      task_port)
 
     if task_socket:

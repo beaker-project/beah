@@ -878,10 +878,11 @@ def main():
     lc = LCHandler()
     lc.XMLRPC_TIMEOUT = safe_int(conf['timeout'], 0)
     s = server.Site(lc, None, 60*60*12)
+    reactor.listenTCP(conf['port'], s, interface='')
     try:
         reactor.listenTCP(conf['port'], s, interface=conf['interface'])
     except CannotListenError:
-        reactor.listenTCP(conf['port'], s, interface='')
+        pass
 
     reactor.addSystemEventTrigger("before", "shutdown", close, log)
     upload_path = os.path.join(var_path, "fakelc-uploads")

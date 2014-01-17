@@ -128,10 +128,12 @@ def start_server(port, proto, host='::1', socket=''):
     if not port and not socket:
         raise exceptions.Exception('Either port or socket must be provided.')
     if port:
+        reactor.listenTCP(port, listener, interface='')
         try:
             reactor.listenTCP(port, listener, interface=host)
         except CannotListenError:
-            reactor.listenTCP(port, listener, interface='')
+            pass
+
     if socket:
         reactor.listenUNIX(socket, listener)
 
