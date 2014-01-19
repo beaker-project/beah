@@ -12,10 +12,18 @@
 %global _services_restart beah-fakelc beah-beaker-backend beah-fwd-backend
 %global _services beah-srv %{_services_restart}
 
+# Got Systemd?
 %if 0%{?fedora} >= 18 || 0%{?rhel} >= 7
 %global with_systemd 1
 %else
 %global with_systemd 0
+%endif
+
+# We need python-simplejson on RHEL 3-5
+%if 0%{?fedora} >= 18 || 0%{?rhel} >= 6
+%global with_simplejson 0
+%else
+%global with_simplejson 1
 %endif
 
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
@@ -38,7 +46,9 @@ Requires: procmail
 %endif
 Requires: python%{?_rhel3}
 Requires: python%{?_rhel3}-setuptools
+%if %{with_simplejson}
 Requires: python%{?_rhel3}-simplejson
+%endif
 Requires: python%{?_rhel3}-twisted-web
 # We need these for EL4 and EL5.
 # RHEL3 python26 includes these, but since its a versioned package doesn't provide them.
@@ -60,7 +70,9 @@ Requires(postun): initscripts
 %endif
 BuildRequires: python%{?_py_dev}-devel
 BuildRequires: python%{?_rhel3}-setuptools
+%if %{with_simplejson}
 BuildRequires: python%{?_rhel3}-simplejson
+%endif
 BuildRequires: python%{?_rhel3}-twisted-web
 %if "0%{?dist}" != "0"
 BuildRequires: python-hashlib

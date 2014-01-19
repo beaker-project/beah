@@ -5,7 +5,7 @@ import sys
 import socket
 import time
 import beahlib
-import simplejson as json
+from beah.misc.jsonenv import json
 from beah.core import event
 
 if __name__ == '__main__':

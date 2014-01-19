@@ -16,6 +16,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+from beah.misc.jsonenv import json
 import exceptions
 
 ################################################################################
@@ -69,8 +70,7 @@ class LineReceiver(CachingReceiver):
 
 class Deserializer(LineReceiver):
     def __init__(self, deserializer=None, **kwargs):
-        from simplejson import loads
-        self.deserializer = deserializer or loads
+        self.deserializer = deserializer or json.loads
         LineReceiver.__init__(self, **kwargs)
     def proc_line(self, line): # pylint: disable=E0202
         try:
@@ -93,8 +93,7 @@ class Deserializer(LineReceiver):
 
 class ListDeserializer(LineReceiver):
     def __init__(self, deserializer=None, **kwargs):
-        from simplejson import loads
-        self.deserializer = deserializer or loads
+        self.deserializer = deserializer or json.loads
         LineReceiver.__init__(self, **kwargs)
     def proc_line(self, line): # pylint: disable=E0202
         try:
@@ -150,9 +149,8 @@ def Pprinter(**kwargs):
 # FIXME: it is much easier to use pprint.pprint instead of Pprinter().proc_obj
 
 def JSONSerializer(**kwargs):
-    from simplejson import dumps
     ka = dict(kwargs)
-    ka['serializer'] = dumps
+    ka['serializer'] = json.dumps
     return ObjectWriter(**ka)
 # FIXME: it is easier to use lambda obj: stdout.write(json.dumps(obj)+"\n")
 

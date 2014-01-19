@@ -21,7 +21,7 @@ from twisted.internet import reactor, protocol, stdio
 from twisted.protocols import basic
 from twisted.internet.defer import Deferred
 from twisted.python.failure import Failure
-import simplejson as json
+from beah.misc.jsonenv import json
 import sys
 import os
 import os.path

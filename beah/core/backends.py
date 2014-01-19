@@ -19,6 +19,8 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 from beah.core.errors import KilledException
+from beah.misc.jsonenv import json
+
 class GoodBye(KilledException): pass
 
 class BasicBackend(object):
@@ -152,10 +154,10 @@ class PprintBackend(ExtBackend):
         self.pprinter.pprint(list(evt.printable()))
         return False
 
-from simplejson import dumps
+
 class PrintBackend(ExtBackend):
     def pre_proc(self, evt):
-        print dumps(evt)
+        print json.dumps(evt)
         return False
 
 from sys import stderr

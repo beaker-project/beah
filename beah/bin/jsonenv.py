@@ -53,7 +53,7 @@ DESCRIPTION
 
 import os
 import sys
-import simplejson as json
+from  beah.misc.jsonenv import json
 import pprint
 import optparse
 

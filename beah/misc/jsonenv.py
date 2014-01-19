@@ -20,10 +20,18 @@
 
 
 import os
-import simplejson as json
 import exceptions
 import beah.misc
 
+# Prefer the std.lib json module on Python2.6+
+try:
+    import json
+except ImportError:
+    json = None
+# Use simplejson instead if there is no json module at all,
+# or if it appears to be the old python-json package (RHEL5 & earlier)
+if not json or not hasattr(json, 'dumps'):
+    import simplejson as json
 
 def _copy_dict_check(src, dst, checkf, errorf):
     answ = True

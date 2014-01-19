@@ -27,7 +27,7 @@ import re
 import time
 from random import randint
 import logging
-import simplejson as json
+from beah.misc.jsonenv import json
 from optparse import OptionParser
 
 from twisted.web import xmlrpc, server

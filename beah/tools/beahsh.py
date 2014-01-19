@@ -48,7 +48,6 @@ multiple clients will attempt to read answers from stdin.
 import os
 import sys
 import shlex
-import simplejson as json
 from optparse import OptionParser
 from beah.core import event
 from beah.core.constants import RC, LOG_LEVEL

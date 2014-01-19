@@ -57,7 +57,7 @@ import traceback
 import exceptions
 import base64
 import hashlib
-import simplejson as json
+from beah.misc.jsonenv import json
 import logging
 from xml.dom import minidom
 try:

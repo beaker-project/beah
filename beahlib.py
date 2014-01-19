@@ -13,7 +13,7 @@ import os
 import socket
 from beah.core import event, new_id, command
 from beah.core.constants import RC, LOG_LEVEL
-import simplejson as json
+from beah.misc.jsonenv import json
 
 
 """

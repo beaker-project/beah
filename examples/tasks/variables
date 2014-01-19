@@ -1,6 +1,6 @@
 #!/usr/bin/python -u
 
-import simplejson as json
+from beah.misc.jsonenv import json
 import thread
 import sys
 import time
