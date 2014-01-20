@@ -1856,26 +1856,19 @@ def has_ipv6(url):
     and then attempts to connect to the proxy port.
     If one of these fails, we cannot use IPv6
     """
-
-    # sheer abuse here to get the hostname/port reliably
-    # we can't use  stdlib's urlparse.urlsplit() since 2.4 doesn't
-    # have what we want
+    # sheer abuse of twisted.web.xmlrpc here to get the hostname/port 
+    # reliably, since we can't use  stdlib's urlparse.urlsplit()
+    # (Python 2.4 doesn't have what we want)
     url = xmlrpc.Proxy(url)
-
-    retries = 0
-    while retries < 5:
-        lc_ipv6 = None
-        try:
-            #XXX: getaddrinfo() is blocking
-            lc_ipv6 = socket.getaddrinfo(url.host, 0,
-                                         socket.AF_INET6, 0, socket.SOL_TCP)[0][4][0]
-        except socket.gaierror:
-            log.info('Failed to look up IPv6 address for LC. Sleeping for 5s')
-            time.sleep(2)
-            retries += 1
-        else:
-            log.info('Resolved IPv6 address of the LC.')
-            break
+    lc_ipv6 = None
+    try:
+        #XXX: getaddrinfo() is blocking
+        lc_ipv6 = socket.getaddrinfo(url.host, 0,
+                                     socket.AF_INET6, 0, socket.SOL_TCP)[0][4][0]
+    except socket.gaierror:
+        log.info('Failed to look up IPv6 address for LC')
+    else:
+        log.info('Resolved IPv6 address of the LC')
 
     if not lc_ipv6:
         return None
@@ -1894,7 +1887,7 @@ def has_ipv6(url):
 class ProxyIPv6(xmlrpc.Proxy):
 
     """
-    Until this is resolved:
+    IPv6 capable Proxy, until this Twisted issue is resolved:
     https://twistedmatrix.com/trac/ticket/6870
     """
 
@@ -1910,7 +1903,7 @@ def make_proxy(conf, verbose):
         lc_ipv6 = None
 
     if lc_ipv6:
-        log.info('Communicating to LC over IPv6')
+        log.info('Communicating to LC over IPv6 (%s)' % lc_ipv6)
         proxy = repeatingproxy.RepeatingProxy(ProxyIPv6(url, lc_ipv6, allowNone=True))
     else:
         # else fall back to using IPv4
