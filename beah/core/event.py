@@ -534,11 +534,7 @@ class Event(list):
     TIMESTAMP = 4
     ARGS = 5
 
-    if sys.version_info[1] < 4:
-        # FIXME: Tweak to make it Python 2.3 compatible
-        TESTTYPE = (str, unicode)
-    else:
-        TESTTYPE = str
+    TESTTYPE = basestring
 
     def __new__(cls, evt, origin={}, timestamp=None, id=None, **kwargs):
         if not isinstance(evt, Event):

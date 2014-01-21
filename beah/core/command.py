@@ -108,11 +108,7 @@ class Command(list):
     ID = 2
     ARGS = 3
 
-    if sys.version_info[1] < 4:
-        # FIXME: Tweak to make it Python 2.3 compatible
-        TESTTYPE = (str, unicode)
-    else:
-        TESTTYPE = str
+    TESTTYPE = basestring
 
     def __init__(self, cmd, id=None, **kwargs):
         if isinstance(cmd, list):
