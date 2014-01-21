@@ -1877,9 +1877,8 @@ def has_ipv6(url):
     s = socket.socket(socket.AF_INET6)
     try:
         s.connect((lc_ipv6, url.port))
-    except (socket.gaierror, socket.error), e:
-        log.info('Failed to connect to LC over IPv6.')
-        log.exception(str(e))
+    except (socket.gaierror, socket.error):
+        log.exception('Failed to connect to LC over IPv6.')
         lc_ipv6 = None
 
     return lc_ipv6
@@ -1892,7 +1891,7 @@ class ProxyIPv6(xmlrpc.Proxy):
     """
 
     def __init__(self, url, lc_ipv6, **kwargs):
-        xmlrpc.Proxy.__init__(self, url, kwargs)
+        xmlrpc.Proxy.__init__(self, url, **kwargs)
         self.host = lc_ipv6
 
 def make_proxy(conf, verbose):

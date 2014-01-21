@@ -129,6 +129,9 @@ def start_server(port, proto, host='::1', socket=''):
         raise exceptions.Exception('Either port or socket must be provided.')
     if port:
         reactor.listenTCP(port, listener, interface='')
+        # To support testing in IPv6 and mixed IPv4/IPv6 environments, 
+        # we attempt to listen on the specified (defaults to IPv6) 
+        # interface as well.
         try:
             reactor.listenTCP(port, listener, interface=host)
         except CannotListenError:

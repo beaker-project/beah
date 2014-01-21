@@ -173,6 +173,11 @@ def start_task(conf, task, host=None, port=None,
     host = host or conf.get('TASK', 'INTERFACE')
     port = port or int(conf.get('TASK', 'PORT'))
     if port != '':
+        # To support testing in IPv6 only, IPv4 only and mixed IPv4/6 environments
+
+        # We prefer connecting over IPv6. However, if the server is not
+        # listening on IPv6 (for eg. because the operating system or Twisted
+        # doesn't support IPv6), we fallback to connecting over IPv4.
         try:
             return reactor.connectTCP(host, int(port), factory)
         except (NoRouteError, DNSLookupError):

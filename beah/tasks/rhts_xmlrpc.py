@@ -472,11 +472,16 @@ class RHTSMain(object):
         stdio.StandardIO(self.controller)
         self.task = RHTSTask(self)
 
+        # To support testing in IPv4 only environment and enable
+        # communication during multihost testing even if IPv6 connectivity 
+        # is not available between them.
         self.env['RESULT_SERVER'] = "%s:%s%s" % ('127.0.0.1', port, "")
         jsonenv.export_env(env_file, self.env)
         self.server = RHTSServer(self)
         reactor.listenTCP(port, self.server, interface='127.0.0.1')
 
+        # To support testing in IPv6 and mixed IPv4/IPv6 environments, 
+        # we also attempt to listen on the IPv6 interface. 
         try:
             ipv4_result_server = self.env['RESULT_SERVER']
             ipv4_server = self.server
@@ -485,6 +490,10 @@ class RHTSMain(object):
             self.server = RHTSServer(self)
             reactor.listenTCP(port, self.server, interface='::1')
         except CannotListenError:
+            # However, if we cannot listen on IPv6 (for eg. because the operating 
+            # system or Twisted doesn't support IPv6), we listen only on IPv4 and 
+            # restore the relevant environment variable and object in the state they
+            # were earlier.
             self.env['RESULT_SERVER'] = ipv4_result_server
             jsonenv.export_env(env_file, self.env)
             self.server = ipv4_server

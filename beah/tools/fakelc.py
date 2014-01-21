@@ -879,6 +879,9 @@ def main():
     lc.XMLRPC_TIMEOUT = safe_int(conf['timeout'], 0)
     s = server.Site(lc, None, 60*60*12)
     reactor.listenTCP(conf['port'], s, interface='')
+    # To support testing in IPv6 and mixed IPv4/IPv6 environments, 
+    # we attempt to listen on the specified (defaults to IPv6) 
+    # interface as well.
     try:
         reactor.listenTCP(conf['port'], s, interface=conf['interface'])
     except CannotListenError:

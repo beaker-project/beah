@@ -124,6 +124,8 @@ def start_server(conf=None, backend_host='::1', backend_port=None,
         reactor.listenTCP(backend_port, backend_listener, interface='')
         log.info("Controller: BackendListener listening on %s:%s", '127.0.0.1',
                  backend_port)
+        # To support testing in IPv6 and mixed IPv4/IPv6 environments, 
+        # we attempt to listen on the IPv6 interface as well.
         try:
             reactor.listenTCP(backend_port, backend_listener, interface=backend_host)
         except CannotListenError:
@@ -144,6 +146,8 @@ def start_server(conf=None, backend_host='::1', backend_port=None,
         reactor.listenTCP(task_port, task_listener, interface='')
         log.info("Controller: TaskListener listening on %s:%s", '127.0.0.1',
                      task_port)
+        # To support testing in IPv6 and mixed IPv4/IPv6 environments, 
+        # we attempt to listen on the IPv6 interface as well.
         try:
             reactor.listenTCP(task_port, task_listener, interface=task_host)
         except CannotListenError:
