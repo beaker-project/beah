@@ -60,6 +60,8 @@ import hashlib
 from beah.misc.jsonenv import json
 import logging
 from xml.dom import minidom
+import socket
+import time
 try:
     set
 except NameError: # Python 2.3
@@ -69,7 +71,6 @@ from twisted.internet import reactor, defer
 from twisted.internet.task import LoopingCall
 from twisted.python import failure
 from twisted.web import xmlrpc
-
 from beah import config
 from beah.core import command, event, addict, new_id
 from beah.core.backends import SerializingBackend
@@ -85,8 +86,10 @@ from beah.wires.internals import repeatingproxy
 from beah.wires.internals.twbackend import start_backend, log_handler
 from beah.wires.internals.twmisc import make_logging_proxy
 
-log = logging.getLogger('backend')
+import twisted
+twisted_version = (twisted.version.major, twisted.version.minor)
 
+log = logging.getLogger('backend')
 
 ################################################################################
 # Scheduling:
@@ -1847,9 +1850,65 @@ def make_runtime(conf, verbose=False):
     return runtime
 
 
+def has_ipv6(url):
+
+    """ This function resolves the IPv6 address of the lab controller
+    and then attempts to connect to the proxy port.
+    If one of these fails, we cannot use IPv6
+    """
+    # sheer abuse of twisted.web.xmlrpc here to get the hostname/port 
+    # reliably, since we can't use  stdlib's urlparse.urlsplit()
+    # (Python 2.4 doesn't have what we want)
+    url = xmlrpc.Proxy(url)
+    lc_ipv6 = None
+    try:
+        #XXX: getaddrinfo() is blocking
+        lc_ipv6 = socket.getaddrinfo(url.host, 0,
+                                     socket.AF_INET6, 0, socket.SOL_TCP)[0][4][0]
+    except socket.gaierror:
+        log.info('Failed to look up IPv6 address for LC')
+    else:
+        log.info('Resolved IPv6 address of the LC')
+
+    if not lc_ipv6:
+        return None
+
+    # can we connect?
+    s = socket.socket(socket.AF_INET6)
+    try:
+        s.connect((lc_ipv6, url.port))
+    except (socket.gaierror, socket.error):
+        log.exception('Failed to connect to LC over IPv6.')
+        lc_ipv6 = None
+
+    return lc_ipv6
+
+class ProxyIPv6(xmlrpc.Proxy):
+
+    """
+    IPv6 capable Proxy, until this Twisted issue is resolved:
+    https://twistedmatrix.com/trac/ticket/6870
+    """
+
+    def __init__(self, url, lc_ipv6, **kwargs):
+        xmlrpc.Proxy.__init__(self, url, **kwargs)
+        self.host = lc_ipv6
+
 def make_proxy(conf, verbose):
     url = conf.get('DEFAULT', 'LAB_CONTROLLER')
-    proxy = repeatingproxy.RepeatingProxy(xmlrpc.Proxy(url, allowNone=True))
+    if twisted_version >= (12, 1):
+        lc_ipv6 = has_ipv6(url)
+    else:
+        lc_ipv6 = None
+
+    if lc_ipv6:
+        log.info('Communicating to LC over IPv6 (%s)' % lc_ipv6)
+        proxy = repeatingproxy.RepeatingProxy(ProxyIPv6(url, lc_ipv6, allowNone=True))
+    else:
+        # else fall back to using IPv4
+        log.info('Communicating to LC over IPv4')
+        proxy = repeatingproxy.RepeatingProxy(xmlrpc.Proxy(url, allowNone=True))
+
     if verbose:
         make_logging_proxy(proxy)
         proxy.logging_print = log.debug
@@ -1860,7 +1919,6 @@ def make_proxy(conf, verbose):
         proxy.set_timeout(None)
     proxy.serializing = True
     return proxy
-
 
 def make_verbose():
     print_this = log_this(lambda s: log.debug(s), log_on=True)
@@ -1961,6 +2019,8 @@ def defaults():
     d = config.backend_defaults()
     cs = os.getenv('COBBLER_SERVER', '')
     lc = os.getenv('LAB_CONTROLLER', '')
+
+    #XXX: when is lc not available?
     if not lc:
         if cs:
             lc = 'http://%s:8000/server' % cs

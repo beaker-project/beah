@@ -20,6 +20,7 @@ from twisted.web import xmlrpc, server
 from twisted.internet import reactor, protocol, stdio
 from twisted.protocols import basic
 from twisted.internet.defer import Deferred
+from twisted.internet.error import CannotListenError
 from twisted.python.failure import Failure
 from beah.misc.jsonenv import json
 import sys
@@ -35,7 +36,8 @@ import random
 from beah import config
 from beah.core import event, command
 import beah.misc
-from beah.misc import format_exc, runtimes, make_log_handler, str2log_level, digests, jsonenv
+from beah.misc import format_exc, runtimes, make_log_handler, \
+    str2log_level, digests, jsonenv
 from beah.wires.internals import twmisc
 from beah.core.constants import RC
 
@@ -361,10 +363,6 @@ class RHTSServer(server.Site):
 
     def startFactory(self):
         server.Site.startFactory(self)
-        # FIXME: waiting for server would be better:
-        # - e.g. send a request and wait until it is served...
-        self.main.server_started()
-
 
 ################################################################################
 # MAIN:
@@ -452,8 +450,7 @@ class RHTSMain(object):
         self.variables.setdefault('nohup', False)
         self.variables.setdefault('has_result', False)
 
-        # RESULT_SERVER - host:port[/prefixpath]
-        self.env['RESULT_SERVER'] = "%s:%s%s" % ("127.0.0.1", port, "")
+
         self.env.setdefault('DIGEST_METHOD', 'no_digest') # use no digests by default... Seems waste of time on localhost.
         self.env.setdefault('TESTORDER', '123') # FIXME: More sensible default
 
@@ -469,18 +466,40 @@ class RHTSMain(object):
         self.env.setdefault('HOME', '/root')
         self.env.setdefault('LANG', 'en_US.UTF-8')
 
-        jsonenv.export_env(env_file, self.env)
-
         # FIXME: should any checks go here?
         # e.g. does Makefile PURPOSE exist? try running `make testinfo.desc`? ...
-
         self.controller = ControllerLink(self)
-        self.task = RHTSTask(self)
-        self.server = RHTSServer(self)
-        # FIXME: is return value of any use?
         stdio.StandardIO(self.controller)
-        # FIXME: is return value of any use?
+        self.task = RHTSTask(self)
+
+        # To support testing in IPv4 only environment and enable
+        # communication during multihost testing even if IPv6 connectivity 
+        # is not available between them.
+        self.env['RESULT_SERVER'] = "%s:%s%s" % ('127.0.0.1', port, "")
+        jsonenv.export_env(env_file, self.env)
+        self.server = RHTSServer(self)
         reactor.listenTCP(port, self.server, interface='127.0.0.1')
+
+        # To support testing in IPv6 and mixed IPv4/IPv6 environments, 
+        # we also attempt to listen on the IPv6 interface. 
+        try:
+            ipv4_result_server = self.env['RESULT_SERVER']
+            ipv4_server = self.server
+            self.env['RESULT_SERVER'] = "%s:%s%s" % ('::1', port, "")
+            jsonenv.export_env(env_file, self.env)
+            self.server = RHTSServer(self)
+            reactor.listenTCP(port, self.server, interface='::1')
+        except CannotListenError:
+            # However, if we cannot listen on IPv6 (for eg. because the operating 
+            # system or Twisted doesn't support IPv6), we listen only on IPv4 and 
+            # restore the relevant environment variable and object in the state they
+            # were earlier.
+            self.env['RESULT_SERVER'] = ipv4_result_server
+            jsonenv.export_env(env_file, self.env)
+            self.server = ipv4_server
+
+        # Execute rhts-test-runner.sh
+        self.server_started()
 
     def on_exit(self, exitCode):
         # FIXME! handling!

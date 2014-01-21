@@ -5,6 +5,7 @@ from random import randint
 
 from twisted.internet import protocol
 from twisted.internet import reactor
+from twisted.internet.error import CannotListenError
 
 from beah.core import event, command
 from beah.core.constants import ECHO
@@ -121,13 +122,21 @@ def make_slow(c, lower=5, upper=15):
         reactor.callLater(randint(lower, upper), c_proc_cmd, cmd)
     c.proc_cmd = proc_cmd
 
-def start_server(port, proto, host='', socket=''):
+def start_server(port, proto, host='::1', socket=''):
     listener = protocol.ServerFactory()
     listener.protocol = proto
     if not port and not socket:
         raise exceptions.Exception('Either port or socket must be provided.')
     if port:
-        reactor.listenTCP(port, listener, interface=host)
+        reactor.listenTCP(port, listener, interface='')
+        # To support testing in IPv6 and mixed IPv4/IPv6 environments, 
+        # we attempt to listen on the specified (defaults to IPv6) 
+        # interface as well.
+        try:
+            reactor.listenTCP(port, listener, interface=host)
+        except CannotListenError:
+            pass
+
     if socket:
         reactor.listenUNIX(socket, listener)
 

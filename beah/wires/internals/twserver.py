@@ -20,11 +20,13 @@ from beah.wires.internals.twmisc import twisted_logging
 from beah.wires.internals.twadaptors import BackendAdaptor_JSON, TaskAdaptor_JSON
 from beah.wires.internals.twtask import Spawn
 from beah.core.controller import Controller, MasterTask
-from beah.misc import runtimes, make_log_handler, make_class_verbose, str2log_level, ensuredir, parse_bool
+from beah.misc import runtimes, make_log_handler, make_class_verbose, \
+    str2log_level, ensuredir, parse_bool
 from beah.misc.log_this import log_this
 from beah import config
 from twisted.internet import protocol
 from twisted.internet import reactor
+from twisted.internet.error import CannotListenError
 import logging
 import os
 
@@ -60,9 +62,9 @@ class TaskListener(protocol.ServerFactory):
         log.debug('%s: Connected [Done]', self.__class__.__name__)
         return task
 
-def start_server(conf=None, backend_host=None, backend_port=None,
+def start_server(conf=None, backend_host='::1', backend_port=None,
         backend_adaptor=BackendAdaptor_JSON,
-        task_host=None, task_port=None,
+        task_host='::1', task_port=None,
         task_adaptor=TaskAdaptor_JSON, spawn=None):
 
     # CONFIG:
@@ -119,9 +121,19 @@ def start_server(conf=None, backend_host=None, backend_port=None,
     log.info("################################")
     backend_listener = BackendListener(controller, backend_adaptor)
     if backend_port != '':
-        log.info("Controller: BackendListener listening on %s:%s", backend_host,
-                backend_port)
-        reactor.listenTCP(backend_port, backend_listener, interface=backend_host)
+        reactor.listenTCP(backend_port, backend_listener, interface='')
+        log.info("Controller: BackendListener listening on %s:%s", '127.0.0.1',
+                 backend_port)
+        # To support testing in IPv6 and mixed IPv4/IPv6 environments, 
+        # we attempt to listen on the IPv6 interface as well.
+        try:
+            reactor.listenTCP(backend_port, backend_listener, interface=backend_host)
+        except CannotListenError:
+            pass
+        else:
+            log.info("Controller: BackendListener listening on %s:%s", backend_host,
+                     backend_port)
+
     if backend_socket:
         if os.path.exists(backend_socket):
             # clean-up after e.g. system crash:
@@ -131,8 +143,19 @@ def start_server(conf=None, backend_host=None, backend_port=None,
         reactor.listenUNIX(backend_socket, backend_listener)
     task_listener = TaskListener(controller, task_adaptor)
     if task_port != '':
-        log.info("Controller: TaskListener listening on %s:%s", task_host, task_port)
-        reactor.listenTCP(task_port, task_listener, interface=task_host)
+        reactor.listenTCP(task_port, task_listener, interface='')
+        log.info("Controller: TaskListener listening on %s:%s", '127.0.0.1',
+                     task_port)
+        # To support testing in IPv6 and mixed IPv4/IPv6 environments, 
+        # we attempt to listen on the IPv6 interface as well.
+        try:
+            reactor.listenTCP(task_port, task_listener, interface=task_host)
+        except CannotListenError:
+            pass
+        else:
+            log.info("Controller: TaskListener listening on %s:%s", task_host,
+                     task_port)
+
     if task_socket:
         if os.path.exists(task_socket):
             # clean-up after e.g. system crash:

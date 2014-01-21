@@ -58,7 +58,8 @@ def mktemppipe():
                 raise
 
 def localhost_(host):
-    return host in ['', 'localhost', 'localhost.localdomain', '127.0.0.1', 'localhost4', 'localhost4.localdomain4']
+    return host in ['', '::1', '::', 'localhost', 'localhost.localdomain',
+                    '127.0.0.1', 'localhost4', 'localhost4.localdomain4']
 
 def test_loop_port(host):
     """
@@ -329,4 +330,3 @@ TIME_UNITS = {'d':24*3600, 'h':3600, 'm':60, 's':1, '':1}
 def canonical_time(time):
     amount, units = TIME_RE.match(time.lower()).group(1, 2)
     return int(amount)*TIME_UNITS[units]
-

@@ -23,7 +23,8 @@ from beah.core.backends import ExtBackend
 from beah.core import command, event
 from beah.core.constants import ECHO
 from beah.misc.log_this import log_this
-from beah.misc import localhost, make_class_verbose, test_loop, test_loop_port, TEST_LOOP, parse_bool
+from beah.misc import localhost, make_class_verbose, test_loop, \
+    test_loop_port, TEST_LOOP, parse_bool
 from beah import config
 
 from twisted.internet.defer import Deferred
@@ -113,7 +114,6 @@ class ForwarderBackend(ExtBackend):
             # could be used with port number test.loop:11432
             # Modify the dest field to avoid inifinite loop:
             evt.args()['dest'] = host.upper()
-            host = '127.0.0.1'
             port = int(test_loop_port(host) or port)
         cmd = command.forward(event=evt)
         d = self.remote_call(cmd, host, port)
