@@ -30,7 +30,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.6.48
+Version: 0.7
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -186,6 +186,13 @@ fi
 %endif
 
 %changelog
+* Thu Jan 30 2014 Amit Saha <asaha@redhat.com> 0.7-1
+- Release notes for new major release - 0.7.0 (asaha@redhat.com)
+- Admin guide: Documentation for IPv6 functionality (asaha@redhat.com)
+- IPv6 support (asaha@redhat.com)
+- Use 'basestring' instead of str/unicode (asaha@redhat.com)
+- Remove dependency on 'python-simplejson' (asaha@redhat.com)
+
 * Mon Dec 02 2013 Dan Callaghan <dcallagh@redhat.com> 0.6.48-1
 - Add a release note generator (asaha@redhat.com)
 - ControlGroup configuration option no longer valid. (asaha@redhat.com)
