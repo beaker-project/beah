@@ -1,6 +1,15 @@
 Releases
 --------
 
+Beah-0.7.0
+==========
+
+Changelog
+
+- IPv6 support
+- Remove dependency on 'python-simplejson' on RHEL 6+, 
+  Fedora
+
 Beah-0.6.48-1
 =============
 

@@ -21,7 +21,7 @@ BEAker Harness. Part of Beaker project [https://beaker-project.org].
 """
 
 __import__('pkg_resources').declare_namespace(__name__)
-__version__ = '0.6.46'
+__version__ = '0.7.0'
 
 # FIXME:
 # see beaker/Client/src/beaker/__init__.py:
