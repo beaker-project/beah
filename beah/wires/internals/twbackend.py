@@ -18,9 +18,8 @@
 
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet import reactor
-from twisted.internet.error import DNSLookupError, NoRouteError
 from beah.wires.internals.twadaptors import ControllerAdaptor_Backend_JSON
-from beah.wires.internals.twmisc import twisted_logging
+from beah.wires.internals.twmisc import twisted_logging, connect_loopback
 from beah import config
 from beah.misc import make_log_handler, str2log_level, localhost_, parse_bool
 
@@ -114,17 +113,10 @@ def start_backend(backend, host=None, port=None,
     backend_factory = BackendFactory(backend, adaptor, byef)
     if socket != '':
         return reactor.connectUNIX(socket, backend_factory)
-    elif port != '':
-
-        # To support testing in IPv6 only, IPv4 only and mixed IPv4/6 environments
-
-        # We prefer connecting over IPv6. However, if the server is not
-        # listening on IPv6 (for eg. because the operating system or Twisted
-        # doesn't support IPv6), we fallback to connecting over IPv4.
-        try:
-            return reactor.connectTCP(host, int(port), backend_factory)
-        except (NoRouteError, DNSLookupError):
-            return reactor.connectTCP('127.0.0.1', int(port), backend_factory)
+    elif port and host:
+        return reactor.connectTCP(host, int(port), backend_factory)
+    elif port:
+        return connect_loopback(int(port), backend_factory)
     else:
         raise EnvironmentError('Either socket or port must be configured.')
 

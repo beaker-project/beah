@@ -19,6 +19,7 @@
 from beah.misc.jsonenv import json
 from twisted.protocols import basic
 from twisted.internet import reactor
+from twisted.internet.error import DNSLookupError, NoRouteError, CannotListenError
 import exceptions
 import logging
 
@@ -197,4 +198,28 @@ def reason2rc(end_reason):
     else:
         return end_reason.value.exitCode
 
+# To support testing in IPv6 only, IPv4 only and mixed IPv4/6 environments
 
+def connect_loopback(port, factory):
+    # We prefer connecting over IPv6. However, if the server is not
+    # listening on IPv6 (e.g. because the operating system or Twisted
+    # doesn't support IPv6), we fallback to connecting over IPv4.
+    try:
+        return reactor.connectTCP('::1', port, factory)
+    except (NoRouteError, DNSLookupError):
+        return reactor.connectTCP('127.0.0.1', port, factory)
+
+def listen_loopback(port, listener):
+    # We need to listen on both IPv4 and IPv6 loopback addresses. Either one 
+    # can fail, but if both fails we have hit a real error.
+    listening6 = None
+    try:
+        listening6 = reactor.listenTCP(port, listener, interface='::1')
+    except CannotListenError:
+        pass
+    try:
+        listening4 = reactor.listenTCP(port, listener, interface='127.0.0.1')
+    except CannotListenError:
+        if not listening6:
+            raise
+    return listening6 or listening4
