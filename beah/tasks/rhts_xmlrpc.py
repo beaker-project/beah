@@ -446,7 +446,7 @@ class RHTSMain(object):
 
         # FIXME: use configurable range of ports.
         self.variables = runtimes.TypeDict(rt, 'variables')
-        port = self.variables.setdefault('port', self.env.get('RHTS_PORT', random.randint(7080, 7099)))
+        port = self.variables.setdefault('port', int(self.env.get('RHTS_PORT', random.randint(7080, 7099))))
         self.variables.setdefault('nohup', False)
         self.variables.setdefault('has_result', False)
 
