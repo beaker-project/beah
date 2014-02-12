@@ -30,7 +30,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.7
+Version: 0.7.1
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -186,6 +186,11 @@ fi
 %endif
 
 %changelog
+* Wed Feb 12 2014 Dan Callaghan <dcallagh@redhat.com> 0.7.1-1
+- Fix missing conversion for RHTS_PORT env.variable (mcsontos@redhat.com)
+- handle any combination of IPv6 and IPv4 being enabled (dcallagh@redhat.com)
+- Beah should work when kernel has ipv6.disable=1 (asaha@redhat.com)
+
 * Thu Jan 30 2014 Amit Saha <asaha@redhat.com> 0.7-1
 - Release notes for new major release - 0.7.0 (asaha@redhat.com)
 - Admin guide: Documentation for IPv6 functionality (asaha@redhat.com)
