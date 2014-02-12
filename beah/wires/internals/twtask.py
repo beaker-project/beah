@@ -174,7 +174,7 @@ def start_task(conf, task, host=None, port=None,
     host = host or conf.get('TASK', 'INTERFACE')
     port = port or int(conf.get('TASK', 'PORT'))
     if port and host:
-        return reactor.connectTCP(host, int(port), factor)
+        return reactor.connectTCP(host, int(port), factory)
     elif port:
         return connect_loopback(int(port), factory)
     raise EnvironmentError('Either socket or port must be given.')
