@@ -1874,8 +1874,8 @@ def has_ipv6(url):
         return None
 
     # can we connect?
-    s = socket.socket(socket.AF_INET6)
     try:
+        s = socket.socket(socket.AF_INET6)
         s.connect((lc_ipv6, url.port))
     except (socket.gaierror, socket.error):
         log.exception('Failed to connect to LC over IPv6.')

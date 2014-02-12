@@ -39,6 +39,7 @@ import beah.misc
 from beah.misc import format_exc, runtimes, make_log_handler, \
     str2log_level, digests, jsonenv
 from beah.wires.internals import twmisc
+from beah.wires.internals.twmisc import listen_loopback
 from beah.core.constants import RC
 
 BEAH_ROOT = os.path.join('/', os.getenv('BEAH_ROOT', ''))
@@ -458,10 +459,6 @@ class RHTSMain(object):
         for k, v in self.ENV_DEFAULTS.iteritems():
             self.env.setdefault(k, v)
 
-        # save env:
-        env_file = ENV_PATHNAME_TEMPLATE % taskid
-        self.env['RHTS_ENV'] = env_file
-
         # provide sensible defaults for selected system env.variables:
         self.env.setdefault('HOME', '/root')
         self.env.setdefault('LANG', 'en_US.UTF-8')
@@ -471,32 +468,19 @@ class RHTSMain(object):
         self.controller = ControllerLink(self)
         stdio.StandardIO(self.controller)
         self.task = RHTSTask(self)
-
-        # To support testing in IPv4 only environment and enable
-        # communication during multihost testing even if IPv6 connectivity 
-        # is not available between them.
-        self.env['RESULT_SERVER'] = "%s:%s%s" % ('127.0.0.1', port, "")
-        jsonenv.export_env(env_file, self.env)
         self.server = RHTSServer(self)
-        reactor.listenTCP(port, self.server, interface='127.0.0.1')
-
-        # To support testing in IPv6 and mixed IPv4/IPv6 environments, 
-        # we also attempt to listen on the IPv6 interface. 
+        # Attempt to listen on IPv6, otherwise fall back to IPv4
         try:
-            ipv4_result_server = self.env['RESULT_SERVER']
-            ipv4_server = self.server
-            self.env['RESULT_SERVER'] = "%s:%s%s" % ('::1', port, "")
-            jsonenv.export_env(env_file, self.env)
-            self.server = RHTSServer(self)
             reactor.listenTCP(port, self.server, interface='::1')
+            self.env['RESULT_SERVER'] = '[::1]:%s' % port
         except CannotListenError:
-            # However, if we cannot listen on IPv6 (for eg. because the operating 
-            # system or Twisted doesn't support IPv6), we listen only on IPv4 and 
-            # restore the relevant environment variable and object in the state they
-            # were earlier.
-            self.env['RESULT_SERVER'] = ipv4_result_server
-            jsonenv.export_env(env_file, self.env)
-            self.server = ipv4_server
+            reactor.listenTCP(port, self.server, interface='127.0.0.1')
+            self.env['RESULT_SERVER'] = '127.0.0.1:%s' % port
+
+        # save env:
+        env_file = ENV_PATHNAME_TEMPLATE % taskid
+        self.env['RHTS_ENV'] = env_file
+        jsonenv.export_env(env_file, self.env)
 
         # Execute rhts-test-runner.sh
         self.server_started()
