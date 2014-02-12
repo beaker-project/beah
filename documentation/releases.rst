@@ -1,6 +1,25 @@
 Releases
 --------
 
+Beah-0.7.2
+==========
+
+Changelog
+
+- Brown paper bag release: fixed a typo in ``start_task``, found by pylint.
+
+Beah-0.7.1
+==========
+
+Changelog
+
+- Fixed missing conversion for RHTS_PORT, which was causing TypeError when the
+  RHTS_PORT task parameter was set. (Contributed by Marian Csontos in 
+  :issue:`1063815`.)
+- Handles any combination of IPv6 and IPv4 being enabled, including absent IPv4
+  loopback address. (Contributed by Dan Callaghan in :issue:`1059479` and Amit 
+  Saha in :issue:`1062896`.)
+
 Beah-0.7.0
 ==========
 
