@@ -16,7 +16,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-from beah.wires.internals.twmisc import twisted_logging, listen_loopback
+from beah.wires.internals.twmisc import twisted_logging, listen_loopback_tcp, \
+    listen_all_tcp
 from beah.wires.internals.twadaptors import BackendAdaptor_JSON, TaskAdaptor_JSON
 from beah.wires.internals.twtask import Spawn
 from beah.core.controller import Controller, MasterTask
@@ -120,10 +121,12 @@ def start_server(conf=None, backend_host=None, backend_port=None,
     log.info("################################")
     backend_listener = BackendListener(controller, backend_adaptor)
     if backend_port != '':
-        if backend_host:
+        if backend_host == 'localhost':
+            listening = listen_loopback_tcp(backend_port, backend_listener)
+        elif backend_host:
             listening = reactor.listenTCP(backend_port, backend_listener, interface=backend_host)
         else:
-            listening = listen_loopback(backend_port, backend_listener)
+            listening = listen_all_tcp(backend_port, backend_listener)
         log.info("Controller: BackendListener listening on %s port %s",
                 listening.getHost().host, listening.getHost().port)
     if backend_socket:
@@ -135,10 +138,12 @@ def start_server(conf=None, backend_host=None, backend_port=None,
         reactor.listenUNIX(backend_socket, backend_listener)
     task_listener = TaskListener(controller, task_adaptor)
     if task_port != '':
-        if task_host:
+        if task_host == 'localhost':
+            listening = listen_loopback_tcp(task_port, task_listener)
+        elif task_host:
             listening = reactor.listenTCP(task_port, task_listener, interface=task_host)
         else:
-            listening = listen_loopback(task_port, task_listener)
+            listening = listen_all_tcp(task_port, task_listener)
         log.info("Controller: TaskListener listening on %s port %s",
                 listening.getHost().host, listening.getHost().port)
     if task_socket:

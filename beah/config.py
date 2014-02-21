@@ -406,10 +406,11 @@ def beah_defaults():
     d.update({
             'CONTROLLER.NAME':'beah',
             'CONTROLLER.LOG_FILE_NAME':'%(LOG_PATH)s/%(NAME)s.log',
-            'BACKEND.INTERFACE': '', # default is to listen on loopback
+            # backend listens on all interfaces by default, for multi-host
+            'BACKEND.INTERFACE': '',
             'BACKEND.PORT':'12432',
             'BACKEND.PORT_OPT':'False',
-            'TASK.INTERFACE': '', # default is to listen on loopback
+            'TASK.INTERFACE': 'localhost',
             'TASK.PORT':'12434'})
     if os.name == 'posix':
         # using PORT as ID, not NAME. NAME could (and should) be different for

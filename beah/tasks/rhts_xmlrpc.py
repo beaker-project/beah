@@ -39,7 +39,6 @@ import beah.misc
 from beah.misc import format_exc, runtimes, make_log_handler, \
     str2log_level, digests, jsonenv
 from beah.wires.internals import twmisc
-from beah.wires.internals.twmisc import listen_loopback
 from beah.core.constants import RC
 
 BEAH_ROOT = os.path.join('/', os.getenv('BEAH_ROOT', ''))

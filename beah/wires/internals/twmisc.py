@@ -209,7 +209,16 @@ def connect_loopback(port, factory):
     except (NoRouteError, DNSLookupError):
         return reactor.connectTCP('127.0.0.1', port, factory)
 
-def listen_loopback(port, listener):
+def listen_all_tcp(port, listener):
+    # We can listen on '::' (in6addr_any) and the kernel will give us 
+    # connections that came in over IPv6 or IPv4. But if IPv6 is disabled in 
+    # the kernel we need to listen on '' (INADDR_ANY) instead.
+    try:
+        return reactor.listenTCP(port, listener, interface='::')
+    except CannotListenError:
+        return reactor.listenTCP(port, listener, interface='')
+
+def listen_loopback_tcp(port, listener):
     # We need to listen on both IPv4 and IPv6 loopback addresses. Either one 
     # can fail, but if both fails we have hit a real error.
     listening6 = None
