@@ -1,6 +1,16 @@
 Releases
 --------
 
+Beah-0.7.3
+==========
+
+Changelog
+
+- Backend needs to listen on all interfaces, not just loopback. This fixes
+  a regression in Beah 0.7.2 where multi-host testing did not work because the 
+  other Beah processes in the recipe set were not reachable over the network. 
+  (Contributed by Dan Callaghan in :issue:`1067745`.)
+
 Beah-0.7.2
 ==========
 

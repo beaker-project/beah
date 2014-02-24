@@ -30,7 +30,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.7.2
+Version: 0.7.3
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -186,6 +186,10 @@ fi
 %endif
 
 %changelog
+* Mon Feb 24 2014 Dan Callaghan <dcallagh@redhat.com> 0.7.3-1
+- RHBZ#1067745 backend needs to listen on all interfaces, not localhost
+  (dcallagh@redhat.com)
+
 * Wed Feb 12 2014 Dan Callaghan <dcallagh@redhat.com> 0.7.2-1
 - fix typo in start_task (dcallagh@redhat.com)
 
