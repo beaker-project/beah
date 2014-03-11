@@ -66,21 +66,32 @@ The following limitations exist with regards to using Beah for IPv6 testing:
 - Multihost testing is currently not supported when the test systems
   have IPv4 disabled.
 - Beah fetches every task from the Beaker server's task library just
-  before it starts executing it and starts local network servers per
-  task. This introduces issues when a recipe disables IPv4, and still
-  have tasks to execute:
+  before it starts executing it. When IPv4 is disabled, this is not
+  possible, unless :file:`/etc/resolv.conf` on the test system has the
+  IPv6 addresses of the nameservers so that it can successfully
+  communicate over IPv6 with the Beaker server. Of course, the
+  server has to be reachable over IPv6 (IPv6 enabled, DNS records
+  updated and firewall rules appropriately configured).
 
-  * :file:`/etc/resolv.conf` on the test system must have the IPv6
-    addresses of the nameservers so that it can successfully
-    communicate over IPv6 with the task library. Of course, the Beaker
-    server has to be reachable over IPv6 (IPv6 enabled, DNS records
-    updated and firewall rules appropriately configured).
+  One possible workaround is to manually add entries in the
+  :file:`/etc/hosts` file on the test system for the Beaker server (to fetch the Task
+  RPMs) and any other host with which communication may be
+  needed (for example, for downloading packages from a remote yum
+  repository). Here is a sample ``<ksappends/>`` snippet which can be added to
+  a Beaker :ref:`Job XML <job-xml>` and will setup :file:`/etc/hosts`
+  with IPv6 address and hostname mapping for the beaker server
+  ``beaker-server.host.com``::
 
-  * Assuming that you have got your task installed somehow, Beah
-    currently assumes that the IPv4 support has not been
-    disabled. Hence the local servers fails to start in an IPv6 only
-    environment (See :issue:`1059479`).
+	     <ks_appends>
+             <ks_append><![CDATA[
+	     %post
+	     cat >>/etc/hosts <<EOF
+	     2620:52:0:1065:5054:ff:fe22:b7d9 beaker-server.host.com
+	     EOF
+	     %end
+	     ]]></ks_append>
+	     </ks_appends>
 
-Hence, unless both these issues are solved, the recipe will finish without
-being able to execute the remaining tasks. Thus, it is recommended
-that a task which disables IPv4 be the last task in a recipe.
+
+  In the absence of both the above, the recipe will
+  finish without being able to execute the remaining tasks.
