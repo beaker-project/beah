@@ -1,6 +1,7 @@
 [Unit]
 Description=The Beaker sync server for multi-host jobs
-After=network.target NetworkManager-wait-online.service time-sync.target
+After=network.target NetworkManager-wait-online.service time-sync.target systemd-readahead-done.service multi-user.target
+DefaultDependencies=no
 
 [Service]
 Type=simple
