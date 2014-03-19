@@ -28,6 +28,13 @@ successfully when IPv6 functionality is desired (in a dual IPv4/IPv6
 environment) or IPv4 is disabled on the test system to test IPv6
 specific functionality (See :ref:`limitations` below).
 
+.. versionadded:: 0.7.4
+
+It is possible to ask Beah to use IPv4 exclusively for all it's
+network communication even when IPv6 connectivity may be possible by
+specifying ``beah_no_ipv6`` in the recipe's ``ksmeta`` variable (see
+:ref:`install-options`).
+
 Test system environment
 ~~~~~~~~~~~~~~~~~~~~~~~
 

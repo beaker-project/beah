@@ -1895,8 +1895,10 @@ class ProxyIPv6(xmlrpc.Proxy):
         self.host = lc_ipv6
 
 def make_proxy(conf, verbose):
+    ipv6_disabled = parse_bool(conf.get('DEFAULT', 'IPV6_DISABLED'))
     url = conf.get('DEFAULT', 'LAB_CONTROLLER')
-    if twisted_version >= (12, 1):
+
+    if not ipv6_disabled and twisted_version >= (12, 1):
         lc_ipv6 = has_ipv6(url)
     else:
         lc_ipv6 = None
@@ -2020,7 +2022,6 @@ def defaults():
     cs = os.getenv('COBBLER_SERVER', '')
     lc = os.getenv('LAB_CONTROLLER', '')
 
-    #XXX: when is lc not available?
     if not lc:
         if cs:
             lc = 'http://%s:8000/server' % cs
@@ -2032,6 +2033,7 @@ def defaults():
     d.update({
             'NAME':'beah_beaker_backend',
             'LAB_CONTROLLER':lc,
+            'IPV6_DISABLED': 'False',
             'COBBLER_SERVER':cs,
             'HOSTNAME':os.getenv('HOSTNAME'),
             'RECIPEID':'-1',

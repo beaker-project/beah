@@ -18,12 +18,11 @@
 
 from twisted.internet import reactor
 from twisted.internet.protocol import ProcessProtocol, ReconnectingClientFactory
-from twisted.internet.error import DNSLookupError, NoRouteError
 from beah.wires.internals import twadaptors, twmisc
 from beah.wires.internals.twmisc import connect_loopback
 from beah import config
 from beah.core import event
-from beah.misc import dict_update, jsonenv
+from beah.misc import dict_update, jsonenv, parse_bool
 import logging
 import os
 
@@ -176,7 +175,12 @@ def start_task(conf, task, host=None, port=None,
     if port and host:
         return reactor.connectTCP(host, int(port), factory)
     elif port:
-        return connect_loopback(int(port), factory)
+        if not parse_bool(conf.get('DEFAULT', 'IPV6_DISABLED')):
+            return connect_loopback(int(port), factory)
+        else:
+            return connect_loopback(int(port), factory, 
+                                    ipv6_disabled=True)
+
     raise EnvironmentError('Either socket or port must be given.')
 
 

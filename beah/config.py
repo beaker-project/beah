@@ -397,6 +397,7 @@ def defaults():
             CONSOLE_LOG='False',
             NAME='beah-default-%2.2d' % random.randint(0,99),
             RUNTIME_FILE_NAME='%(VAR_ROOT)s/%(NAME)s.runtime',
+            IPV6_DISABLED='False', 
             )
 
 

@@ -126,7 +126,9 @@ def start_server(conf=None, backend_host=None, backend_port=None,
         elif backend_host:
             listening = reactor.listenTCP(backend_port, backend_listener, interface=backend_host)
         else:
-            listening = listen_all_tcp(backend_port, backend_listener)
+            listening = listen_all_tcp(backend_port,
+                                       backend_listener,
+                                       ipv6_disabled=parse_bool(conf.get('DEFAULT', 'IPV6_DISABLED')))
         log.info("Controller: BackendListener listening on %s port %s",
                 listening.getHost().host, listening.getHost().port)
     if backend_socket:
@@ -143,7 +145,9 @@ def start_server(conf=None, backend_host=None, backend_port=None,
         elif task_host:
             listening = reactor.listenTCP(task_port, task_listener, interface=task_host)
         else:
-            listening = listen_all_tcp(task_port, task_listener)
+            listening = listen_all_tcp(task_port, 
+                                       task_listener,
+                                       ipv6_disabled=parse_bool(conf.get('DEFAULT', 'IPV6_DISABLED')))
         log.info("Controller: TaskListener listening on %s port %s",
                 listening.getHost().host, listening.getHost().port)
     if task_socket:
@@ -158,4 +162,3 @@ def start_server(conf=None, backend_host=None, backend_port=None,
 if __name__ == '__main__':
     start_server()
     reactor.run()
-

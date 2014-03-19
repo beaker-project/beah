@@ -116,7 +116,13 @@ def start_backend(backend, host=None, port=None,
     elif port and host:
         return reactor.connectTCP(host, int(port), backend_factory)
     elif port:
-        return connect_loopback(int(port), backend_factory)
+        if not parse_bool(conf.get('DEFAULT', 'IPV6_DISABLED')):
+            return connect_loopback(int(port),
+                                    backend_factory)
+        else:
+            return connect_loopback(int(port),
+                                    backend_factory,
+                                    ipv6_disabled=True)
     else:
         raise EnvironmentError('Either socket or port must be configured.')
 

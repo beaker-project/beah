@@ -33,11 +33,11 @@ import exceptions
 import traceback
 import logging
 import random
-from beah import config
 from beah.core import event, command
 import beah.misc
+import beah.config
 from beah.misc import format_exc, runtimes, make_log_handler, \
-    str2log_level, digests, jsonenv
+    str2log_level, digests, jsonenv, parse_bool
 from beah.wires.internals import twmisc
 from beah.core.constants import RC
 
@@ -468,14 +468,22 @@ class RHTSMain(object):
         stdio.StandardIO(self.controller)
         self.task = RHTSTask(self)
         self.server = RHTSServer(self)
-        # Attempt to listen on IPv6, otherwise fall back to IPv4
-        try:
-            reactor.listenTCP(port, self.server, interface='::1')
-            self.env['RESULT_SERVER'] = '[::1]:%s' % port
-        except CannotListenError:
-            reactor.listenTCP(port, self.server, interface='127.0.0.1')
+        # If IPv6 has not been disabled, attempt to listen on IPv6 
+        # otherwise fall back to IPv4
+        def listen_tcp(interface):
+            return reactor.listenTCP(port, self.server, 
+                                     interface=interface)
+        conf = beah.config.get_conf('beah')
+        if not parse_bool(conf.get('DEFAULT', 'IPV6_DISABLED')):
+            try:
+                listen_tcp('::1')
+                self.env['RESULT_SERVER'] = '[::1]:%s' % port
+            except CannotListenError:
+                listen_tcp('127.0.0.1')
+                self.env['RESULT_SERVER'] = '127.0.0.1:%s' % port
+        else:
+            listen_tcp('127.0.0.1')
             self.env['RESULT_SERVER'] = '127.0.0.1:%s' % port
-
         # save env:
         env_file = ENV_PATHNAME_TEMPLATE % taskid
         self.env['RHTS_ENV'] = env_file
@@ -677,6 +685,7 @@ def main(task_path=None):
         #else:
         #    log.error("Test directory not provided.", reason)
         #    raise exceptions.RuntimeError("Test directory not provided.")
+    beah.config.beah_conf()
     m = RHTSMain(task_path, USE_DEFAULT)
     reactor.run()
 
@@ -686,4 +695,3 @@ def main(task_path=None):
 ################################################################################
 if __name__ == '__main__':
     main()
-

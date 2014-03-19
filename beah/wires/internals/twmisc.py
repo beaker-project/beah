@@ -200,34 +200,53 @@ def reason2rc(end_reason):
 
 # To support testing in IPv6 only, IPv4 only and mixed IPv4/6 environments
 
-def connect_loopback(port, factory):
+def connect_loopback(port, factory, ipv6_disabled=False):
     # We prefer connecting over IPv6. However, if the server is not
     # listening on IPv6 (e.g. because the operating system or Twisted
-    # doesn't support IPv6), we fallback to connecting over IPv4.
-    try:
-        return reactor.connectTCP('::1', port, factory)
-    except (NoRouteError, DNSLookupError):
-        return reactor.connectTCP('127.0.0.1', port, factory)
+    # doesn't support IPv6, or has been disabled), 
+    # we fallback to connecting over IPv4.
+    def connect_tcp(interface):
+        return reactor.connectTCP(interface, port, factory)
 
-def listen_all_tcp(port, listener):
-    # We can listen on '::' (in6addr_any) and the kernel will give us 
-    # connections that came in over IPv6 or IPv4. But if IPv6 is disabled in 
+    if not ipv6_disabled:
+        try:
+            return connect_tcp('::1')
+        except (NoRouteError, DNSLookupError):
+            return connect_tcp('127.0.0.1')
+    else:
+        return connect_tcp('127.0.0.1')
+
+def listen_all_tcp(port, listener, ipv6_disabled=False):
+
+    def listen_tcp(interface):
+        return reactor.listenTCP(port, listener, interface=interface)
+
+    # We can listen on '::' (in6addr_any) and the kernel will give us
+    # connections that came in over IPv6 or IPv4. But if IPv6 is disabled in
     # the kernel we need to listen on '' (INADDR_ANY) instead.
-    try:
-        return reactor.listenTCP(port, listener, interface='::')
-    except CannotListenError:
-        return reactor.listenTCP(port, listener, interface='')
+    if not ipv6_disabled:
+        try:
+            return listen_tcp('::')
+        except CannotListenError:
+            return listen_tcp('')
+    else:
+        return listen_tcp('')
 
-def listen_loopback_tcp(port, listener):
+def listen_loopback_tcp(port, listener, ipv6_disabled=False):
+
+    def listen_tcp(interface):
+        return reactor.listenTCP(port, listener, interface=interface)
+
     # We need to listen on both IPv4 and IPv6 loopback addresses. Either one 
     # can fail, but if both fails we have hit a real error.
     listening6 = None
+    if not ipv6_disabled:
+        try:
+            listening6 = listen_tcp('::1')
+        except CannotListenError:
+            pass
     try:
-        listening6 = reactor.listenTCP(port, listener, interface='::1')
-    except CannotListenError:
-        pass
-    try:
-        listening4 = reactor.listenTCP(port, listener, interface='127.0.0.1')
+        listening4 = listen_tcp('127.0.0.1')
     except CannotListenError:
         if not listening6:
             raise
