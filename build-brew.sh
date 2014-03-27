@@ -14,6 +14,5 @@ brew build --nowait dist-4E-eso-candidate /tmp/tito/beah-$VERREL.el4.src.rpm
 tito build --dist .el5 --srpm
 brew build --nowait dist-5E-eso-candidate /tmp/tito/beah-$VERREL.el5.src.rpm
 tito release -y eng-rhel-6
-tito build --dist .el7 --srpm
-brew build --nowait eso-rhel-7-candidate /tmp/tito/beah-$VERREL.el7.src.rpm
+tito release -y eng-rhel-7
 echo "Don't forget Fedora too!"
