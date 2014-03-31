@@ -11,4 +11,4 @@ brew move-pkg dist-3.0E-eso{-candidate,} beah-$VERREL
 brew move-pkg dist-4E-eso{-candidate,} beah-$VERREL.el4
 brew move-pkg dist-5E-eso{-candidate,} beah-$VERREL.el5
 brew move-pkg eng-rhel-6{-candidate,} beah-$VERREL.el6eng
-brew move-pkg eso-rhel-7{-candidate,} beah-$VERREL.el7
+brew move-pkg eng-rhel-7{-candidate,} beah-$VERREL.el7eng
