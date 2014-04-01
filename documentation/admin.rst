@@ -15,6 +15,8 @@ location, use the ``-b`` switch. For example::
     beaker-repo-update -b http://beaker-project.org/yum/harness-testing/
 
 
+.. _beah-ipv6:
+
 Using Beah for IPv6 testing
 ===========================
 
