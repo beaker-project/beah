@@ -47,6 +47,59 @@ The source code is available in a git repository `here <http://git.beaker-projec
 ``beahlib``
   Library to be used from python tasks/tests.
 
+Beah services and their interaction
+===================================
+
+During a test run, several Beah components interact over TCP/IP within
+the system itself and with the Beaker lab controller.
+
+TCP/IP Server processes
+~~~~~~~~~~~~~~~~~~~~~~~
+
+When you login to a test system (say, when the :ref:`reservesys-task` is running), you will see that
+the following Beah specific servers listening::
+
+    beah-srv       9714    root   10u  IPv6  26970      0t0  TCP *:12432 (LISTEN)
+    beah-srv       9714    root   12u  IPv6  26972      0t0  TCP *:12434 (LISTEN)
+    beah-rhts-task 10142   root    7u  IPv6  27966      0t0  TCP localhost:7089 (LISTEN)
+
+The ``beah-srv`` process corresponds to the server started by ``start_server()`` in
+:file:`beah/wires/internals/twserver.py` and it basically starts the
+``TaskListener`` and ``BackendListener``, whose presence you can usually see
+in the console logs::
+  
+   2014-03-31 21:58:19,384 beah start_server: INFO Controller: BackendListener listening on :: port 12432 
+   2014-03-31 21:58:19,385 beah start_server: INFO Controller: BackendListener listening on /var/beah/backend12432.socket 
+   2014-03-31 21:58:19,386 beah start_server: INFO Controller: TaskListener listening on :: port 12434 
+   2014-03-31 21:58:19,387 beah start_server: INFO Controller: TaskListener listening on /var/beah/task12434.socket 
+
+These servers exist throughout a recipe run on the test system. The
+corresponding "client" programs live in :file:`beah/wires/internals/twbackend.py` and
+:file:`beah/wires/internals/twtask.py`.
+
+The ``beah-rhts-task`` process (``main()`` function in
+:file:`beah/tasks/rhts_xmlrpc.py`) corresponds to the result server
+started *per task* by ``beah-srv`` and exits on a task completion.
+
+Note that on a distro which doesn't have the right twisted library or
+the IPv6 support has been disabled otherwise, the servers will only
+listen on IPv4 interfaces (see :ref:`beah-ipv6` to learn more
+about the IPv6 testing support in Beah).
+
+System services
+~~~~~~~~~~~~~~~
+
+The following beah daemons are started at system boot:
+
+``beah-fwd-backend``: This handles the communication during multi host jobs.
+The corresponding source file is :file:`beah/beaker/backends/forwarder.py`.
+
+``beah-beaker-backend``: This talks to the Beaker lab controller's
+``beaker-proxy`` process over XML-RPC. The corresponding source file is
+:file:`beah/beaker/backends/beakerlc.py`. 
+
+``beah-srv``: This is the main daemon process we saw above. The corresponding
+source file is :file:`beah/bin/srv.py`.
 
 Setting up a development environment
 ====================================
