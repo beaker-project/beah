@@ -1,6 +1,15 @@
 Releases
 --------
 
+Beah-0.7.4
+==========
+
+Changelog
+
+- A new config option ``IPV6_DISABLED`` will cause Beah to avoid using IPv6
+  even when it is available.
+- Beah now starts after systemd readahead collection is finished.
+
 Beah-0.7.3
 ==========
 
