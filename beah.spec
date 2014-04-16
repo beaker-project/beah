@@ -30,7 +30,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.7.3
+Version: 0.7.4
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -186,6 +186,10 @@ fi
 %endif
 
 %changelog
+* Wed Apr 16 2014 Dan Callaghan <dcallagh@redhat.com> 0.7.4-1
+- Implement a new config option to use IPv4 only (asaha@redhat.com)
+- Start beah services after readahead collection exits (asaha@redhat.com)
+
 * Mon Feb 24 2014 Dan Callaghan <dcallagh@redhat.com> 0.7.3-1
 - RHBZ#1067745 backend needs to listen on all interfaces, not localhost
   (dcallagh@redhat.com)
