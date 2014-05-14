@@ -56,7 +56,6 @@ import re
 import traceback
 import exceptions
 import base64
-import hashlib
 from beah.misc.jsonenv import json
 import logging
 from xml.dom import minidom
@@ -1539,7 +1538,7 @@ class BeakerLCBackend(SerializingBackend):
     def __init__(self, conf=None, proxy=None, runtime=None, queue=None,
             build_queue=None):
         self.conf = conf
-        self.digest_method = self.conf.get('DEFAULT', 'DIGEST')
+        self.digest_method = "no-digest" # self.conf.get('DEFAULT', 'DIGEST')
         self.name = self.conf.get('DEFAULT', 'NAME')
         self.runtime = runtime
         self.__commands = {}
@@ -2004,7 +2003,7 @@ def beakerlc_opts(opt, conf):
             help="Identify as HOSTNAME when talking to Lab Controller.")
     def digest_cb(option, opt_str, value, parser):
         # FIXME!!! check value
-        conf['DIGEST'] = value
+        conf['DIGEST'] = "no-digest"
     opt.add_option("--digest", metavar="DIGEST_METHOD",
             action="callback", callback=digest_cb, type='string',
             help="Use DIGEST_METHOD for checksums.")

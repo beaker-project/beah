@@ -53,7 +53,6 @@ Requires: python%{?_rhel3}-twisted-web
 # We need these for EL4 and EL5.
 # RHEL3 python26 includes these, but since its a versioned package doesn't provide them.
 %if "0%{?dist}" != "0"
-Requires: python-hashlib
 Requires: python-uuid
 %endif
 %if %{with_systemd}
@@ -75,7 +74,6 @@ BuildRequires: python%{?_rhel3}-simplejson
 %endif
 BuildRequires: python%{?_rhel3}-twisted-web
 %if "0%{?dist}" != "0"
-BuildRequires: python-hashlib
 BuildRequires: python-uuid
 %endif
 %if "%{?_pylint}" != ""

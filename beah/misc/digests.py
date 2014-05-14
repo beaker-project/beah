@@ -1,4 +1,4 @@
-import hashlib
+#import hashlib
 
 __DIGEST_BY_LEN = {32:'md5', 40:'sha1', 64:'sha256', 128:'sha512'}
 
@@ -45,8 +45,8 @@ def make_digest(digest):
     return None
 
 
-__DIGEST_CONSTRUCTOR = {'md5':hashlib.md5, 'sha1':hashlib.sha1, # pylint: disable=E1101
-        'sha256':hashlib.sha256, 'sha512':hashlib.sha512}       # pylint: disable=E1101
+#__DIGEST_CONSTRUCTOR = {'md5':hashlib.md5, 'sha1':hashlib.sha1, # pylint: disable=E1101
+#        'sha256':hashlib.sha256, 'sha512':hashlib.sha512}       # pylint: disable=E1101
 
 
 class NoDigest(object):
@@ -68,5 +68,6 @@ def DigestConstructor(digest_method):
 
     This method uses non-standard name as it is only a class multiplexer.
     """
-    return __DIGEST_CONSTRUCTOR.get(digest_method, NoDigest)
+#    return __DIGEST_CONSTRUCTOR.get(digest_method, NoDigest)
+    return NoDigest
 
