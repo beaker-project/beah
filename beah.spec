@@ -19,6 +19,14 @@
 %global with_systemd 0
 %endif
 
+# Currently the SELinux policy is only needed on Fedora 21+, see
+# https://bugzilla.redhat.com/show_bug.cgi?id=1077115
+%if 0%{?fedora} >= 21
+%global with_selinux_policy 1
+%else
+%global with_selinux_policy 0
+%endif
+
 # We need python-simplejson on RHEL 3-5
 %if 0%{?fedora} >= 18 || 0%{?rhel} >= 6
 %global with_simplejson 0
@@ -79,6 +87,10 @@ BuildRequires: python-uuid
 %if "%{?_pylint}" != ""
 BuildRequires: pylint
 %endif
+%if %{with_selinux_policy}
+BuildRequires: selinux-policy-devel
+Requires: selinux-policy >= %{_selinux_policy_version}
+%endif
 
 %description
 Beah - Test Harness.
@@ -99,10 +111,16 @@ Powered by Twisted.
 
 %build
 %{__python} setup.py build
+%if %{with_selinux_policy}
+make -C selinux -f %{_datadir}/selinux/devel/Makefile
+%endif
 
 %install
 rm -rf $RPM_BUILD_ROOT
 %{__python} setup.py install --optimize=1 --skip-build --root $RPM_BUILD_ROOT
+%if %{with_selinux_policy}
+install -p -m 644 -D selinux/beah.pp $RPM_BUILD_ROOT%{_datadir}/selinux/packages/%{name}/beah.pp
+%endif
 
 %check
 trial beah || exit 1
@@ -150,6 +168,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_var}/lib/%{name}/tortilla
 %attr(0755, root, root)%{_var}/lib/%{name}/tortilla/wrappers.d/*
 %{_var}/lib/%{name}/tortilla/order.d/*
+%if %{with_selinux_policy}
+%{_datadir}/selinux/packages/%{name}
+%endif
 
 %post
 %if %{with_systemd}
@@ -158,6 +179,11 @@ rm -rf $RPM_BUILD_ROOT
 for service in %{_services}; do
     /sbin/chkconfig --add $service
 done
+%endif
+%if %{with_selinux_policy}
+if [ "$1" -le 1 ] ; then # First install
+    semodule -i %{_datadir}/selinux/packages/%{name}/beah.pp || :
+fi
 %endif
 
 %preun
@@ -171,6 +197,11 @@ if [ $1 = 0 ]; then
     done
 fi
 %endif
+%if %{with_selinux_policy}
+if [ "$1" -lt 1 ] ; then # Final removal
+    semodule -r beah || :
+fi
+%endif
 
 %postun
 %if %{with_systemd}
@@ -180,6 +211,11 @@ if [ "$1" -ge "1" ]; then
     for service in %{_services_restart}; do
         /sbin/service $service condrestart >/dev/null 2>&1 || :
     done
+fi
+%endif
+%if %{with_selinux_policy}
+if [ "$1" -ge 1 ] ; then # Upgrade
+    semodule -i %{_datadir}/selinux/packages/%{name}/beah.pp || :
 fi
 %endif
 
