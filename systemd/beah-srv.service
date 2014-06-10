@@ -1,7 +1,7 @@
 [Unit]
 Description=The Beaker Harness server.
 After=network.target NetworkManager-wait-online.service time-sync.target systemd-readahead-done.service multi-user.target
-Requires=beah-beaker-backend beah-fwd-backend
+Requires=beah-beaker-backend.service beah-fwd-backend.service
 DefaultDependencies=no
 
 [Service]
