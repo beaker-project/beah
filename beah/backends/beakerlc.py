@@ -2034,7 +2034,7 @@ def defaults():
             'LAB_CONTROLLER':lc,
             'IPV6_DISABLED': 'False',
             'COBBLER_SERVER':cs,
-            'HOSTNAME':os.getenv('HOSTNAME'),
+            'HOSTNAME': socket.getfqdn(),
             'RECIPEID':'-1',
             'DIGEST':'no-digest',
             'RPC_TIMEOUT':'60',
