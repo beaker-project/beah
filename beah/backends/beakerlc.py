@@ -520,7 +520,7 @@ def simple_recipe(recipe_xml, run_task, recipe_id, backend):
             log.info("Task %r has exitted from recipe.", parsed_task.beaker_id)
             raise
         except:
-            log.exception("Encoutnered problem while running task %r.",
+            log.exception("Encountered problem while running task %r.",
                     parsed_task.beaker_id)
     raise NothingToDoException("No more tasks in recipe.")
 simple_recipe = defer.deferredGenerator(simple_recipe)
@@ -603,6 +603,7 @@ def run_task(runtime, check_task=None, get_roles=None, env_overrides=None):
         # up to 2.4 :-(
         except:
             if task:
+                log.exception('Exception raised when running task. Setting to finished')
                 task.set_finished()
             raise
     return defer.deferredGenerator(_run_task)
@@ -1726,7 +1727,7 @@ class BeakerLCBackend(SerializingBackend):
                 if evt.arg('rc') == ECHO.OK:
                     cb.callback(evt.args)
                 else:
-                    cb.errback(evt.args)
+                    cb.errback(RuntimeError(evt))
         elif evev == 'flush':
             self.flush()
             return
