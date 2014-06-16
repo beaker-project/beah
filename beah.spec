@@ -38,7 +38,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.7.4
+Version: 0.7.5
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -220,6 +220,14 @@ fi
 %endif
 
 %changelog
+* Mon Jun 16 2014 Amit Saha <asaha@redhat.com> 0.7.5-1
+- Pass a valid Exception to errback() (asaha@redhat.com)
+- fix systemd dependencies for beah-srv.service (dcallagh@redhat.com)
+- don't rely on HOSTNAME env var (dcallagh@redhat.com)
+- SELinux policy module to allow beah to transition to unconfined
+  (dcallagh@redhat.com)
+- Discard python-hashlib to enable FIPS mode on RHEL5 (mcsontos@redhat.com)
+
 * Wed Apr 16 2014 Dan Callaghan <dcallagh@redhat.com> 0.7.4-1
 - Implement a new config option to use IPv4 only (asaha@redhat.com)
 - Start beah services after readahead collection exits (asaha@redhat.com)
