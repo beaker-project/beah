@@ -1,6 +1,17 @@
 Releases
 --------
 
+Beah-0.7.5
+==========
+
+Changelog
+
+- Pass a valid Exception to errback()
+- fix systemd dependencies for beah-srv.service
+- don't rely on HOSTNAME env var
+- SELinux policy module to allow beah to transition to unconfined
+- Discard python-hashlib to enable FIPS mode on RHEL5
+
 Beah-0.7.4
 ==========
 
