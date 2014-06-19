@@ -180,6 +180,11 @@ def stdout(data, origin={}, timestamp=None):
 def stderr(data, origin={}, timestamp=None):
     return output(data, "stderr", origin, timestamp)
 
+def rebooting(data, origin={}, timestamp=None):
+    """Event which identifies a system reboot triggered by a task"""
+    return Event('rebooting', origin, timestamp, data=data)
+
+
 def log(message="", log_level=LOG_LEVEL.INFO, log_handle="", origin={},
         timestamp=None, **kwargs):
     return Event('log', origin, timestamp, log_level=log_level,

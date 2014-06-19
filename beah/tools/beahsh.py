@@ -102,6 +102,9 @@ def proc_evt_echo_err(cmd, args):
     opts, args = no_opts.parse_args(args)
     return [event.stderr(" ".join(args))]
 
+def proc_evt_rebooting(cmd, args):
+    """Generate rebooting event"""
+    return [event.rebooting(" ".join(args))]
 
 __TEXT_RESULT_TO_BEAH = {
         "pass": RC.PASS,

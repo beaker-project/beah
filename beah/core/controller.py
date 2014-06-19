@@ -142,7 +142,7 @@ class Controller(object):
             'proc_cmd_forward', 'proc_cmd_variable_value', 'proc_cmd_ping',
             'proc_cmd_PING', 'proc_cmd_config', 'proc_cmd_run',
             'proc_cmd_run_this', 'proc_cmd_kill', 'proc_cmd_dump',
-            'proc_cmd_no_input', 'proc_cmd_no_output')
+            'proc_cmd_no_input', 'proc_cmd_no_output', 'proc_evt_rebooting')
 
     def __init__(self, spawn_task, runtime, on_killed=None):
         self.spawn_task = spawn_task
@@ -155,6 +155,7 @@ class Controller(object):
         self.killed = False
         self.on_killed = on_killed or self.__ON_KILLED
         self.__waiting_tasks = {}
+        self.rebooting = False
 
     def add_backend(self, backend):
         if backend and not (backend in self.backends):
@@ -390,14 +391,25 @@ class Controller(object):
         self.add_task(task)
         self.generate_evt(event.start(task.task_id))
 
+    def proc_evt_rebooting(self, task, evt):
+        log.info("System reboot triggered by the task")
+        self.rebooting = True
+
     def task_finished(self, task, rc, evt=None):
-        self.generate_evt(evt or event.end(task.task_id, rc))
-        self.remove_task(task)
-        task.set_controller()
-        master = self.get_master(task.task_id)
-        if master:
-            master.set_done(True, rc)
-        log.info("Task %s has finished.", task.task_id)
+        if self.rebooting:
+            # If we're in the middle of a reboot, we don't want the task
+            # to be marked as "done", because we need to start it up again
+            # after the reboot
+            log.info("Task %s has finished, not marking it as done due to reboot.",
+                     task.task_id)
+        else:
+            self.generate_evt(evt or event.end(task.task_id, rc))
+            self.remove_task(task)
+            task.set_controller()
+            master = self.get_master(task.task_id)
+            if master:
+                master.set_done(True, rc)
+                log.info("Task %s has finished. Marking it as done.", task.task_id)
         log_flush(log)
 
     def handle_exception(self, message="Exception raised."):
