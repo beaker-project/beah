@@ -2,6 +2,8 @@
 Description=The Beaker backend server.
 After=network.target NetworkManager-wait-online.service time-sync.target systemd-readahead-done.service multi-user.target
 DefaultDependencies=no
+Conflicts=shutdown.target
+Before=shutdown.target
 
 [Service]
 Type=simple
