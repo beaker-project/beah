@@ -1,6 +1,17 @@
 Releases
 --------
 
+Beah-0.7.6
+==========
+
+Changelog
+
+- Add before and conflicts on shutdown.target for beah systemd services. This
+  will allow the Beah services to be shutdown cleanly.
+- Currently Beah considers a Task runner exit as task completion. Starting
+  this release, Beah will ignore a task exit when a system reboots via
+  ``rhts-reboot`` and hence not mark it as "done". This fixes :issue:`908354`.
+
 Beah-0.7.5
 ==========
 
