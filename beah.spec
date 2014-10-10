@@ -19,9 +19,7 @@
 %global with_systemd 0
 %endif
 
-# Currently the SELinux policy is only needed on Fedora 21+, see
-# https://bugzilla.redhat.com/show_bug.cgi?id=1077115
-%if 0%{?fedora} >= 21
+%if 0%{?fedora} >= 21 || 0%{?rhel} >= 7
 %global with_selinux_policy 1
 %else
 %global with_selinux_policy 0
