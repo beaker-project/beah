@@ -1,6 +1,15 @@
 Releases
 --------
 
+Beah-0.7.7
+==========
+
+Changelog
+
+- Beah systems units now use Wants= instead of Requires= for dependencies, so
+  that they can be restarted independently of each other.
+- The ``beah`` SELinux policy module is now built and installed on RHEL7.
+
 Beah-0.7.6
 ==========
 
