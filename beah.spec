@@ -36,7 +36,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.7.7
+Version: 0.7.8
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -218,6 +218,9 @@ fi
 %endif
 
 %changelog
+* Tue Nov 25 2014 Dan Callaghan <dcallagh@redhat.com> 0.7.8-1
+- remove readahead ordering hacks (dcallagh@redhat.com)
+
 * Thu Oct 16 2014 Dan Callaghan <dcallagh@redhat.com> 0.7.7-1
 - use Wants= instead of Requires= for systemd dependencies
   (dcallagh@redhat.com)
