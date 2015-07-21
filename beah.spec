@@ -134,7 +134,7 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root)
 %config(noreplace) %{_sysconfdir}/%{name}*
 %if %{with_systemd}
-%attr(0755, root, root)%{_unitdir}/%{name}*
+%{_unitdir}/%{name}*
 %exclude %{_sysconfdir}/init.d
 %if "%{_unitdir}" == "/lib/systemd/system"
 %exclude /usr/lib/systemd
