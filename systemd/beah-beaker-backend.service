@@ -6,7 +6,9 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/beah-beaker-backend
+ExecStart=/usr/bin/beah-beaker-backend --log-stderr
+StandardOutput=journal+console
+StandardError=inherit
 
 [Install]
 WantedBy=multi-user.target
