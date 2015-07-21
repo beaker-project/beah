@@ -193,6 +193,34 @@ def parse_bool(arg):
     return arg
 
 
+class ConsoleHandler(logging.Handler):
+
+    def __init__(self):
+        logging.Handler.__init__(self)
+        self.console = None
+
+    def reopen(self):
+        self.console = open('/dev/console', 'wb')
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            if isinstance(msg, unicode):
+                msg.encode('utf8')
+            try:
+                if self.console is None:
+                    self.reopen()
+                self.console.write(msg + '\n')
+                self.console.flush()
+            except (OSError, IOError):
+                self.reopen()
+                self.console.write(msg + '\n')
+                self.console.flush()
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            self.handleError(record)
+
 def make_log_handler(log, log_path, log_file_name=None, syslog=None,
         console=None):
 
@@ -211,7 +239,7 @@ def make_log_handler(log, log_path, log_file_name=None, syslog=None,
     console = parse_bool(console)
     if console:
         if str(console).strip().lower() == 'console':
-            lhandler = logging.FileHandler('/dev/console')
+            lhandler = ConsoleHandler()
             lhandler.setLevel(logging.INFO)
         else:
             lhandler = logging.StreamHandler()
