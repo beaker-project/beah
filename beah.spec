@@ -62,7 +62,7 @@ Requires: python%{?_rhel3}-twisted-web
 Requires: python-uuid
 %endif
 %if %{with_systemd}
-BuildRequires:          systemd-units
+BuildRequires:          systemd
 Requires(post):         systemd
 Requires(pre):          systemd
 Requires(postun):       systemd
