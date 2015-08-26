@@ -36,7 +36,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.7.8
+Version: 0.7.9
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -218,6 +218,13 @@ fi
 %endif
 
 %changelog
+* Wed Aug 26 2015 Dan Callaghan <dcallagh@redhat.com> 0.7.9-1
+- make systemd capture output and send it to the console (dcallagh@redhat.com)
+- handle /dev/console errors (dcallagh@redhat.com)
+- start services after network-online.target (dcallagh@redhat.com)
+- systemd unit files should not be executable (dcallagh@redhat.com)
+- need to BuildRequire systemd, not systemd-units (dcallagh@redhat.com)
+
 * Tue Nov 25 2014 Dan Callaghan <dcallagh@redhat.com> 0.7.8-1
 - remove readahead ordering hacks (dcallagh@redhat.com)
 
