@@ -9,5 +9,4 @@ documentation/_build
 documentation/_static
 /tito-output
 /selinux/*.if
-/selinux/*.pp
 /selinux/tmp/

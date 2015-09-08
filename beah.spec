@@ -87,7 +87,6 @@ BuildRequires: pylint
 %endif
 %if %{with_selinux_policy}
 BuildRequires: selinux-policy-devel
-Requires: selinux-policy >= %{_selinux_policy_version}
 %endif
 
 %description
@@ -110,7 +109,12 @@ Powered by Twisted.
 %build
 %{__python} setup.py build
 %if %{with_selinux_policy}
-make -C selinux -f %{_datadir}/selinux/devel/Makefile
+if [ -e "selinux/beah%{?dist}.pp" ]; then
+# use pre-compiled selinux policy
+    cp -p selinux/beah%{?dist}.pp selinux/beah.pp
+else
+    make -C selinux -f %{_datadir}/selinux/devel/Makefile
+fi
 %endif
 
 %install
