@@ -37,7 +37,7 @@
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
 Version: 0.7.9
-Release: 1%{?dist}
+Release: 2%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -222,6 +222,9 @@ fi
 %endif
 
 %changelog
+* Mon Sep 14 2015 Dan Callaghan <dcallagh@redhat.com> 0.7.9-2
+- use pre-built selinux policy module (mjia@redhat.com)
+
 * Wed Aug 26 2015 Dan Callaghan <dcallagh@redhat.com> 0.7.9-1
 - make systemd capture output and send it to the console (dcallagh@redhat.com)
 - handle /dev/console errors (dcallagh@redhat.com)
