@@ -504,7 +504,7 @@ def simple_recipe(recipe_xml, run_task, recipe_id, backend):
     if not recipe_parser:
         raise NothingToDoException("No recipe for id %s." % recipe_id)
     rs = xml_attr(recipe_parser.recipe_node, 'status')
-    if rs not in ['Running', 'Waiting']:
+    if rs in ['Completed', 'Aborted', 'Cancelled']:
         raise NothingToDoException("The recipe has finished.")
     beaker_id = recipe_parser.beaker_id
     recipe = BeakerRecipe(backend, beaker_id)
