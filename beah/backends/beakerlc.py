@@ -1289,6 +1289,7 @@ class BeakerResult(BeakerObject, PersistentItem):
         log.debug("relation result_file processed. finfo updated: %r", file)
 
     RESULT_TYPE = {
+            RC.SKIP: ("skip", "Skip"),
             RC.PASS:("pass_", "Pass"),
             RC.WARNING:("warn", "Warning"),
             RC.FAIL:("fail", "Fail"),

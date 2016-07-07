@@ -18,7 +18,8 @@
 
 
 class RC:
-    PASS     = 0
+    SKIP     = 0
+    PASS     = 10
     WARNING  = 50
     FAIL     = 60
     CRITICAL = 70

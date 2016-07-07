@@ -55,6 +55,7 @@ USE_DEFAULT = object()
 # AUXILIARY:
 ################################################################################
 __RESULT_RHTS_TO_BEAH = {
+        "skip": RC.SKIP,
         "pass": RC.PASS,
         "warn": RC.WARNING,
         "fail": RC.FAIL,
