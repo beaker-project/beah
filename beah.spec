@@ -36,8 +36,8 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.7.9
-Release: 2%{?dist}
+Version: 0.7.10
+Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -222,6 +222,10 @@ fi
 %endif
 
 %changelog
+* Fri Aug 12 2016 Dan Callaghan <dcallagh@redhat.com> 0.7.10-1
+- Waiting and Running are not the only states for an incomplete recipe
+  (dcallagh@redhat.com)
+
 * Mon Sep 14 2015 Dan Callaghan <dcallagh@redhat.com> 0.7.9-2
 - use pre-built selinux policy module (mjia@redhat.com)
 
