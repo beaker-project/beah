@@ -36,7 +36,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.7.10
+Version: 0.7.11
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -222,6 +222,10 @@ fi
 %endif
 
 %changelog
+* Fri Jan 13 2017 Dan Callaghan <dcallagh@redhat.com> 0.7.11-1
+- support Skip result (dcallagh@redhat.com)
+- only require python-uuid on RHEL4 and RHEL5 (dcallagh@redhat.com)
+
 * Fri Aug 12 2016 Dan Callaghan <dcallagh@redhat.com> 0.7.10-1
 - Waiting and Running are not the only states for an incomplete recipe
   (dcallagh@redhat.com)
