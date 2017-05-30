@@ -27,6 +27,8 @@ import logging.handlers
 import inspect
 import re
 
+log = logging.getLogger('beah')
+
 def raiser(exc=exceptions.Exception, *args, **kwargs):
     raise exc(*args, **kwargs)
 
@@ -116,6 +118,7 @@ def _localhosts_aggressive():
             lh_add(*ip_addresses)
         except:
             pass
+    log.debug('Determined localhost addresses are %r', answ.keys())
     return answ
 
 _LOCALHOSTS = {}
@@ -129,6 +132,7 @@ def _set_local(host, local):
     global _LOCALHOSTS
     _localhosts()
     _LOCALHOSTS[host] = local
+    log.debug('Host %s %s local', host, local and 'is' or 'is not')
     return local
 
 def localhost(host):
