@@ -17,6 +17,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 from twisted.internet import reactor
+from twisted.internet.error import ProcessDone
 from twisted.internet.protocol import ProcessProtocol, ReconnectingClientFactory
 from beah.wires.internals import twadaptors, twmisc
 from beah.wires.internals.twmisc import connect_loopback
@@ -37,6 +38,7 @@ class TaskStdoutProtocol(ProcessProtocol):
         self.task = None
         self.controller = None
         self.master = None
+        self.pid = None
 
     def set_master(self):
         self.master = self.controller.get_master(self.task_id)
@@ -44,7 +46,8 @@ class TaskStdoutProtocol(ProcessProtocol):
         self.master.killer = Killer(self)
 
     def connectionMade(self):
-        log.info("%s:connectionMade", self.__class__.__name__)
+        log.debug("%s:connectionMade", self.__class__.__name__)
+        self.pid = self.transport.pid
         self.task = self.task_protocol()
         # FIXME: this is not very nice...
         self.task.send_cmd = lambda obj: self.transport.write(self.task.format(obj))
@@ -60,7 +63,9 @@ class TaskStdoutProtocol(ProcessProtocol):
         self.task.lose_item(data)
 
     def processExited(self, reason):
-        log.info("%s:processExited(%s)", self.__class__.__name__, reason)
+        log.debug("%s:processExited(%s)", self.__class__.__name__, reason)
+        if not isinstance(reason.value, ProcessDone):
+            log.info('PID %s exited abnormally: %s', self.pid, reason)
         self.transport.closeStdin()
 
     def release(self):
@@ -73,7 +78,7 @@ class TaskStdoutProtocol(ProcessProtocol):
 
 
     def processEnded(self, reason):
-        log.info("%s:processEnded(%s)", self.__class__.__name__, reason)
+        log.debug("%s:processEnded(%s)", self.__class__.__name__, reason)
         self.controller.task_finished(self.task, rc=twmisc.reason2rc(reason))
         self.release()
 
