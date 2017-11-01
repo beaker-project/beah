@@ -1576,11 +1576,12 @@ class BeakerLCBackend(SerializingBackend):
     def set_controller(self, controller=None):
         SerializingBackend.set_controller(self, controller)
         if controller:
-            log.info("Connected to controller.")
+            log.debug('%r using controller %r', self, controller)
             while self.__cmd_queue:
                 self._send_cmd(self.__cmd_queue.pop())
         else:
-            log.info("Connection to controller lost.")
+            if self.controller is not None:
+                log.debug('%r controller disconnected', self)
 
     def close(self):
         pass
