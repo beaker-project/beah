@@ -38,7 +38,7 @@ class BackendListener(protocol.ServerFactory):
         self.controller = controller
 
     def buildProtocol(self, addr):
-        log.info('%s: Connected.  Address: %s', self.__class__.__name__, addr)
+        log.info('%s: New client connected from remote address %s', self.__class__.__name__, addr)
         backend = self.protocol()
         backend.client_addr = addr
         # FIXME: filterring requests for remote backends
@@ -56,7 +56,7 @@ class TaskListener(protocol.ServerFactory):
         self.controller = controller
 
     def buildProtocol(self, addr):
-        log.info('%s: Connected.  Address: %s', self.__class__.__name__, addr)
+        log.info('%s: New client connected from remote address %s', self.__class__.__name__, addr)
         task = self.protocol()
         task.set_controller(self.controller)
         log.debug('%s: Connected [Done]', self.__class__.__name__)
