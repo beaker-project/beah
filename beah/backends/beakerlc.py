@@ -1905,11 +1905,11 @@ def make_proxy(conf, verbose):
         lc_ipv6 = None
 
     if lc_ipv6:
-        log.info('Communicating to LC over IPv6 (%s)' % lc_ipv6)
+        log.info('Using IPv6 address %s for Beaker lab controller XMLRPC calls' % lc_ipv6)
         proxy = repeatingproxy.RepeatingProxy(ProxyIPv6(url, lc_ipv6, allowNone=True))
     else:
         # else fall back to using IPv4
-        log.info('Communicating to LC over IPv4')
+        log.info('Falling back to IPv4 for Beaker lab controller XMLRPC calls')
         proxy = repeatingproxy.RepeatingProxy(xmlrpc.Proxy(url, allowNone=True))
 
     if verbose:
