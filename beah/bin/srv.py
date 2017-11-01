@@ -20,6 +20,10 @@ import os
 from twisted.internet import reactor
 from beah import config
 from beah.wires.internals.twserver import start_server
+try:
+    from systemd.daemon import notify as sd_notify
+except ImportError:
+    sd_notify = None
 
 def main_srv(conf=None):
     """\
@@ -36,6 +40,8 @@ def main():
     debug.setup(os.getenv("BEAH_SRV_DEBUGGER"), conf.get('DEFAULT', 'NAME'))
     print main_srv.__doc__
     main_srv(conf=conf)
+    if sd_notify is not None:
+        sd_notify('READY=1')
     debug.runcall(reactor.run)
 
 if __name__ == '__main__':

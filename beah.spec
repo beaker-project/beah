@@ -45,7 +45,13 @@ Group: Development/Tools
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 Prefix: %{_prefix}
 BuildArch: noarch
-%if ! %{with_systemd}
+%if %{with_systemd}
+%if 0%{?fedora} >= 24 || 0%{?rhel} >= 8
+Requires: python2-systemd
+%else
+Requires: systemd-python
+%endif
+%else
 # /usr/bin/lockfile from procmail is used in initscripts
 # (not required when using systemd)
 Requires: procmail
