@@ -464,13 +464,14 @@ class NothingToDoException(Exception):
 def get_recipe_lc(recipe_id, proxy):
     """Get a recipe from LC."""
     args = {'recipe_id': recipe_id}
-    return proxy.callRemote('get_my_recipe', args)
+    return proxy.repeatedRemote(repeatWithLog(repeatingproxy.repeatAlways), 'get_my_recipe', args)
 
 
 def get_recipe_cache_or_lc(recipe_id, runtime, proxy):
     """Get a recipe from cache or from LC."""
     recipe_xml = runtime.type_get('variables', 'RECIPE', None)
     if not recipe_xml:
+        log.info('Fetching recipe %s from Beaker lab controller', recipe_id)
         thingy = defer.waitForDeferred(get_recipe_lc(recipe_id, proxy))
         yield thingy
         recipe_xml = thingy.getResult()
