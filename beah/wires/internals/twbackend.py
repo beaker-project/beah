@@ -54,10 +54,10 @@ class BackendFactory(ReconnectingClientFactory):
     # INHERITED METHODS:
     ########################################
     def startedConnecting(self, connector):
-        self.linfo('Started to connect.')
+        self.linfo('Attempting to connect to beah backend')
 
     def buildProtocol(self, addr):
-        self.linfo('Connected.  Address: %r', addr)
+        self.linfo('Connected to beah backend on address %r', addr)
         self.linfo('Resetting reconnection delay')
         self.resetDelay()
         controller = self.controller_protocol()
@@ -65,13 +65,13 @@ class BackendFactory(ReconnectingClientFactory):
         return controller
 
     def clientConnectionLost(self, connector, reason):
-        self.linfo('Lost connection.  Reason: %s', reason)
+        self.linfo('Connection to beah backend on %s lost: %s', connector.getDestination(), reason)
         self.backend.set_controller()
         if not self._done:
             ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
 
     def clientConnectionFailed(self, connector, reason):
-        self.linfo('Connection failed. Reason: %s', reason)
+        self.linfo('Connection to beah backend on %s failed: %s', connector.getDestination(), reason)
         self.backend.set_controller()
         if not self._done:
             ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
