@@ -36,7 +36,7 @@
 %{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.7.11
+Version: 0.7.12
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -228,6 +228,10 @@ fi
 %endif
 
 %changelog
+* Wed Feb 07 2018 Dan Callaghan <dcallagh@redhat.com> 0.7.12-1
+- fix service ordering (dcallagh@redhat.com)
+- clarify log messages (dcallagh@redhat.com)
+
 * Fri Jan 13 2017 Dan Callaghan <dcallagh@redhat.com> 0.7.11-1
 - support Skip result (dcallagh@redhat.com)
 - only require python-uuid on RHEL4 and RHEL5 (dcallagh@redhat.com)
