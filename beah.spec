@@ -1,13 +1,6 @@
-# The following allows us to build properly on rhel3
-%if "0%{?dist}" == "0"
-%global __python python2.6
-%global _rhel3 26
-%global _py_dev 26
-%else
 %global _py_dev 2
 %if "%{?rhel}" == "5"
 %global _pylint pylint --errors-only --output-format=parseable --include-ids=y --reports=n
-%endif
 %endif
 %global _services_restart beah-fakelc beah-beaker-backend beah-fwd-backend
 %global _services beah-srv %{_services_restart}
@@ -56,14 +49,13 @@ Requires: systemd-python
 # (not required when using systemd)
 Requires: procmail
 %endif
-Requires: python%{?_rhel3}
-Requires: python%{?_rhel3}-setuptools
+Requires: python
+Requires: python-setuptools
 %if %{with_simplejson}
-Requires: python%{?_rhel3}-simplejson
+Requires: python-simplejson
 %endif
-Requires: python%{?_rhel3}-twisted-web
+Requires: python-twisted-web
 # We need these for EL4 and EL5.
-# RHEL3 python26 includes these, but since its a versioned package doesn't provide them.
 %if 0%{?rhel} == 4 || 0%{?rhel} == 5
 Requires: python-uuid
 %endif
@@ -80,11 +72,11 @@ Requires(preun): initscripts
 Requires(postun): initscripts
 %endif
 BuildRequires: python%{?_py_dev}-devel
-BuildRequires: python%{?_rhel3}-setuptools
+BuildRequires: python-setuptools
 %if %{with_simplejson}
-BuildRequires: python%{?_rhel3}-simplejson
+BuildRequires: python-simplejson
 %endif
-BuildRequires: python%{?_rhel3}-twisted-web
+BuildRequires: python-twisted-web
 %if 0%{?rhel} == 4 || 0%{?rhel} == 5
 BuildRequires: python-uuid
 %endif
