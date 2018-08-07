@@ -24,8 +24,9 @@
 %global with_simplejson 1
 %endif
 
-%{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%{!?pyver: %global pyver %(%{__python} -c "import sys ; print sys.version[:3]")}
+%{!?__python2: %global __python2 __python}
+%{!?python2_sitelib: %global python2_sitelib %(%{__python2} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
+
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
 Version: 0.7.12
@@ -109,7 +110,7 @@ Powered by Twisted.
 %setup -q
 
 %build
-%{__python} setup.py build
+%{__python2} setup.py build
 %if %{with_selinux_policy}
 if [ -e "selinux/beah%{?dist}.pp" ]; then
 # use pre-compiled selinux policy
@@ -121,7 +122,7 @@ fi
 
 %install
 rm -rf $RPM_BUILD_ROOT
-%{__python} setup.py install --optimize=1 --skip-build --root $RPM_BUILD_ROOT
+%{__python2} setup.py install --optimize=1 --skip-build --root $RPM_BUILD_ROOT
 %if %{with_selinux_policy}
 install -p -m 644 -D selinux/beah.pp $RPM_BUILD_ROOT%{_datadir}/selinux/packages/%{name}/beah.pp
 %endif
@@ -159,9 +160,9 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755, root, root)%{_bindir}/rhts-flush
 %attr(0755, root, root)%{_bindir}/beat_tap_filter
 %attr(0755, root, root)%{_bindir}/json-env
-%{python_sitelib}/%{name}-*
-%{python_sitelib}/%{name}/
-%{python_sitelib}/beahlib.py*
+%{python2_sitelib}/%{name}-*
+%{python2_sitelib}/%{name}/
+%{python2_sitelib}/beahlib.py*
 %{_datadir}/%{name}
 %doc %{_datadir}/%{name}/README
 %doc %{_datadir}/%{name}/COPYING
