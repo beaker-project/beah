@@ -1,4 +1,3 @@
-%global _py_dev 2
 %if "%{?rhel}" == "5"
 %global _pylint pylint --errors-only --output-format=parseable --include-ids=y --reports=n
 %endif
@@ -38,27 +37,36 @@ Group: Development/Tools
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot-%(%{__id_u} -n)
 Prefix: %{_prefix}
 BuildArch: noarch
+
+%if 0%{?fedora} >= 29 || 0%{?rhel} >= 8
+BuildRequires: python2-devel
+BuildRequires: python2-setuptools
+BuildRequires: python2-twisted
+Requires: python2-setuptools
+Requires: python2-twisted
+Requires: python2-systemd
+%else
+BuildRequires: python2-devel
+BuildRequires: python-setuptools
+BuildRequires: python-twisted-web
+Requires: python-setuptools
+Requires: python-twisted-web
 %if %{with_systemd}
-%if 0%{?fedora} >= 24 || 0%{?rhel} >= 8
+%if 0%{?fedora} >= 24
 Requires: python2-systemd
 %else
 Requires: systemd-python
 %endif
-%else
-# /usr/bin/lockfile from procmail is used in initscripts
-# (not required when using systemd)
-Requires: procmail
 %endif
-Requires: python
-Requires: python-setuptools
 %if %{with_simplejson}
+BuildRequires: python-simplejson
 Requires: python-simplejson
 %endif
-Requires: python-twisted-web
-# We need these for EL4 and EL5.
 %if 0%{?rhel} == 4 || 0%{?rhel} == 5
-Requires: python-uuid
+BuildRequires: python-uuid
 %endif
+%endif
+
 %if %{with_systemd}
 BuildRequires:          systemd
 Requires(post):         systemd
@@ -70,19 +78,15 @@ Requires(preun): chkconfig
 # This is for /sbin/service
 Requires(preun): initscripts
 Requires(postun): initscripts
+# /usr/bin/lockfile from procmail is used in initscripts
+# (not required when using systemd)
+Requires: procmail
 %endif
-BuildRequires: python%{?_py_dev}-devel
-BuildRequires: python-setuptools
-%if %{with_simplejson}
-BuildRequires: python-simplejson
-%endif
-BuildRequires: python-twisted-web
-%if 0%{?rhel} == 4 || 0%{?rhel} == 5
-BuildRequires: python-uuid
-%endif
+
 %if "%{?_pylint}" != ""
 BuildRequires: pylint
 %endif
+
 %if %{with_selinux_policy}
 BuildRequires: selinux-policy-devel
 %endif
