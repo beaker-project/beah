@@ -128,7 +128,11 @@ install -p -m 644 -D selinux/beah.pp $RPM_BUILD_ROOT%{_datadir}/selinux/packages
 %endif
 
 %check
+%if 0%{?fedora} >= 29 || 0%{?rhel} >= 8
+trial-2 beah || exit 1
+%else
 trial beah || exit 1
+%endif
 %if "%{?_pylint}" != ""
 %_pylint --ignored-classes=twisted.internet.reactor beah; let "$? & 3" && exit 1
 %_pylint beahlib; let "$? & 3" && exit 1
