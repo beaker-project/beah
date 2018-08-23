@@ -24,7 +24,7 @@
 %global with_simplejson 1
 %endif
 
-%{!?__python2: %global __python2 __python}
+%{!?__python2: %global __python2 /usr/bin/python2}
 %{!?python2_sitelib: %global python2_sitelib %(%{__python2} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 
 Summary: Test Harness. Offspring of Beaker project
