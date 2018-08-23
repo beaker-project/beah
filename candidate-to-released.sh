@@ -7,8 +7,9 @@ usage() {
 }
 [[ -z "$VERREL" ]] && VERREL="$1"
 [[ -z "$VERREL" ]] && usage
-brew move-pkg dist-3.0E-eso{-candidate,} beah-$VERREL
-brew move-pkg dist-4E-eso{-candidate,} beah-$VERREL.el4
-brew move-pkg dist-5E-eso{-candidate,} beah-$VERREL.el5
-brew move-pkg eng-rhel-6{-candidate,} beah-$VERREL.el6eng
-brew move-pkg eng-rhel-7{-candidate,} beah-$VERREL.el7eng
+/usr/bin/python2 /usr/bin/koji -p brew move-pkg beaker-harness-rhel-4{-candidate,} beah-$VERREL.el4bkr
+/usr/bin/python2 /usr/bin/koji -p brew move-pkg beaker-harness-rhel-5{-candidate,} beah-$VERREL.el5bkr
+/usr/bin/python2 /usr/bin/koji -p brew move-pkg beaker-harness-rhel-6{-candidate,} beah-$VERREL.el6bkr
+/usr/bin/python2 /usr/bin/koji -p brew move-pkg beaker-harness-rhel-7{-candidate,} beah-$VERREL.el7bkr
+/usr/bin/python2 /usr/bin/koji -p brew move-pkg eng-fedora-27{-candidate,} beah-$VERREL.fc27eng
+/usr/bin/python2 /usr/bin/koji -p brew move-pkg eng-fedora-28{-candidate,} beah-$VERREL.fc28eng
