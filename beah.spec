@@ -30,7 +30,7 @@
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
 Version: 0.7.13
-Release: 1%{?dist}
+Release: 2%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -229,6 +229,9 @@ fi
 %endif
 
 %changelog
+* Thu Aug 23 2018 Dan Callaghan <dcallagh@redhat.com> 0.7.13-2
+- __python is not defined on RHEL <= 6 (dcallagh@redhat.com)
+
 * Thu Aug 23 2018 Dan Callaghan <dcallagh@redhat.com> 0.7.13-1
 - invoke trial-2 instead of trial on Fedora 29+ (dcallagh@redhat.com)
 - use python2 versioned macros (dcallagh@redhat.com)
