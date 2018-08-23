@@ -29,7 +29,7 @@
 
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
-Version: 0.7.12
+Version: 0.7.13
 Release: 1%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
@@ -229,6 +229,13 @@ fi
 %endif
 
 %changelog
+* Thu Aug 23 2018 Dan Callaghan <dcallagh@redhat.com> 0.7.13-1
+- invoke trial-2 instead of trial on Fedora 29+ (dcallagh@redhat.com)
+- use python2 versioned macros (dcallagh@redhat.com)
+- fix python requirements to use python2-* names on Fedora 29+
+  (dcallagh@redhat.com)
+- remove conditionals for RHEL3 (dcallagh@redhat.com)
+
 * Wed Feb 07 2018 Dan Callaghan <dcallagh@redhat.com> 0.7.12-1
 - fix service ordering (dcallagh@redhat.com)
 - clarify log messages (dcallagh@redhat.com)
