@@ -65,6 +65,7 @@ Requires: python-simplejson
 %endif
 %if 0%{?rhel} == 4 || 0%{?rhel} == 5
 BuildRequires: python-uuid
+Requires: python-uuid
 %endif
 %endif
 
