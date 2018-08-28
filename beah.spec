@@ -30,7 +30,7 @@
 Summary: Test Harness. Offspring of Beaker project
 Name: beah
 Version: 0.7.13
-Release: 2%{?dist}
+Release: 3%{?dist}
 URL: http://fedorahosted.org/beah
 Source0: http://fedorahosted.org/releases/b/e/%{name}-%{version}.tar.gz
 License: GPLv2+
@@ -230,6 +230,9 @@ fi
 %endif
 
 %changelog
+* Wed Aug 29 2018 Dan Callaghan <dcallagh@redhat.com> 0.7.13-3
+- Add missing runtime dependency on python-uuid (rjoost@redhat.com)
+
 * Thu Aug 23 2018 Dan Callaghan <dcallagh@redhat.com> 0.7.13-2
 - __python is not defined on RHEL <= 6 (dcallagh@redhat.com)
 
